@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Pay Tracker Restringido - Segumex</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="finanzas.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <script src="pdf-generator.js"></script>
+    <script>
+        // --- SCRIPT DE SEGURIDAD (ADMIN ONLY) ---
+        (async function () {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+            } else {
+                const sesionLocal = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+                if (sesionLocal.rol !== 'admin') {
+                    window.location.href = 'index.html';
+                }
+            }
+        })();
+        // ---------------------------
+
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ef4444", // RED for Restricted
+                        "background-dark": "#0f111a",
+                        "surface-dark": "#161b22",
+                        "surface-card": "#1f242e",
+                        "text-secondary": "#94a3b8"
+                    },
+                    fontFamily: { "display": ["Inter", "sans-serif"] }
+                },
+            },
+        }
+    </script>
+    <style>
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #1f242e;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="bg-background-dark font-display text-white relative" onload="cargarPayTracker()">
+    <!-- Overlay Mobile -->
+    <div id="sidebarOverlay" onclick="toggleMenu()"
+        class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass transition-opacity"></div>
+
+    <div class="flex flex-col md:flex-row min-h-screen w-full">
+
+        <aside id="sidebar"
+            class="fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-[#2d3442] bg-[#161b22] flex-shrink-0 shadow-2xl md:shadow-none">
+        </aside>
+
+        <main class="flex-1 flex flex-col w-full relative">
+            <!-- Mobile Header / Toggle -->
+            <div class="md:hidden p-4 pb-0 flex items-center gap-3 bg-[#161b22]">
+                <button onclick="toggleMenu()" class="p-2 -ml-2 text-white hover:bg-white/10 rounded-lg">
+                    <span class="material-symbols-outlined text-2xl">menu</span>
+                </button>
+                <span class="font-bold text-lg">Segumex</span>
+            </div>
+            <header
+                class="h-auto md:h-16 py-4 md:py-0 border-b border-[#2d3442] bg-[#161b22] flex flex-col md:flex-row items-center justify-between px-6 shrink-0 gap-4">
+                <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">lock_person</span> Pay Tracker Restringido
+                </h1>
+                <div class="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                    <span
+                        class="text-xs text-primary font-bold border border-primary/30 bg-primary/10 px-2 py-1 rounded hidden md:inline">SOLO
+                        ADMIN</span>
+                    <div class="relative w-full md:w-auto">
+                        <span
+                            class="absolute left-3 top-2.5 material-symbols-outlined text-[#94a3b8] text-[18px]">search</span>
+                        <input type="text" id="buscadorGlobal" onkeyup="filtrarGlobal()"
+                            placeholder="Buscar póliza privada..."
+                            class="bg-[#0f111a] border border-[#2d3442] rounded-full pl-9 pr-4 py-1.5 text-sm text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none w-full md:w-64 placeholder-[#475569]">
+                    </div>
+                </div>
+            </header>
+
+            <div class="flex-1 overflow-y-auto p-6 custom-scroll">
+                <div class="max-w-[1600px] mx-auto h-full flex flex-col gap-6">
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
+                        <div
+                            class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden group hover:border-primary/30 transition-colors">
+                            <div class="absolute right-0 top-0 p-4 opacity-10"><span
+                                    class="material-symbols-outlined text-6xl text-blue-500">calendar_month</span></div>
+                            <p class="text-[#94a3b8] text-xs font-bold uppercase tracking-wider mb-1">Total Por Vencer
+                                (Privado)</p>
+                            <h2 class="text-3xl font-bold text-white" id="kpiPorVencer">$0.00 <span
+                                    class="text-xs text-[#94a3b8] font-normal">MXN</span></h2>
+                            <div
+                                class="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-xs font-medium border border-blue-500/20">
+                                <span id="kpiCountPorVencer">0</span> pólizas privadas
+                            </div>
+                        </div>
+
+                        <div
+                            class="bg-[#2a1215] border border-red-900/30 rounded-xl p-5 relative overflow-hidden group hover:border-red-500/30 transition-colors">
+                            <div class="absolute right-0 top-0 p-4 opacity-10"><span
+                                    class="material-symbols-outlined text-6xl text-red-500">warning</span></div>
+                            <p class="text-red-300 text-xs font-bold uppercase tracking-wider mb-1">Cartera Vencida
+                                (Privada)</p>
+                            <h2 class="text-3xl font-bold text-white" id="kpiVencido">$0.00 <span
+                                    class="text-xs text-red-300 font-normal">MXN</span></h2>
+                            <div
+                                class="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-xs font-medium border border-red-500/30 animate-pulse">
+                                Requiere atención inmediata
+                            </div>
+                        </div>
+
+                        <div
+                            class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden group hover:border-green-500/30 transition-colors">
+                            <div class="absolute right-0 top-0 p-4 opacity-10"><span
+                                    class="material-symbols-outlined text-6xl text-green-500">savings</span></div>
+                            <p class="text-[#94a3b8] text-xs font-bold uppercase tracking-wider mb-1">Recaudado Privado
+                            </p>
+                            <h2 class="text-3xl font-bold text-white" id="kpiRecaudado">$0.00 <span
+                                    class="text-xs text-[#94a3b8] font-normal">MXN</span></h2>
+                            <div class="w-full bg-[#0f111a] rounded-full h-1.5 mt-3 overflow-hidden">
+                                <div class="bg-primary h-1.5 rounded-full" id="progressBar" style="width: 100%"></div>
+                            </div>
+                            <p class="text-[10px] text-[#94a3b8] mt-1 text-right">Confidencial</p>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 flex gap-6 overflow-hidden min-h-0">
+
+                        <div
+                            class="flex-1 bg-surface-card border border-[#2d3442] rounded-xl flex flex-col overflow-hidden shadow-xl">
+                            <div class="p-4 border-b border-[#2d3442] flex items-center justify-between bg-[#1a202a]">
+                                <div class="flex items-center gap-3">
+                                    <div class="p-2 bg-red-500/10 rounded-lg text-red-400"><span
+                                            class="material-symbols-outlined">lock</span></div>
+                                    <h3 class="text-white font-bold text-sm">Próximos a Vencer (Privados)</h3>
+                                </div>
+                                <div class="flex bg-[#0f111a] rounded-lg p-1 border border-[#2d3442]">
+                                    <button onclick="filtrarDias(7)" id="btn7"
+                                        class="px-3 py-1 text-xs font-medium text-white bg-[#2d3442] rounded transition-colors">7
+                                        días</button>
+                                    <button onclick="filtrarDias(15)" id="btn15"
+                                        class="px-3 py-1 text-xs font-medium text-[#94a3b8] hover:text-white transition-colors">15
+                                        días</button>
+                                    <button onclick="filtrarDias(30)" id="btn30"
+                                        class="px-3 py-1 text-xs font-medium text-[#94a3b8] hover:text-white transition-colors">30
+                                        días</button>
+                                </div>
+                            </div>
+
+                            <div
+                                class="grid grid-cols-12 gap-4 px-6 py-3 bg-[#161b22] border-b border-[#2d3442] text-[10px] uppercase font-bold text-[#94a3b8] tracking-wider">
+                                <div class="col-span-4">Cliente / Póliza</div>
+                                <div class="col-span-2">Aseguradora</div>
+                                <div class="col-span-2 text-right">Monto</div>
+                                <div class="col-span-2">Vence</div>
+                                <div class="col-span-2 text-center">Acciones</div>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1" id="listaProximos">
+                            </div>
+                        </div>
+
+                        <div class="w-[380px] flex flex-col gap-4 shrink-0">
+
+                            <div
+                                class="flex-1 bg-[#150a0a] border border-red-900/20 rounded-xl flex flex-col overflow-hidden">
+                                <div
+                                    class="p-4 border-b border-red-900/20 flex items-center justify-between bg-[#1f0f0f]">
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            class="material-symbols-outlined text-red-500">notification_important</span>
+                                        <h3 class="text-white font-bold text-sm">Vencidos (Privados)</h3>
+                                    </div>
+                                    <div class="flex gap-1">
+                                        <span
+                                            class="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px] font-bold border border-red-500/20"
+                                            id="badgeTotalVencidos">0</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex-1 overflow-y-auto custom-scroll p-3 space-y-3" id="listaVencidos">
+                                </div>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="menu.js"></script>
+
+    <script>
+        let recibosGlobales = [];
+        let diasFiltro = 7;
+
+        async function cargarPayTracker() {
+            // --- CONSULTA SUPABASE ---
+            const { data: polizas } = await window.supabaseClient.from('polizas').select('*');
+            const { data: clientes } = await window.supabaseClient.from('clientes').select('*');
+
+            recibosGlobales = [];
+            let totalPorCobrar30 = 0;
+            let countPorCobrar30 = 0;
+            let totalVencido = 0;
+            let countVencido = 0;
+            let totalCobradoMes = 0;
+
+            const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+            const mesActual = hoy.getMonth();
+            const anioActual = hoy.getFullYear();
+
+            (polizas || []).forEach((p) => {
+                if (p.estado === 'cancelada') return;
+
+                // --- REGLA IMPORTANTE: SOLO RESTRINGIDAS ---
+                if (p.restringida !== true) return;
+
+                let nombreCliente = "Cliente Confidencial";
+                let telefonoCliente = "";
+
+                const clienteMatch = (clientes || []).find(c => String(c.id) === String(p.cliente_id));
+
+                if (clienteMatch) {
+                    nombreCliente = `${clienteMatch.nombre} ${clienteMatch.apellido || ''}`;
+                    telefonoCliente = clienteMatch.telefono;
+                }
+
+                const f = p.finanzas || {};
+                const numPagos = parseInt(f.formaPago) || 1;
+                const primaTotal = parseFloat(p.prima) || 0;
+                const montoRecibo = primaTotal / numPagos;
+
+                let fechaPago = new Date(f.inicio + "T12:00:00");
+
+                const estadosPagos = p.pagos_status || [];
+
+                for (let i = 0; i < numPagos; i++) {
+                    const pagado = estadosPagos[i] === true;
+                    const fechaLimite = new Date(fechaPago);
+                    fechaLimite.setHours(0, 0, 0, 0);
+                    const diffDias = Math.ceil((fechaLimite - hoy) / (1000 * 60 * 60 * 24));
+
+                    if (pagado) {
+                        if (fechaLimite.getMonth() === mesActual && fechaLimite.getFullYear() === anioActual) {
+                            totalCobradoMes += montoRecibo;
+                        }
+                    } else {
+                        const estatusCalculado = window.SegumexFinanzas.calcularEstadoRecibo(fechaLimite, false);
+                        const diffDias = window.SegumexFinanzas.diffDias(fechaLimite);
+
+                        if (estatusCalculado === 'vencido') {
+                            totalVencido += montoRecibo;
+                            countVencido++;
+                        } else if (estatusCalculado === 'proximo') {
+                            totalPorCobrar30 += montoRecibo;
+                            countPorCobrar30++;
+                        }
+
+                        if (estatusCalculado === 'vencido' || estatusCalculado === 'proximo' || estatusCalculado === 'pendiente') {
+                            recibosGlobales.push({
+                                polizaIdReal: p.id,
+                                idPago: i,
+                                cliente: nombreCliente,
+                                telefono: telefonoCliente,
+                                poliza: p.no_poliza || p.numero,
+                                aseguradora: p.aseguradora,
+                                ramo: p.ramo,
+                                concepto: `Pago ${i + 1}/${numPagos}`,
+                                fecha: fechaLimite,
+                                monto: montoRecibo,
+                                estatus: estatusCalculado,
+                                diffDias: diffDias
+                            });
+                        }
+                    }
+                    fechaPago.setMonth(fechaPago.getMonth() + (12 / numPagos));
+                }
+            });
+
+            document.getElementById('kpiPorVencer').innerHTML = formatoMoneda(totalPorCobrar30) + ' <span class="text-xs text-[#94a3b8] font-normal">MXN</span>';
+            document.getElementById('kpiCountPorVencer').innerText = countPorCobrar30;
+            document.getElementById('kpiVencido').innerHTML = formatoMoneda(totalVencido) + ' <span class="text-xs text-red-300 font-normal">MXN</span>';
+            document.getElementById('badgeTotalVencidos').innerText = countVencido;
+            document.getElementById('kpiRecaudado').innerHTML = formatoMoneda(totalCobradoMes) + ' <span class="text-xs text-[#94a3b8] font-normal">MXN</span>';
+
+            filtrarDias(diasFiltro);
+            renderVencidos();
+        }
+
+        function filtrarDias(dias) {
+            diasFiltro = dias;
+            [7, 15, 30].forEach(d => {
+                const btn = document.getElementById(`btn${d}`);
+                if (btn) btn.className = d === dias ? "px-3 py-1 text-xs font-medium text-white bg-[#2d3442] rounded transition-colors shadow-sm" : "px-3 py-1 text-xs font-medium text-[#94a3b8] hover:text-white transition-colors";
+            });
+            renderProximos();
+        }
+
+        function renderProximos() {
+            const contenedor = document.getElementById('listaProximos');
+            contenedor.innerHTML = '';
+            const textoBusqueda = document.getElementById('buscadorGlobal').value.toLowerCase();
+
+            const proximos = recibosGlobales.filter(r =>
+                r.estatus !== 'vencido' && r.diffDias >= 0 && r.diffDias <= diasFiltro &&
+                (r.cliente.toLowerCase().includes(textoBusqueda) || r.poliza.toLowerCase().includes(textoBusqueda))
+            );
+
+            proximos.sort((a, b) => a.fecha - b.fecha);
+
+            if (proximos.length === 0) {
+                contenedor.innerHTML = `<div class="flex flex-col items-center justify-center h-40 text-[#475569]"><span class="material-symbols-outlined text-4xl mb-2">lock</span><p class="text-sm">Sin cobranza restringida próxima.</p></div>`;
+                return;
+            }
+
+            proximos.forEach(r => {
+                const fechaFmt = r.fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+                let colorDias = r.diffDias <= 3 ? "text-red-400 font-bold" : (r.diffDias <= 7 ? "text-yellow-400" : "text-green-400");
+                // ESCAPE SIMPLE (Si hay comillas en nombres)
+                const idSafe = r.polizaIdReal;
+                const idxSafe = r.idPago;
+                const dataJson = JSON.stringify(r).replace(/"/g, '&quot;');
+
+                contenedor.innerHTML += `
+                <div class="grid grid-cols-12 gap-4 px-4 py-3 hover:bg-[#1a202a] border-b border-[#2d3442]/50 transition-colors items-center group rounded-lg mx-2">
+                    <div class="col-span-4 flex items-center gap-3">
+                        <div class="overflow-hidden">
+                            <p class="text-white text-sm font-medium truncate">${r.cliente}</p>
+                            <a href="detalle_poliza.html?id=${r.polizaIdReal}&origen=cobranza" class="text-[11px] text-primary hover:underline truncate block">${r.poliza} • ${r.ramo}</a>
+                        </div>
+                    </div>
+                    <div class="col-span-2 text-xs text-[#94a3b8] font-medium">${r.aseguradora}</div>
+                    <div class="col-span-2 text-right font-mono text-sm text-white font-bold">${formatoMoneda(r.monto)}</div>
+                    <div class="col-span-2"><div class="flex flex-col"><span class="text-white text-xs font-medium">${fechaFmt}</span><span class="text-[10px] ${colorDias}">En ${r.diffDias} días</span></div></div>
+                    <div class="col-span-2 flex justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                        <button type="button" onclick="cobrarRecibo('${idSafe}', ${idxSafe})" class="p-1.5 rounded bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all"><span class="material-symbols-outlined text-[18px]">payments</span></button>
+                        <button type="button" onclick="gestionarWhatsapp('${idSafe}', ${idxSafe})" class="p-1.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all"><span class="material-symbols-outlined text-[18px]">send</span></button>
+                        <button type="button" onclick="descargarReciboPDF('${idSafe}', ${idxSafe})" class="p-1.5 rounded bg-[#2d3442] text-[#94a3b8] hover:bg-red-500 hover:text-white transition-all" title="Descargar PDF"><span class="material-symbols-outlined text-[18px]">picture_as_pdf</span></button>
+                    </div>
+                </div>`;
+            });
+        }
+
+        function renderVencidos() {
+            const contenedor = document.getElementById('listaVencidos');
+            contenedor.innerHTML = '';
+            const textoBusqueda = document.getElementById('buscadorGlobal').value.toLowerCase();
+            const vencidos = recibosGlobales.filter(r => r.estatus === 'vencido' && (r.cliente.toLowerCase().includes(textoBusqueda) || r.poliza.toLowerCase().includes(textoBusqueda)));
+
+            vencidos.sort((a, b) => a.fecha - b.fecha);
+            if (vencidos.length === 0) {
+                contenedor.innerHTML = `<div class="p-6 text-center text-[#94a3b8] opacity-50"><span class="material-symbols-outlined text-3xl mb-1">thumb_up</span><p class="text-xs">Sin cartera vencida</p></div>`;
+                return;
+            }
+
+            vencidos.forEach(r => {
+                const idSafe = r.polizaIdReal;
+                const idxSafe = r.idPago;
+
+                contenedor.innerHTML += `
+                <div class="bg-[#1f0f0f] border border-red-500/10 rounded-lg p-3 hover:border-red-500/30 transition-all group">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h4 class="text-white text-sm font-bold truncate w-40">${r.cliente}</h4>
+                            <a href="detalle_poliza.html?id=${r.polizaIdReal}&origen=cobranza" class="text-[10px] text-[#94a3b8] hover:text-white">${r.poliza}</a>
+                        </div>
+                        <span class="text-red-400 font-mono font-bold text-sm">${formatoMoneda(r.monto)}</span>
+                    </div>
+                    <div class="flex items-center justify-between mt-2">
+                        <div class="text-[10px] text-red-300 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/10">Vencido hace ${Math.abs(r.diffDias)} días</div>
+                        <div class="flex gap-1">
+                            <button type="button" onclick="descargarReciboPDF('${idSafe}', ${idxSafe})" class="p-1.5 rounded-md bg-[#2d3442] hover:bg-red-600 text-[#94a3b8] hover:text-white" title="Descargar PDF"><span class="material-symbols-outlined text-[16px]">picture_as_pdf</span></button>
+                            <button type="button" onclick="gestionarWhatsapp('${idSafe}', ${idxSafe})" class="p-1.5 rounded-md bg-[#2d3442] hover:bg-green-600 text-[#94a3b8] hover:text-white"><span class="material-symbols-outlined text-[16px]">chat</span></button>
+                            <button type="button" onclick="cobrarRecibo('${idSafe}', ${idxSafe})" class="p-1.5 rounded-md bg-[#2d3442] hover:bg-blue-600 text-[#94a3b8] hover:text-white"><span class="material-symbols-outlined text-[16px]">check</span></button>
+                        </div>
+                    </div>
+                </div>`;
+            });
+        }
+
+        function filtrarGlobal() { renderProximos(); renderVencidos(); }
+
+        function buscarReciboEnGlobales(idReal, pagoIndex) {
+            return recibosGlobales.find(r => String(r.polizaIdReal) === String(idReal) && Number(r.idPago) === Number(pagoIndex));
+        }
+
+        function gestionarWhatsapp(idReal, pagoIndex) {
+            const datos = buscarReciboEnGlobales(idReal, pagoIndex);
+            if (!datos) return alert("Error: No se encontraron datos del recibo.");
+
+            const mensaje = `Hola ${datos.cliente}, recordatorio de su pago de ${formatoMoneda(datos.monto)} para la póliza ${datos.poliza}. ¡Saludos!`;
+            const url = `https://wa.me/52${datos.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(mensaje)}`;
+            window.open(url, '_blank');
+        }
+
+        function descargarReciboPDF(idReal, pagoIndex) {
+            const datos = buscarReciboEnGlobales(idReal, pagoIndex);
+            if (!datos) return alert("Error: No se encontraron datos del recibo.");
+            window.SegumexPDF.generarRecibo(datos, datos.estatus);
+        }
+
+        async function cobrarRecibo(idReal, pagoIndex) {
+            // CONFIRMACION VISIBLE
+            if (confirm(`ADMINISTRADOR: ¿Registrar PAGO CONFIDENCIAL?`)) {
+
+                // 1. Obtener la Póliza Fresca
+                const { data: poliza, error: errFetch } = await window.supabaseClient.from('polizas').select('*').eq('id', idReal).single();
+
+                if (errFetch || !poliza) {
+                    alert("Error: No se pudo verificar la póliza.");
+                    return;
+                }
+
+                // 2. Calcular Nuevos Pagos
+                const totalCuotas = parseInt(poliza.finanzas?.formaPago) || 12;
+                let nuevosPagos = poliza.pagos_status || new Array(totalCuotas).fill(false);
+                let nuevasFechas = poliza.pagos_fechas || new Array(totalCuotas).fill("");
+
+                nuevosPagos[pagoIndex] = true;
+                nuevasFechas[pagoIndex] = new Date().toISOString().split('T')[0];
+
+                // 3. Escribir Update
+                const { error: errUpdate } = await window.supabaseClient.from('polizas').update({
+                    pagos_status: nuevosPagos,
+                    pagos_fechas: nuevasFechas
+                }).eq('id', idReal);
+
+                if (errUpdate) {
+                    alert("Error al guardar: " + errUpdate.message);
+                } else {
+                    cargarPayTracker(); // Recargar UI
+                }
+            }
+        }
+
+        function formatoMoneda(valor) { return window.SegumexFinanzas.formatoMoneda(valor); }
+    </script>
+</body>
+
+</html>

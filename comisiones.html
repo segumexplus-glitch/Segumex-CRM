@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Control de Comisiones - Segumex</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="finanzas.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <script>
+        // --- SCRIPT DE SEGURIDAD MODIFICADO ---
+        (async function () {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+            }
+        })();
+
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: { "primary": "#3b82f6", "background-dark": "#0f111a", "surface-dark": "#161b22", "surface-card": "#1f242e", "text-secondary": "#94a3b8" }
+                },
+            },
+        }
+    </script>
+</head>
+
+<body class="bg-background-dark font-display text-white overflow-hidden relative" onload="cargarComisiones()">
+    <!-- Overlay Mobile -->
+    <div id="sidebarOverlay" onclick="toggleMenu()"
+        class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass transition-opacity"></div>
+
+    <div class="flex h-screen w-full overflow-hidden">
+        <aside id="sidebar"
+            class="fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-[#2d3442] bg-[#161b22] flex-shrink-0 shadow-2xl md:shadow-none">
+        </aside>
+        <main class="flex-1 flex flex-col h-full relative w-full">
+            <!-- Mobile Header / Toggle -->
+            <div class="md:hidden p-4 pb-0 flex items-center gap-3 bg-[#161b22]">
+                <button onclick="toggleMenu()" class="p-2 -ml-2 text-white hover:bg-white/10 rounded-lg">
+                    <span class="material-symbols-outlined text-2xl">menu</span>
+                </button>
+                <span class="font-bold text-lg">Segumex</span>
+            </div>
+            <header class="h-16 border-b border-[#2d3442] bg-[#161b22] flex items-center justify-between px-6 shrink-0">
+                <h1 class="text-xl font-bold text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">payments</span> Conciliación de Comisiones
+                </h1>
+            </header>
+
+            <div class="flex-1 overflow-y-auto p-6 custom-scroll">
+                <div class="max-w-[1600px] mx-auto h-full flex flex-col gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 shrink-0">
+                        <div
+                            class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden group">
+                            <p class="text-[#94a3b8] text-xs font-bold mb-1">Comisiones Ganadas</p>
+                            <h2 class="text-3xl font-bold text-white" id="kpiGanadas">$0.00</h2>
+                        </div>
+                        <div
+                            class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden group border-l-4 border-l-green-500">
+                            <p class="text-[#94a3b8] text-xs font-bold mb-1">Comisiones Cobradas</p>
+                            <h2 class="text-3xl font-bold text-green-400" id="kpiCobradas">$0.00</h2>
+                        </div>
+                    </div>
+
+                    <div class="flex border-b border-[#2d3442]">
+                        <button id="tabPendientes" onclick="cambiarTab('pendientes')"
+                            class="px-6 py-3 text-sm font-bold border-b-2 border-primary text-primary">Por
+                            Conciliar</button>
+                        <button id="tabFinalizadas" onclick="cambiarTab('finalizadas')"
+                            class="px-6 py-3 text-sm font-medium text-[#94a3b8]">Historial Cobrado</button>
+                    </div>
+
+                    <div
+                        class="flex-1 bg-surface-card border border-[#2d3442] rounded-xl flex flex-col overflow-hidden">
+                        <div
+                            class="grid grid-cols-12 gap-4 px-6 py-3 bg-[#161b22] border-b border-[#2d3442] text-[10px] uppercase font-bold text-[#94a3b8]">
+                            <div class="col-span-3">Cliente / Póliza</div>
+                            <div class="col-span-2">No. Pago</div>
+                            <div class="col-span-2">Fecha Cliente</div>
+                            <div class="col-span-2 text-right">Comisión</div>
+                            <div class="col-span-3 text-center">Acción</div>
+                        </div>
+                        <div class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1" id="listaComisiones"></div>
+                        <div class="p-4 border-t border-[#2d3442] bg-[#1a202a] text-right text-lg font-black text-white"
+                            id="totalComisionVista">$0.00</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="menu.js"></script>
+    <script>
+        let vistaActual = 'pendientes';
+
+        async function cargarComisiones() {
+            // --- CONSULTA SUPABASE ---
+            const { data: db } = await window.supabaseClient.from('polizas').select('*');
+            const { data: clis } = await window.supabaseClient.from('clientes').select('id, nombre');
+
+            const cont = document.getElementById('listaComisiones'); cont.innerHTML = '';
+            let tG = 0, tC = 0, tV = 0;
+
+            const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+
+            (db || []).forEach(p => {
+                // VISIBILIDAD RESTRINGIDA:
+                // Las comisiones restringidas TIENEN SU PROPIO MÓDULO.
+                // Aquí NO se deben mostrar nunca, ni para el admin (él las ve en comisiones_restringidas.html).
+                if (p.restringida === true) return;
+
+                if (!p.pagos_status) return;
+                const cli = (clis || []).find(c => String(c.id) === String(p.cliente_id));
+                const num = parseInt(p.finanzas?.formaPago) || 1;
+                const monto = window.SegumexFinanzas.calcularComision(
+                    p.finanzas?.primaNeta,
+                    num,
+                    p.finanzas?.comisionPct
+                );
+
+                p.pagos_status.forEach((pagado, idx) => {
+                    if (pagado === true) {
+                        const cobrada = p.comisiones_cobradas_status && p.comisiones_cobradas_status[idx] === true;
+                        if (cobrada) {
+                            tC += monto;
+                            if (vistaActual === 'finalizadas') { renderFila(p, cli, idx, monto, true); tV += monto; }
+                        } else {
+                            tG += monto;
+                            if (vistaActual === 'pendientes') { renderFila(p, cli, idx, monto, false); tV += monto; }
+                        }
+                    }
+                });
+            });
+            document.getElementById('kpiGanadas').innerText = formatoMoneda(tG);
+            document.getElementById('kpiCobradas').innerText = formatoMoneda(tC);
+            document.getElementById('totalComisionVista').innerText = "Total vista: " + formatoMoneda(tV);
+        }
+
+        function renderFila(p, c, idx, m, esC) {
+            document.getElementById('listaComisiones').innerHTML += `
+            <div class="grid grid-cols-2 md:grid-cols-12 gap-2 md:gap-4 px-4 py-3 hover:bg-[#1a202a] border-b border-[#2d3442]/50 items-center rounded-lg mx-2">
+                <div class="col-span-2 md:col-span-3 text-sm text-white font-bold md:font-normal">${c ? c.nombre : 'Desc.'}</div>
+                <div class="col-span-1 md:col-span-2 text-xs text-[#94a3b8]">Pago ${idx + 1} <span class="md:hidden">• ${p.pagos_fechas ? p.pagos_fechas[idx] : '--'}</span></div>
+                <div class="hidden md:block md:col-span-2 text-xs text-[#94a3b8]">${p.pagos_fechas ? p.pagos_fechas[idx] : '---'}</div>
+                <div class="col-span-1 md:col-span-2 text-right font-bold ${esC ? 'text-green-400' : 'text-blue-400'}">${formatoMoneda(m)}</div>
+                <div class="col-span-2 md:col-span-3 text-center md:text-center mt-2 md:mt-0">
+                    ${!esC ? `<button onclick="marcarComisionCobrada('${p.id}', ${idx})" class="w-full md:w-auto px-4 py-2 md:py-1 bg-green-500/20 text-green-400 rounded-lg text-xs font-bold hover:bg-green-500 hover:text-white transition-all">Conciliar</button>` : `<span class="text-green-500 text-xs font-bold flex items-center justify-center gap-1"><span class="material-symbols-outlined text-sm">check_circle</span> Verificado</span>`}
+                </div>
+            </div>`;
+        }
+
+        async function marcarComisionCobrada(polizaId, indexPago) {
+            if (confirm("¿Confirmas que ya recibiste esta comisión?")) {
+                const { data: p } = await window.supabaseClient.from('polizas').select('*').eq('id', polizaId).single();
+
+                if (p) {
+                    const totalCuotas = parseInt(p.finanzas?.formaPago) || 12;
+                    let nuevosCobradasStatus = p.comisiones_cobradas_status || new Array(totalCuotas).fill(false);
+                    nuevosCobradasStatus[indexPago] = true;
+
+                    await window.supabaseClient.from('polizas').update({
+                        comisiones_cobradas_status: nuevosCobradasStatus
+                    }).eq('id', polizaId);
+
+                    await cargarComisiones();
+                }
+            }
+        }
+
+        function cambiarTab(t) { vistaActual = t; cargarComisiones(); }
+        function formatoMoneda(v) { return window.SegumexFinanzas.formatoMoneda(v); }
+    </script>
+</body>
+
+</html>

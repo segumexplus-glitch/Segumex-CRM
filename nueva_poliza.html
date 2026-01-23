@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Gestión de Póliza - Segumex</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="finanzas.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <link href="ui.css" rel="stylesheet" />
+    <script src="ui.js"></script>
+    <script>
+        // --- SCRIPT DE SEGURIDAD MODIFICADO ---
+        (async function () {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+            }
+            if (session) {
+                const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+                if (sesion.rol !== 'admin') {
+                    const el = document.getElementById('containerRestringida');
+                    if (el) el.style.display = 'none';
+                }
+            }
+        })();
+
+        tailwind.config = { darkMode: "class", theme: { extend: { colors: { "primary": "#135bec", "background-dark": "#101622", "surface-dark": "#111318", "surface-card": "#1c1f27", "text-secondary": "#9da6b9" }, fontFamily: { "display": ["Inter", "sans-serif"] } } } }
+    </script>
+</head>
+
+<body class="bg-[#f6f6f8] dark:bg-background-dark font-display text-white relative">
+    <!-- Overlay Mobile -->
+    <div id="sidebarOverlay" onclick="toggleMenu()"
+        class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass transition-opacity"></div>
+
+    <div class="flex h-screen w-full overflow-hidden">
+        <aside id="sidebar"
+            class="fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-[#3b4354] bg-[#111318] flex-shrink-0 shadow-2xl md:shadow-none">
+        </aside>
+
+        <main class="flex-1 flex flex-col h-full overflow-y-auto bg-background-dark p-4 md:p-8 relative w-full">
+            <!-- Mobile Header / Toggle -->
+            <div class="md:hidden pb-4 flex items-center gap-3">
+                <button onclick="toggleMenu()" class="p-2 -ml-2 text-white hover:bg-white/10 rounded-lg">
+                    <span class="material-symbols-outlined text-2xl">menu</span>
+                </button>
+                <span class="font-bold text-lg">Segumex</span>
+            </div>
+            <div class="max-w-6xl mx-auto w-full pb-10">
+                <div class="flex items-center gap-2 text-sm text-[#9da6b9] mb-6" id="breadcrumbsArea"></div>
+
+                <div class="flex items-center justify-between mb-8">
+                    <div class="flex items-center gap-4">
+                        <a href="#" id="btnAtras" class="p-2 rounded-full hover:bg-[#282e39] transition-colors"><span
+                                class="material-symbols-outlined text-[#9da6b9]">arrow_back</span></a>
+                        <div>
+                            <h1 class="text-2xl font-bold text-white flex items-center gap-3">
+                                <span id="tituloPrincipal">Registrar Póliza</span>
+                                <span id="badgeEstado"
+                                    class="hidden px-2 py-0.5 rounded text-xs font-bold border border-red-500/30 bg-red-500/10 text-red-500 uppercase">CANCELADA</span>
+                            </h1>
+                        </div>
+                    </div>
+                    <button type="button" id="btnCancelarPoliza" onclick="toggleEstadoPoliza()"
+                        class="px-4 py-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/20 font-bold text-sm flex items-center gap-2 transition-all"><span
+                            class="material-symbols-outlined text-[18px]">block</span> Cancelar Póliza</button>
+                </div>
+
+                <div id="contenedorFormulario"
+                    class="bg-surface-card border border-[#3b4354] rounded-xl p-6 shadow-lg transition-opacity duration-300">
+                    <form class="space-y-8" id="formPoliza">
+                        <div>
+                            <div class="flex items-center justify-between border-b border-[#3b4354] pb-2 mb-4">
+                                <h3 class="text-white font-semibold flex items-center gap-2"><span
+                                        class="material-symbols-outlined text-primary">verified_user</span> Detalles del
+                                    Seguro</h3>
+                                <div class="flex items-center gap-4">
+                                    <div id="containerRestringida" class="flex items-center">
+                                        <label class="inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="polizaRestringidaInput" class="sr-only peer">
+                                            <div
+                                                class="relative w-11 h-6 bg-[#3b4354] rounded-full peer peer-checked:bg-red-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all">
+                                            </div>
+                                            <span class="ms-3 text-sm font-medium text-[#9da6b9]">Restringir
+                                                (Privada)</span>
+                                        </label>
+                                    </div>
+                                    <label class="inline-flex items-center cursor-pointer"><input type="checkbox"
+                                            id="esDomiciliada" class="sr-only peer">
+                                        <div
+                                            class="relative w-11 h-6 bg-[#3b4354] rounded-full peer peer-checked:bg-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all">
+                                        </div><span class="ms-3 text-sm font-medium text-[#9da6b9]">¿Domiciliada?</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm text-[#9da6b9] mb-2">Agente Asignado</label>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <select id="agenteSelect" onchange="verificarOtroAgente()"
+                                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white">
+                                            <option value="Alejandro Soto">Alejandro Soto</option>
+                                            <option value="Alberto Ramirez">Alberto Ramirez</option>
+                                            <option value="Otro">Otro...</option>
+                                        </select>
+                                        <input type="text" id="otroAgenteInput"
+                                            class="hidden w-full bg-[#1c1f27] border border-[#3b4354] rounded-lg p-3 text-white"
+                                            placeholder="Nombre completo del agente">
+                                    </div>
+                                </div>
+
+                                <div><label class="block text-sm text-[#9da6b9] mb-2">Ramo</label><select
+                                        id="ramoSelect" onchange="verificarLogicaNegocio()"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white">
+                                        <option value="vida">Vida</option>
+                                        <option value="gmm">Gastos Médicos</option>
+                                        <option value="auto">Automóviles</option>
+                                        <option value="hogar">Hogar</option>
+                                        <option value="empresarial">Empresarial</option>
+                                    </select></div>
+                                <div><label class="block text-sm text-[#9da6b9] mb-2">Aseguradora</label><select
+                                        id="aseguradoraSelect" onchange="verificarLogicaNegocio()"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white">
+                                        <option value="GNP">GNP Seguros</option>
+                                        <option value="AXA">AXA</option>
+                                        <option value="HDI">HDI Seguros</option>
+                                        <option value="Qualitas">Qualitas</option>
+                                        <option value="Mapfre">Mapfre</option>
+                                        <option value="Afirme">Afirme</option>
+                                        <option value="Banorte">Banorte</option>
+                                        <option value="Otro">Otro...</option>
+                                    </select><input type="text" id="otraAseguradoraInput"
+                                        class="hidden mt-2 w-full bg-[#1c1f27] border border-[#3b4354] rounded-lg p-3 text-white"
+                                        placeholder="Nombre Aseguradora"></div>
+                                <div><label class="block text-sm text-[#9da6b9] mb-2">No. Póliza</label><input
+                                        type="text" id="numPoliza"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white"
+                                        placeholder="Ej. 99281-A"></div>
+                                <div><label class="block text-sm text-[#9da6b9] mb-2">Inciso</label><input type="number"
+                                        id="inciso"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white"
+                                        placeholder="1"></div>
+                            </div>
+                        </div>
+
+                        <div id="seccionVehiculo" class="hidden">
+                            <h3
+                                class="text-white font-semibold mb-4 flex items-center gap-2 border-b border-[#3b4354] pb-2 mt-2">
+                                <span class="material-symbols-outlined text-orange-500">directions_car</span> Datos del
+                                Vehículo
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div><label class="block text-sm text-[#9da6b9] mb-2">Marca</label><input type="text"
+                                        id="vehMarca"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white">
+                                </div>
+                                <div><label class="block text-sm text-[#9da6b9] mb-2">Modelo</label><input type="text"
+                                        id="vehModelo"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white">
+                                </div>
+                                <div><label class="block text-sm text-[#9da6b9] mb-2">Año</label><input type="number"
+                                        id="vehAnio"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white">
+                                </div>
+                                <div><label class="block text-sm text-[#9da6b9] mb-2">Versión</label><input type="text"
+                                        id="vehVersion"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white">
+                                </div>
+                                <div><label class="block text-sm text-[#9da6b9] mb-2">Serie (VIN)</label><input
+                                        type="text" id="vehSerie"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white uppercase">
+                                </div>
+                                <div><label class="block text-sm text-[#9da6b9] mb-2">Placas</label><input type="text"
+                                        id="vehPlacas"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white uppercase">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3
+                                class="text-white font-semibold mb-4 flex items-center gap-2 border-b border-[#3b4354] pb-2">
+                                <span class="material-symbols-outlined text-primary">payments</span> Finanzas
+                            </h3>
+
+                            <div id="seccionModulosHDI"
+                                class="hidden mb-6 p-4 border border-green-500/30 bg-green-500/5 rounded-xl">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div><label class="block text-sm text-[#9da6b9] mb-2">¿Módulo
+                                            Adicional?</label><select id="tieneModuloHDI"
+                                            onchange="toggleSelectorModulos()"
+                                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white">
+                                            <option value="no">No</option>
+                                            <option value="si">Sí</option>
+                                        </select></div>
+                                    <div id="divSelectorModulo" class="hidden"><label
+                                            class="block text-sm text-[#9da6b9] mb-2">Selecciona</label><select
+                                            id="tipoModuloHDI" onchange="calcularPagos()"
+                                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white">
+                                            <option value="0">Seleccionar...</option>
+                                            <option value="450">Amante de los autos (+$450)</option>
+                                            <option value="850">Amante Premium (+$850)</option>
+                                        </select></div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                <div class="md:col-span-2 grid grid-cols-2 gap-4">
+                                    <div><label class="block text-sm text-[#9da6b9] mb-2">Inicio Vigencia</label><input
+                                            type="date" id="fechaInicio" onchange="calcularPagos()"
+                                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white">
+                                    </div>
+                                    <div><label class="block text-sm text-[#9da6b9] mb-2">Fin Vigencia</label><input
+                                            type="date" id="fechaFin"
+                                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white">
+                                    </div>
+                                </div>
+                                <div class="md:col-span-2"><label class="block text-sm text-[#9da6b9] mb-2">Forma de
+                                        Pago</label><select id="formaPago" onchange="calcularPagos()"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white">
+                                        <option value="1">Anual</option>
+                                        <option value="2">Semestral</option>
+                                        <option value="4">Trimestral</option>
+                                        <option value="12">Mensual</option>
+                                    </select></div>
+                                <div><label class="block text-sm text-[#9da6b9] mb-2">Prima Neta</label><input
+                                        type="number" id="primaNeta" onkeyup="calcularPagos()"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white">
+                                </div>
+                                <div><label class="block text-sm text-[#9da6b9] mb-2">Prima Total</label><input
+                                        type="number" id="primaTotal" onkeyup="calcularPagos()"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white">
+                                </div>
+                                <div><label class="block text-sm text-[#9da6b9] mb-2">% Comisión</label><input
+                                        type="number" id="porcentajeComision" onkeyup="actualizarTodasLasComisiones()"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white"
+                                        value="10"></div>
+                                <div><label class="block text-sm text-[#9da6b9] mb-2">Cobrado (Real)</label><input
+                                        type="text" id="comisionCobradaDisplay" readonly
+                                        class="w-full bg-[#1c1f27] border border-[#3b4354] rounded-lg p-3 text-white font-bold"
+                                        value="$0.00"></div>
+                            </div>
+                        </div>
+
+                        <div id="seccionPagos" class="animate-fade-in">
+                            <h3 class="text-white font-semibold mb-4 border-b border-[#3b4354] pb-2 mt-4">Calendario de
+                                Pagos</h3>
+                            <div id="mensajeEspera"
+                                class="p-8 border-2 border-dashed border-[#3b4354] rounded-xl text-center text-[#9da6b9]">
+                                <span class="material-symbols-outlined text-4xl mb-2">pending_actions</span>
+                                <p>Cargando datos...</p>
+                            </div>
+                            <div id="contenedorTabla" class="hidden overflow-x-auto border border-[#3b4354] rounded-xl">
+                                <table class="w-full text-left text-sm text-white">
+                                    <thead class="bg-[#1c1f27] text-[#9da6b9]">
+                                        <tr>
+                                            <th class="p-3">#</th>
+                                            <th class="p-3">Fecha</th>
+                                            <th class="p-3">Total</th>
+                                            <th class="p-3 text-green-400">Comisión</th>
+                                            <th class="p-3">Fecha de Pago</th>
+                                            <th class="p-3 text-center">Estatus</th>
+                                            <th class="p-3 text-center">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tablaPagos" class="divide-y divide-[#3b4354] bg-[#111318]"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="pt-4">
+                            <h3
+                                class="text-white font-semibold mb-4 flex items-center gap-2 border-b border-[#3b4354] pb-2">
+                                <span class="material-symbols-outlined text-primary">folder_open</span> Documentos y
+                                Endosos
+                            </h3>
+                            <div
+                                class="border-2 border-dashed border-[#3b4354] rounded-xl p-8 flex flex-col items-center justify-center text-center hover:bg-[#282e39]/30 transition-colors cursor-pointer relative group">
+                                <input type="file" id="inputArchivos" multiple accept=".pdf"
+                                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onchange="previsualizarArchivos(this)">
+                                <span
+                                    class="material-symbols-outlined text-4xl text-[#3b4354] group-hover:text-primary mb-2 transition-colors">cloud_upload</span>
+                                <p class="text-white font-medium group-hover:text-primary transition-colors">Sube la
+                                    Póliza y Endosos (PDF)</p>
+                            </div>
+                            <div id="listaArchivos" class="mt-4 space-y-2"></div>
+                        </div>
+
+                        <div class="pt-6 flex justify-end gap-3 border-t border-[#3b4354]">
+                            <button type="button" onclick="cancelarEdicion()"
+                                class="px-6 py-3 rounded-lg border border-[#3b4354] text-[#9da6b9] hover:text-white font-medium transition-colors">Cancelar</button>
+                            <button type="button" onclick="guardarPolizaReal()"
+                                class="px-6 py-3 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold flex items-center gap-2 shadow-lg shadow-primary/30"><span
+                                    class="material-symbols-outlined">save</span> Guardar Cambios</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="menu.js"></script>
+
+    <script>
+        let polizaActiva = true;
+        let pagosGuardados = [];
+        let pagosFechasGuardadas = [];
+        let documentosGuardados = [];
+        let polizaID_Unico = null;
+        let clienteId = null;
+        let origen = 'lista';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const idParam = urlParams.get('id');
+            clienteId = urlParams.get('clienteId');
+            origen = urlParams.get('origen') || 'lista';
+
+            if (idParam) {
+                const { data: poliza } = await window.supabaseClient.from('polizas').select('*').eq('id', idParam).single();
+                if (poliza) {
+                    polizaID_Unico = poliza.id;
+                    await cargarDatosParaEdicion(poliza);
+                }
+            }
+
+            const btnAtras = document.getElementById('btnAtras');
+            if (origen === 'detalle') {
+                btnAtras.href = `detalle_poliza.html?id=${polizaID_Unico}`;
+            } else {
+                btnAtras.href = clienteId ? `perfil_cliente.html?id=${clienteId}` : 'polizas.html';
+            }
+
+            document.getElementById('breadcrumbsArea').innerHTML = clienteId ?
+                `<a href="clientes.html">Clientes</a> > <a href="perfil_cliente.html?id=${clienteId}">Perfil</a> > Póliza` :
+                `<a href="polizas.html">Pólizas</a> > Gestión`;
+        });
+
+        function verificarOtroAgente() {
+            const select = document.getElementById('agenteSelect');
+            const input = document.getElementById('otroAgenteInput');
+            if (select.value === 'Otro') {
+                input.classList.remove('hidden');
+                input.required = true;
+            } else {
+                input.classList.add('hidden');
+                input.required = false;
+            }
+        }
+
+        async function cargarDatosParaEdicion(p) {
+            if (!p) return;
+            document.getElementById('tituloPrincipal').innerText = "Editar Póliza";
+
+            const agenteSelect = document.getElementById('agenteSelect');
+            const otroAgenteInput = document.getElementById('otroAgenteInput');
+            if (p.agente === "Alejandro Soto" || p.agente === "Alberto Ramirez") {
+                agenteSelect.value = p.agente;
+                otroAgenteInput.classList.add('hidden');
+            } else if (p.agente) {
+                agenteSelect.value = "Otro";
+                otroAgenteInput.value = p.agente;
+                otroAgenteInput.classList.remove('hidden');
+            }
+
+            document.getElementById('ramoSelect').value = p.ramo || 'vida';
+            document.getElementById('aseguradoraSelect').value = p.aseguradora || 'GNP';
+            document.getElementById('numPoliza').value = p.no_poliza || '';
+            document.getElementById('inciso').value = p.inciso || '';
+            document.getElementById('esDomiciliada').checked = p.domiciliada || false;
+            document.getElementById('polizaRestringidaInput').checked = p.restringida || false;
+
+            if (p.vehiculo) {
+                document.getElementById('vehMarca').value = p.vehiculo.marca || '';
+                document.getElementById('vehModelo').value = p.vehiculo.modelo || '';
+                document.getElementById('vehAnio').value = p.vehiculo.anio || '';
+                document.getElementById('vehVersion').value = p.vehiculo.version || '';
+                document.getElementById('vehSerie').value = p.vehiculo.serie || '';
+                document.getElementById('vehPlacas').value = p.vehiculo.placas || '';
+            }
+
+            const finanzas = p.finanzas || {};
+            document.getElementById('fechaInicio').value = window.SegumexDate.toISO(finanzas.inicio);
+            document.getElementById('fechaFin').value = window.SegumexDate.toISO(p.vence);
+            document.getElementById('formaPago').value = finanzas.formaPago || '1';
+            document.getElementById('primaNeta').value = finanzas.primaNeta || '';
+            document.getElementById('primaTotal').value = p.prima || finanzas.primaTotal || '';
+            document.getElementById('porcentajeComision').value = finanzas.comisionPct || '10';
+
+            pagosGuardados = p.pagos_status || [];
+            pagosFechasGuardadas = p.pagos_fechas || [];
+            documentosGuardados = p.documentos || [];
+            renderizarDocumentos();
+            verificarLogicaNegocio();
+            calcularPagos();
+
+            if (p.estado === 'cancelada') {
+                polizaActiva = false;
+                toggleEstadoPoliza();
+            }
+        }
+
+        function previsualizarArchivos(input) {
+            if (input.files) {
+                for (let i = 0; i < input.files.length; i++) {
+                    const file = input.files[i];
+                    documentosGuardados.push({
+                        nombre: file.name,
+                        tamano: (file.size / 1024).toFixed(1) + ' KB',
+                        fecha: new Date().toLocaleDateString()
+                    });
+                }
+                renderizarDocumentos();
+            }
+        }
+
+        function renderizarDocumentos() {
+            const contenedor = document.getElementById('listaArchivos');
+            contenedor.innerHTML = '';
+            documentosGuardados.forEach((doc, index) => {
+                contenedor.innerHTML += `
+                <div class="flex items-center gap-3 p-3 bg-[#111318] border border-[#3b4354] rounded-lg group">
+                    <span class="material-symbols-outlined text-red-400">picture_as_pdf</span>
+                    <div class="flex-1 overflow-hidden">
+                        <p class="text-white text-sm truncate font-medium">${doc.nombre}</p>
+                        <p class="text-[#9da6b9] text-xs">${doc.tamano || 'PDF'}</p>
+                    </div>
+                    <button type="button" onclick="eliminarDocumento(${index})" class="text-[#9da6b9] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                        <span class="material-symbols-outlined">delete</span>
+                    </button>
+                </div>`;
+            });
+        }
+
+        function eliminarDocumento(index) {
+            if (confirm('¿Eliminar este documento?')) {
+                documentosGuardados.splice(index, 1);
+                renderizarDocumentos();
+            }
+        }
+
+        function calcularPagos() {
+            const primaNeta = parseFloat(document.getElementById('primaNeta').value) || 0;
+            const primaTotal = parseFloat(document.getElementById('primaTotal').value) || 0;
+            const numPagos = parseInt(document.getElementById('formaPago').value);
+            let fechaInput = document.getElementById('fechaInicio').value;
+
+            if (primaTotal <= 0) return;
+            document.getElementById('mensajeEspera').classList.add('hidden');
+            document.getElementById('contenedorTabla').classList.remove('hidden');
+
+            const tabla = document.getElementById('tablaPagos');
+            tabla.innerHTML = '';
+
+            // Usamos la logica centralizada
+            const calendario = window.SegumexFinanzas.generarCalendarioPagos(fechaInput, numPagos);
+
+            calendario.forEach((pago, index) => {
+                const i = pago.numero;
+                // fechaString para display
+                const fechaString = window.SegumexDate.toDisplay(pago.fecha);
+
+                const estaPagado = pagosGuardados[i - 1] === true;
+                const fechaPagoReal = window.SegumexDate.toISO(pagosFechasGuardadas[i - 1]);
+
+                // Calculos de montos usando centralizacion
+                const montoRecibo = window.SegumexFinanzas.calcularMontoRecibo(primaTotal, numPagos);
+                const comisionRecibo = window.SegumexFinanzas.calcularComision(primaNeta, numPagos, 10); // Asumimos 10% base en UI por ahora
+
+                tabla.innerHTML += `
+                <tr class="hover:bg-[#282e39]/30 transition-colors">
+                    <td class="p-3 text-[#9da6b9]">${i}/${numPagos}</td>
+                    <td class="p-3">${fechaString}</td>
+                    <td class="p-3 font-bold">${window.SegumexFinanzas.formatoMoneda(montoRecibo)}</td>
+                    <td class="p-3 text-green-400">${window.SegumexFinanzas.formatoMoneda(comisionRecibo)}</td>
+                    <td class="p-3">
+                        <input type="date" value="${fechaPagoReal}" 
+                            onchange="pagosFechasGuardadas[${i - 1}] = this.value"
+                            class="${estaPagado ? '' : 'hidden'} bg-[#161b22] border-[#3b4354] rounded text-[11px] text-white p-1 focus:ring-1 focus:ring-primary outline-none">
+                    </td>
+                    <td class="p-3 text-center">
+                        <span class="px-2 py-1 rounded text-[10px] font-bold ${estaPagado ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'} uppercase">
+                            ${estaPagado ? 'Liquidado' : 'Pendiente'}
+                        </span>
+                    </td>
+                    <td class="p-3 text-center">
+                        <button type="button" onclick="togglePago(${i - 1})" class="px-3 py-1 rounded-full text-xs font-bold border ${estaPagado ? 'border-green-500/30 bg-green-500/20 text-green-400' : 'border-[#3b4354] bg-[#111318] text-[#9da6b9]'}">
+                            ${estaPagado ? 'Pagado ✓' : 'Marcar'}
+                        </button>
+                    </td>
+                    </td>
+                </tr>`;
+            });
+            actualizarTotalCobrado();
+        }
+
+        function togglePago(index) {
+            pagosGuardados[index] = !pagosGuardados[index];
+            if (pagosGuardados[index] && !pagosFechasGuardadas[index]) {
+                pagosFechasGuardadas[index] = window.SegumexDate.toISO(new Date());
+            } else if (!pagosGuardados[index]) {
+                pagosFechasGuardadas[index] = "";
+            }
+            calcularPagos();
+        }
+
+        function actualizarTotalCobrado() {
+            let total = 0;
+            const numPagos = parseInt(document.getElementById('formaPago').value) || 1;
+            const primaNeta = parseFloat(document.getElementById('primaNeta').value) || 0;
+            const comisionMensual = (primaNeta / numPagos) * 0.10;
+            pagosGuardados.forEach(p => { if (p) total += comisionMensual; });
+            document.getElementById('comisionCobradaDisplay').value = "$" + total.toFixed(2);
+        }
+
+        function verificarLogicaNegocio() {
+            const ramo = document.getElementById('ramoSelect').value;
+            const seccionVehiculo = document.getElementById('seccionVehiculo');
+            const ase = document.getElementById('aseguradoraSelect').value;
+            ramo === 'auto' ? seccionVehiculo.classList.remove('hidden') : seccionVehiculo.classList.add('hidden');
+            if (ramo === 'auto' && ase === 'HDI') document.getElementById('seccionModulosHDI').classList.remove('hidden');
+            else document.getElementById('seccionModulosHDI').classList.add('hidden');
+        }
+
+        function toggleSelectorModulos() {
+            const tiene = document.getElementById('tieneModuloHDI').value;
+            if (tiene === 'si') document.getElementById('divSelectorModulo').classList.remove('hidden');
+            else document.getElementById('divSelectorModulo').classList.add('hidden');
+        }
+
+        async function guardarPolizaReal() {
+            const btnGuardar = document.querySelector('button[onclick="guardarPolizaReal()"]');
+            const originalText = btnGuardar.innerHTML;
+
+            // UI Loading state
+            btnGuardar.disabled = true;
+            btnGuardar.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span> Guardando...';
+
+            try {
+                const agenteSelect = document.getElementById('agenteSelect');
+                const agenteValue = agenteSelect.value === 'Otro' ? document.getElementById('otroAgenteInput').value : agenteSelect.value;
+                const restringidaCheck = document.getElementById('polizaRestringidaInput');
+
+                // Debug log
+                console.log("Intentando guardar póliza. Restringida:", restringidaCheck ? restringidaCheck.checked : "ELEMENT NOT FOUND");
+
+                const pData = {
+                    // id: polizaID_Unico || undefined, // Dejamos que Supabase maneje ID si es nuevo
+                    cliente_id: clienteId,
+                    agente: agenteValue,
+                    ramo: document.getElementById('ramoSelect').value,
+                    aseguradora: document.getElementById('aseguradoraSelect').value === 'Otro' ? document.getElementById('otraAseguradoraInput').value : document.getElementById('aseguradoraSelect').value,
+                    no_poliza: document.getElementById('numPoliza').value,
+                    vence: document.getElementById('fechaFin').value,
+                    inciso: document.getElementById('inciso').value,
+                    domiciliada: document.getElementById('esDomiciliada').checked,
+                    restringida: restringidaCheck ? restringidaCheck.checked : false, // Safe access
+                    estado: polizaActiva ? 'activa' : 'cancelada',
+                    documentos: documentosGuardados,
+                    vehiculo: {
+                        marca: document.getElementById('vehMarca').value,
+                        modelo: document.getElementById('vehModelo').value,
+                        anio: document.getElementById('vehAnio').value,
+                        version: document.getElementById('vehVersion').value,
+                        serie: document.getElementById('vehSerie').value,
+                        placas: document.getElementById('vehPlacas').value
+                    },
+                    finanzas: {
+                        inicio: window.SegumexDate.toISO(document.getElementById('fechaInicio').value),
+                        fin: window.SegumexDate.toISO(document.getElementById('fechaFin').value),
+                        // fin: document.getElementById('fechaFin').value, // Duplicado eliminado
+                        formaPago: document.getElementById('formaPago').value,
+                        primaNeta: document.getElementById('primaNeta').value,
+                        primaTotal: document.getElementById('primaTotal').value,
+                        comisionPct: document.getElementById('porcentajeComision').value,
+                        moduloHDI: document.getElementById('tipoModuloHDI').value
+                    },
+                    pagos_status: pagosGuardados,
+                    pagos_fechas: pagosFechasGuardadas.map(f => window.SegumexDate.toISO(f)),
+                    prima: document.getElementById('primaTotal').value
+                };
+
+                // Si estamos editando, añadimos el ID. Si es nueva, no lo enviamos.
+                if (polizaID_Unico) pData.id = polizaID_Unico;
+
+                const { data: dataPoliza, error } = await window.supabaseClient
+                    .from('polizas')
+                    .upsert([pData])
+                    .select();
+
+                if (error) {
+                    console.error("Supabase Error:", error);
+                    throw error;
+                }
+
+                alert("✅ Póliza guardada correctamente");
+                const newId = dataPoliza[0].id; // ID real
+                window.location.href = (origen === 'detalle') ? `detalle_poliza.html?id=${newId}` : (clienteId ? `perfil_cliente.html?id=${clienteId}` : 'polizas.html');
+
+            } catch (e) {
+                console.error(e);
+                alert("Error al guardar: " + (e.message || e));
+                btnGuardar.disabled = false;
+                btnGuardar.innerHTML = originalText;
+            }
+        }
+
+        function toggleEstadoPoliza() {
+            polizaActiva = !polizaActiva;
+            const btn = document.getElementById('btnCancelarPoliza');
+            const badge = document.getElementById('badgeEstado');
+            const form = document.getElementById('contenedorFormulario');
+            if (polizaActiva) {
+                btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">block</span> Cancelar Póliza';
+                badge.classList.add('hidden');
+                form.classList.remove('opacity-50');
+            } else {
+                btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">history</span> Reactivar Póliza';
+                badge.classList.remove('hidden');
+                form.classList.add('opacity-50');
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+            if (sesion.rol !== 'admin') {
+                const el = document.getElementById('containerRestringida');
+                if (el) el.style.display = 'none'; // ocultar para agentes
+            }
+        });
+
+        function actualizarTodasLasComisiones() { calcularPagos(); }
+        function cancelarEdicion() { window.location.href = (origen === 'detalle') ? `detalle_poliza.html?id=${polizaID_Unico}` : (clienteId ? `perfil_cliente.html?id=${clienteId}` : 'polizas.html'); }
+    </script>
+    <script src="menu.js"></script>
+</body>
+
+</html>

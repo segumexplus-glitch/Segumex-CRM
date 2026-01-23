@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Buzón Inteligente - Segumex</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-dark": "#101622",
+                        "surface-dark": "#111318",
+                        "surface-card": "#1c1f27",
+                        "text-secondary": "#9da6b9",
+                        "chat-user": "#2a3942",
+                        "chat-ai": "#202c33",
+                        "chat-agent": "#005c4b"
+                    },
+                    fontFamily: { "display": ["Inter", "sans-serif"] }
+                },
+            },
+        }
+
+        // --- SEGURIDAD ---
+        async function checkSession() {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) window.location.href = 'login.html';
+        }
+        checkSession();
+    </script>
+    <style>
+        /* Custom Scrollbar for Chat */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .chat-bg {
+            background-image: url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png");
+            background-repeat: repeat;
+            opacity: 0.06;
+        }
+    </style>
+</head>
+
+<body class="bg-[#f6f6f8] dark:bg-background-dark font-display text-white relative h-screen flex overflow-hidden">
+
+    <!-- Sidebar CRM -->
+    <aside id="sidebar" class="w-64 border-r border-[#3b4354] bg-[#111318] flex-shrink-0 flex flex-col z-20"></aside>
+
+    <!-- Main Content: Buzón Layout -->
+    <main class="flex-1 flex flex-col md:flex-row h-full relative">
+
+        <!-- Lista de Conversaciones (Left) -->
+        <div class="w-full md:w-1/3 border-r border-[#3b4354] bg-[#111318] flex flex-col">
+            <!-- Header Lista -->
+            <div class="p-4 border-b border-[#3b4354] flex justify-between items-center bg-[#202c33]">
+                <div class="flex items-center gap-3">
+                    <div class="size-10 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                        <span class="material-symbols-outlined">smart_toy</span>
+                    </div>
+                    <h1 class="font-bold text-lg">Buzón AI</h1>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="cargarConversaciones()" class="p-2 hover:bg-white/10 rounded-full text-[#9da6b9]">
+                        <span class="material-symbols-outlined">refresh</span>
+                    </button>
+                    <!-- Status Filter could go here -->
+                </div>
+            </div>
+
+            <!-- Search -->
+            <div class="p-2 border-b border-[#3b4354] bg-[#111318]">
+                <div class="relative">
+                    <span class="material-symbols-outlined absolute left-3 top-2.5 text-[#9da6b9]">search</span>
+                    <input type="text" placeholder="Buscar conversación..."
+                        class="w-full bg-[#202c33] border-none rounded-lg py-2 pl-10 text-sm text-white focus:ring-1 focus:ring-primary">
+                </div>
+            </div>
+
+            <!-- List Container -->
+            <div id="conversationsList" class="flex-1 overflow-y-auto">
+                <!-- Items injected here -->
+                <div class="p-8 text-center text-[#9da6b9] text-sm italic">Cargando conversaciones...</div>
+            </div>
+        </div>
+
+        <!-- Ventana de Chat (Right) -->
+        <div class="hidden md:flex flex-1 flex-col relative bg-[#0b141a]">
+
+            <!-- Fondo WhatsApp Style -->
+            <div class="absolute inset-0 chat-bg pointer-events-none z-0"></div>
+
+            <!-- Header Chat -->
+            <div id="chatHeader"
+                class="h-16 bg-[#202c33] px-4 flex items-center justify-between border-b border-[#3b4354] z-10 hidden">
+                <div class="flex items-center gap-3 cursor-pointer hover:bg-white/5 p-1 rounded-lg transition-colors">
+                    <div class="size-10 rounded-full bg-gray-500 flex items-center justify-center text-white"
+                        id="headerAvatar">
+                        <span class="material-symbols-outlined">person</span>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-white text-sm" id="headerName">Selecciona un chat</h2>
+                        <p class="text-xs text-[#9da6b9]" id="headerInfo">WhatsApp</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleAI()" id="btnToggleAI"
+                        class="flex items-center gap-2 px-3 py-1.5 rounded bg-green-600/20 text-green-400 border border-green-600/50 hover:bg-green-600/30 transition-all text-xs font-bold uppercase tracking-wider">
+                        <span class="material-symbols-outlined text-sm">smart_toy</span>
+                        AI Activa
+                    </button>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="flex-1 flex flex-col items-center justify-center text-center p-8 z-10">
+                <div class="size-32 rounded-full bg-[#202c33] flex items-center justify-center mb-6">
+                    <span class="material-symbols-outlined text-6xl text-[#9da6b9]">chat_bubble_outline</span>
+                </div>
+                <h3 class="text-2xl font-light text-[#e9edef] mb-2">Buzón Omnicanal Segumex</h3>
+                <p class="text-[#8696a0] max-w-md">Selecciona una conversación para ver el historial y monitorear a la
+                    Inteligencia Artificial en tiempo real.</p>
+                <div class="mt-8 flex gap-4 text-xs text-[#8696a0]">
+                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">lock</span>
+                        Extremo a extremo</span>
+                </div>
+            </div>
+
+            <!-- Messages Container -->
+            <div id="messagesArea" class="flex-1 overflow-y-auto p-4 space-y-2 z-10 hidden scrollbar-hide"></div>
+
+            <!-- Input Area -->
+            <div id="inputArea" class="bg-[#202c33] px-4 py-2 flex items-center gap-2 z-10 hidden">
+                <button class="p-2 text-[#8696a0] hover:text-white transition-colors">
+                    <span class="material-symbols-outlined">add</span>
+                </button>
+                <input type="text" id="messageInput"
+                    class="flex-1 bg-[#2a3942] border-none rounded-lg px-4 py-2 text-white focus:ring-0 placeholder-[#8696a0]"
+                    placeholder="Escribe un mensaje..." onkeypress="hamdleInputKey(event)">
+                <button onclick="enviarMensaje()" class="p-2 text-[#8696a0] hover:text-primary transition-colors">
+                    <span class="material-symbols-outlined">send</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script src="menu.js"></script>
+    <script>
+        let currentConversationId = null;
+        let currentSubscription = null;
+        let listSubscription = null;
+
+        // --- 1. Inicialización ---
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarConversaciones();
+            subscribirLista();
+        });
+
+        // --- 2. Cargar Lista de Conversaciones ---
+        async function cargarConversaciones() {
+            const listContainer = document.getElementById('conversationsList');
+
+            // Traer leads para mapear nombres si existen
+            // Idealmente esto sería un join, pero Supabase Join sintaxis:
+            const { data, error } = await window.supabaseClient
+                .from('comm_conversations')
+                .select(`
+                    *,
+                    leads (nombre, apellido, telefono)
+                `)
+                .order('last_message_at', { ascending: false });
+
+            if (error) {
+                console.error('Error cargando chats:', error);
+                listContainer.innerHTML = '<div class="p-4 text-red-400 text-xs">Error de conexión</div>';
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                listContainer.innerHTML = '<div class="p-8 text-center text-[#9da6b9] text-sm">No hay conversaciones activas.</div>';
+                return;
+            }
+
+            listContainer.innerHTML = '';
+            data.forEach(conv => {
+                const name = conv.leads ? `${conv.leads.nombre} ${conv.leads.apellido || ''}` : conv.platform_user_id;
+                const time = conv.last_message_at ? new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                const activeClass = (currentConversationId === conv.id) ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]';
+
+                // Icono según plataforma
+                // TO-DO: detect from channel_id query
+                const icon = 'chat';
+
+                listContainer.innerHTML += `
+                    <div onclick="abrirChat('${conv.id}', '${name}', '${conv.status}')" class="cursor-pointer p-3 border-b border-[#2a3942] flex items-center gap-3 transition-colors ${activeClass} group">
+                        <div class="size-12 rounded-full bg-[#111b21] flex items-center justify-center relative">
+                            <span class="material-symbols-outlined text-[#8696a0]">${icon}</span>
+                            ${conv.leads ? '<span class="absolute bottom-0 right-0 size-3 bg-blue-500 rounded-full border border-[#111318]"></span>' : ''}
+                        </div>
+                        <div class="flex-1 overflow-hidden">
+                            <div class="flex justify-between items-baseline mb-1">
+                                <h3 class="text-white text-[15px] truncate font-normal group-hover:font-medium">${name}</h3>
+                                <span class="text-[12px] text-[#8696a0]">${time}</span>
+                            </div>
+                            <p class="text-[13px] text-[#8696a0] truncate flex items-center gap-1">
+                                ${conv.status === 'ai_handling' ? '<span class="material-symbols-outlined text-[14px] text-green-500">smart_toy</span>' : ''}
+                                ${conv.status === 'agent_handling' ? '<span class="material-symbols-outlined text-[14px] text-blue-500">person</span>' : ''}
+                                <span>Ver conversación...</span>
+                            </p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- 3. Abrir Chat ---
+        async function abrirChat(id, name, status) {
+            currentConversationId = id;
+
+            // UI Toggle
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('chatHeader').classList.remove('hidden');
+            document.getElementById('chatHeader').classList.add('flex');
+            document.getElementById('messagesArea').classList.remove('hidden');
+            document.getElementById('inputArea').classList.remove('hidden');
+            document.getElementById('inputArea').classList.add('flex');
+
+            document.getElementById('headerName').innerText = name;
+
+            updateAIButton(status);
+            cargarConversaciones(); // Refresh list visual selection
+
+            // Cargar Mensajes
+            await renderMessages(id);
+            subscribirChat(id);
+        }
+
+        async function renderMessages(convId) {
+            const area = document.getElementById('messagesArea');
+            area.innerHTML = '<div class="flex justify-center p-4"><span class="animate-spin material-symbols-outlined text-[#8696a0]">progress_activity</span></div>';
+
+            const { data: msgs } = await window.supabaseClient
+                .from('comm_messages')
+                .select('*')
+                .eq('conversation_id', convId)
+                .order('created_at', { ascending: true });
+
+            area.innerHTML = '';
+
+            if (msgs) {
+                let lastDate = null;
+                msgs.forEach(msg => {
+                    const msgDiv = createMessageBubble(msg);
+                    area.appendChild(msgDiv);
+                });
+                scrollToBottom();
+            }
+        }
+
+        function createMessageBubble(msg) {
+            const isUser = msg.sender_type === 'user';
+            const isAI = msg.sender_type === 'ai';
+            const align = isUser ? 'justify-start' : 'justify-end';
+
+            // Colors
+            let bgClass = isUser ? 'bg-[#202c33]' : (isAI ? 'bg-[#212f3d] border border-green-900/30' : 'bg-[#005c4b]');
+
+            const div = document.createElement('div');
+            div.className = `flex ${align} mb-2`;
+
+            const content = `
+                <div class="${bgClass} rounded-lg px-3 py-1.5 max-w-[80%] shadow relative pb-5 min-w-[100px]">
+                    ${isAI ? '<span class="text-[10px] text-green-400 font-bold mb-0.5 block flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">smart_toy</span> Gemini AI</span>' : ''}
+                    <p class="text-[14.2px] text-[#e9edef] leading-tight select-text whitespace-pre-wrap">${msg.content}</p>
+                    <span class="text-[11px] text-[#8696a0] absolute bottom-1 right-2 flex items-center gap-1">
+                        ${new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        ${!isUser ? '<span class="material-symbols-outlined text-[14px] text-[#53bdeb]">done_all</span>' : ''}
+                    </span>
+                </div>
+            `;
+            div.innerHTML = content;
+            return div;
+        }
+
+        // --- 4. Enviar Mensaje Manual ---
+        function hamdleInputKey(e) {
+            if (e.key === 'Enter') enviarMensaje();
+        }
+
+        async function enviarMensaje() {
+            const input = document.getElementById('messageInput');
+            const txt = input.value.trim();
+            if (!txt || !currentConversationId) return;
+
+            // Optimistic UI Update (mostrar inmediatemente)
+            // (Opcional, pero mejor esperar a Realtime para evitar duplicados si la red es rapida)
+            // Lo agregaremos al enviarlo:
+            document.getElementById('messagesArea').appendChild(createMessageBubble({
+                sender_type: 'agent',
+                content: txt,
+                created_at: new Date().toISOString()
+            }));
+            scrollToBottom();
+            input.value = '';
+
+            // Llamar a Edge Function
+            try {
+                const { data, error } = await window.supabaseClient.functions.invoke('ai-brain', {
+                    body: {
+                        conversation_id: currentConversationId,
+                        action: 'manual_reply',
+                        agent_message: txt
+                    }
+                });
+
+                if (error) throw error;
+                console.log('Mensaje enviado');
+                // Realtime actualizará el estado si cambia
+            } catch (err) {
+                alert('Error al enviar mensaje: ' + err.message);
+                console.error(err);
+            }
+        }
+
+        // --- 5. Lógica de UI ---
+        function scrollToBottom() {
+            const area = document.getElementById('messagesArea');
+            area.scrollTop = area.scrollHeight;
+        }
+
+        function updateAIButton(status) {
+            const btn = document.getElementById('btnToggleAI');
+            if (status === 'ai_handling') {
+                btn.className = "flex items-center gap-2 px-3 py-1.5 rounded bg-green-600/20 text-green-400 border border-green-600/50 hover:bg-green-600/30 transition-all text-xs font-bold uppercase tracking-wider";
+                btn.innerHTML = '<span class="material-symbols-outlined text-sm">smart_toy</span> AI Activa';
+                btn.onclick = () => cambiarStatus('agent_handling');
+            } else {
+                btn.className = "flex items-center gap-2 px-3 py-1.5 rounded bg-red-600/20 text-red-400 border border-red-600/50 hover:bg-red-600/30 transition-all text-xs font-bold uppercase tracking-wider";
+                btn.innerHTML = '<span class="material-symbols-outlined text-sm">pause_circle</span> AI Pausada';
+                btn.onclick = () => cambiarStatus('ai_handling');
+            }
+        }
+
+        async function cambiarStatus(newStatus) {
+            if (!currentConversationId) return;
+            await window.supabaseClient
+                .from('comm_conversations')
+                .update({ status: newStatus })
+                .eq('id', currentConversationId);
+
+            updateAIButton(newStatus);
+            // La lista se actualizará via realtime
+        }
+
+        // --- 6. Realtime Subscriptions ---
+        function subscribirLista() {
+            if (listSubscription) return;
+            listSubscription = window.supabaseClient
+                .channel('public:comm_conversations')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'comm_conversations' }, (payload) => {
+                    cargarConversaciones(); // Recargar lista al haber cambios
+                })
+                .subscribe();
+        }
+
+        function subscribirChat(convId) {
+            if (currentSubscription) window.supabaseClient.removeChannel(currentSubscription);
+
+            currentSubscription = window.supabaseClient
+                .channel(`chat:${convId}`)
+                .on('postgres_changes', {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'comm_messages',
+                    filter: `conversation_id=eq.${convId}`
+                }, (payload) => {
+                    const msg = payload.new;
+                    // Evitar duplicados si ya lo agregamos optimisticamente (simplificado: checar ID o content, aqui confiamos en UI)
+                    // Como el optimistic UI no tiene ID real, podriamos borrar el ultimo si coincide
+                    // Por ahora, simple append
+                    const area = document.getElementById('messagesArea');
+                    area.appendChild(createMessageBubble(msg));
+                    scrollToBottom();
+                })
+                .subscribe();
+        }
+
+        // Auto Toggle Menu Mobile
+        // Reuse logic from menu.js if needed or embedded here
+    </script>
+</body>
+
+</html>

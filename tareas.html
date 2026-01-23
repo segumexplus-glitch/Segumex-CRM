@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Task Planner - Segumex</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <script>
+        // --- SCRIPT DE SEGURIDAD MODIFICADO ---
+        (async function () {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+            }
+        })();
+        // ---------------------------
+
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3b82f6",
+                        "background-dark": "#0f111a",
+                        "surface-dark": "#161b22",
+                        "surface-card": "#1f242e",
+                    },
+                    fontFamily: { "display": ["Inter", "sans-serif"] }
+                },
+            },
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0f111a;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #2d3442;
+            border-radius: 10px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+        }
+    </style>
+</head>
+
+<body class="bg-background-dark font-display text-white overflow-hidden relative" onload="initApp()">
+    <!-- Overlay Mobile -->
+    <div id="sidebarOverlay" onclick="toggleMenu()"
+        class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass transition-opacity"></div>
+
+    <div class="flex h-screen w-full overflow-hidden">
+
+        <aside id="sidebar"
+            class="fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-[#2d3442] bg-[#161b22] flex-shrink-0 shadow-2xl md:shadow-none">
+        </aside>
+
+        <main class="flex-1 flex flex-col h-full bg-background-dark relative w-full">
+            <!-- Mobile Header / Toggle -->
+            <div class="md:hidden p-4 pb-0 flex items-center gap-3 bg-[#0f111a]">
+                <button onclick="toggleMenu()" class="p-2 -ml-2 text-white hover:bg-white/10 rounded-lg">
+                    <span class="material-symbols-outlined text-2xl">menu</span>
+                </button>
+                <span class="font-bold text-lg">Segumex</span>
+            </div>
+            <header
+                class="p-6 md:h-auto flex flex-col md:flex-row justify-between items-start md:items-center border-b border-[#2d3442] bg-[#0f111a] z-10 shrink-0 gap-4">
+                <div>
+                    <h1 class="text-3xl font-bold tracking-tight">Inbox de Tareas</h1>
+                    <p class="text-[#94a3b8] text-sm mt-1">Gestiona tu flujo de trabajo diario y prioridades.</p>
+                </div>
+                <button onclick="openModal()"
+                    class="bg-primary hover:bg-blue-600 px-6 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all shadow-lg shadow-blue-900/20 w-full md:w-auto justify-center">
+                    <span class="material-symbols-outlined">add</span> Nueva Tarea
+                </button>
+            </header>
+
+            <div class="flex-1 overflow-y-auto px-6 py-6 scroll-smooth custom-scrollbar pb-40">
+                <div class="flex flex-col gap-6 shrink-0 bg-[#0f111a]">
+
+                    <div class="px-6 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0 bg-[#0f111a]">
+                        <div
+                            class="bg-surface-card border border-[#2d3442] rounded-2xl p-5 relative overflow-hidden group">
+                            <div class="absolute right-0 top-0 p-4 opacity-10"><span
+                                    class="material-symbols-outlined text-5xl">calendar_today</span></div>
+                            <p class="text-[#94a3b8] text-xs font-bold uppercase tracking-wider mb-1">Vencen Hoy</p>
+                            <h2 class="text-4xl font-black text-white" id="kpiVencenHoy">0</h2>
+                        </div>
+                        <div class="bg-[#2a1215] border border-red-900/30 rounded-2xl p-5 relative overflow-hidden">
+                            <div class="absolute right-0 top-0 p-4 opacity-10"><span
+                                    class="material-symbols-outlined text-5xl text-red-500">priority_high</span></div>
+                            <p class="text-red-300 text-xs font-bold uppercase tracking-wider mb-1">Alta Prioridad</p>
+                            <h2 class="text-4xl font-black text-white" id="kpiAltaPrioridad">0</h2>
+                        </div>
+                        <div class="bg-[#1a1610] border border-orange-900/30 rounded-2xl p-5 relative overflow-hidden">
+                            <div class="absolute right-0 top-0 p-4 opacity-10"><span
+                                    class="material-symbols-outlined text-5xl text-orange-500">medical_services</span>
+                            </div>
+                            <p class="text-orange-300 text-xs font-bold uppercase tracking-wider mb-1">Siniestros
+                                Urgentes</p>
+                            <h2 class="text-4xl font-black text-white" id="kpiSiniestrosUrgentes">0</h2>
+                        </div>
+                    </div>
+
+                    <div class="px-6 py-2 flex items-center gap-2 border-b border-[#2d3442] bg-[#0f111a] shrink-0">
+                        <button class="px-4 py-1.5 rounded-lg bg-white text-black text-xs font-bold">Todos</button>
+                        <button
+                            class="px-4 py-1.5 rounded-lg bg-[#1f242e] text-[#94a3b8] text-xs font-bold border border-[#2d3442] hover:text-white transition-colors flex items-center gap-2"><span
+                                class="material-symbols-outlined text-sm">call</span> Llamadas</button>
+                        <button
+                            class="px-4 py-1.5 rounded-lg bg-[#1f242e] text-[#94a3b8] text-xs font-bold border border-[#2d3442] hover:text-white transition-colors flex items-center gap-2"><span
+                                class="material-symbols-outlined text-sm">chat</span> WhatsApp</button>
+                        <button
+                            class="px-4 py-1.5 rounded-lg bg-[#1f242e] text-[#94a3b8] text-xs font-bold border border-[#2d3442] hover:text-white transition-colors flex items-center gap-2"><span
+                                class="material-symbols-outlined text-sm">sync</span> Renovaciones</button>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar bg-[#0f111a]" id="taskContainer">
+                        <div class="flex flex-col gap-3 pb-8" id="taskList">
+                        </div>
+                    </div>
+
+                    <div
+                        class="h-96 md:min-h-[350px] border-t border-[#2d3442] bg-[#11161d] p-4 shrink-0 shadow-2xl z-20">
+                        <h3
+                            class="font-bold flex items-center gap-2 text-primary text-[11px] uppercase tracking-widest mb-3">
+                            <span class="material-symbols-outlined text-sm">calendar_month</span> Agenda Semanal
+                        </h3>
+                        <div class="calendar-grid gap-2 h-[calc(100%-35px)]">
+                            <script>
+                                const diasSem = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                                document.write(diasSem.map(d => `<div class="text-center text-[10px] uppercase text-[#475569] font-black">${d}</div>`).join(''));
+                            </script>
+                            <div id="calendarDays" class="contents"></div>
+                        </div>
+                    </div>
+        </main>
+    </div>
+
+    <div id="taskModal"
+        class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-surface-card border border-[#2d3442] w-full max-md rounded-2xl p-6 shadow-2xl">
+            <h2 id="modalTitle" class="text-xl font-bold mb-4">Nueva Tarea</h2>
+            <input type="hidden" id="taskId">
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label class="text-xs text-[#94a3b8] font-bold uppercase">Título de la Tarea</label>
+                    <input type="text" id="tTitle"
+                        class="w-full bg-[#161b22] border-[#2d3442] rounded-lg text-white mt-1 focus:border-primary outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-[#94a3b8] font-bold uppercase">Fecha</label>
+                        <input type="date" id="tDate"
+                            class="w-full bg-[#161b22] border-[#2d3442] rounded-lg text-white mt-1 focus:border-primary outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs text-[#94a3b8] font-bold uppercase">Prioridad</label>
+                        <select id="tPriority"
+                            class="w-full bg-[#161b22] border-[#2d3442] rounded-lg text-white mt-1 focus:border-primary outline-none">
+                            <option value="Baja">Baja</option>
+                            <option value="Media">Media</option>
+                            <option value="Alta">Alta</option>
+                            <option value="Urgente">Urgente</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs text-[#94a3b8] font-bold uppercase">Descripción / Detalles</label>
+                    <textarea id="tDesc" rows="3"
+                        class="w-full bg-[#161b22] border-[#2d3442] rounded-lg text-white mt-1 focus:border-primary outline-none resize-none"></textarea>
+                </div>
+                <div class="flex gap-3 mt-2">
+                    <button onclick="saveTask()"
+                        class="flex-1 bg-primary hover:bg-blue-600 py-3 rounded-xl font-bold transition-colors">Guardar</button>
+                    <button onclick="closeModal()"
+                        class="flex-1 bg-[#2d3442] hover:bg-[#3b4354] py-3 rounded-xl font-bold transition-colors">Cancelar</button>
+                </div>
+                <button id="btnDelete" onclick="deleteTask()"
+                    class="hidden text-red-500 text-xs font-bold mt-2 hover:bg-red-500/10 p-2 rounded-lg transition-all w-fit">
+                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">delete</span>
+                        Eliminar tarea permanentemente</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="menu.js"></script>
+
+    <script>
+        let tareas = [];
+
+        async function initApp() {
+            // --- CONSULTA SUPABASE ---
+            const { data } = await window.supabaseClient.from('tareas').select('*');
+            tareas = data || [];
+
+            await actualizarKPIs();
+            renderTasks();
+            renderCalendar();
+        }
+
+        async function actualizarKPIs() {
+            const hoyStr = window.SegumexDate.toISO(new Date());
+            document.getElementById('kpiVencenHoy').innerText = tareas.filter(t => window.SegumexDate.toISO(t.fecha) === hoyStr && !t.completada).length;
+            document.getElementById('kpiAltaPrioridad').innerText = tareas.filter(t => (t.prioridad === 'Alta' || t.prioridad === 'Urgente') && !t.completada).length;
+
+            // Consulta siniestros desde Supabase
+            const { data: siniestros } = await window.supabaseClient.from('siniestros').select('status');
+            document.getElementById('kpiSiniestrosUrgentes').innerText = (siniestros || []).filter(s => s.status === 'Urgente').length;
+        }
+
+        function renderTasks() {
+            const list = document.getElementById('taskList');
+            list.innerHTML = '';
+
+            if (tareas.length === 0) {
+                list.innerHTML = '<div class="text-center py-20 text-[#475569]"><span class="material-symbols-outlined text-5xl mb-2 opacity-20">assignment</span><p>No hay tareas en el Inbox.</p></div>';
+                return;
+            }
+
+            tareas.sort((a, b) => window.SegumexDate.parse(a.fecha) - window.SegumexDate.parse(b.fecha)).forEach(t => {
+                const style = {
+                    "Baja": "text-blue-400 border-blue-500/20 bg-blue-500/5",
+                    "Media": "text-yellow-500 border-yellow-500/20 bg-yellow-500/5",
+                    "Alta": "text-orange-500 border-orange-500/20 bg-orange-500/5",
+                    "Urgente": "text-red-500 border-red-500/20 bg-red-500/5 animate-pulse"
+                }[t.prioridad];
+
+                const hoyStr = window.SegumexDate.toISO(new Date());
+                const tareaFechaStr = window.SegumexDate.toISO(t.fecha);
+
+                let badgeFecha = window.SegumexDate.toShortDisplay(t.fecha);
+                let colorFecha = "text-[#94a3b8]";
+
+                if (tareaFechaStr === hoyStr) { badgeFecha = "Hoy"; colorFecha = "text-red-400 font-bold"; }
+                else if (window.SegumexDate.parse(t.fecha) < window.SegumexDate.parse(hoyStr)) { badgeFecha = "¡Vencida!"; colorFecha = "text-red-600 font-black italic"; }
+
+                list.innerHTML += `
+                <div class="bg-surface-card border border-[#2d3442] p-4 rounded-2xl flex items-center justify-between hover:border-primary/40 transition-all cursor-pointer group shadow-sm" onclick="openModal('${t.id}')">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-[#161b22] flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all shadow-inner">
+                            <span class="material-symbols-outlined text-[24px]">
+                                ${t.titulo.toLowerCase().includes('llamar') ? 'call' :
+                        t.titulo.toLowerCase().includes('siniestro') ? 'warning' : 'assignment'}
+                            </span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-sm text-white ${t.completada ? 'line-through opacity-40' : ''}">${t.titulo}</h3>
+                            <p class="text-[11px] text-[#586074] mt-0.5 line-clamp-1">${t.descripcion || 'Sin detalles'}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-8">
+                        <div class="text-right min-w-[80px]">
+                            <p class="text-[10px] uppercase tracking-tighter ${colorFecha}">${badgeFecha}</p>
+                            <span class="inline-block mt-1 px-2 py-0.5 rounded text-[9px] font-bold border ${style}">${t.prioridad}</span>
+                        </div>
+                        <div onclick="event.stopPropagation()">
+                            <input type="checkbox" ${t.completada ? 'checked' : ''} onchange="toggleTask('${t.id}')" class="w-5 h-5 rounded border-[#2d3442] bg-transparent text-primary focus:ring-0 cursor-pointer">
+                        </div>
+                    </div>
+                </div>`;
+            });
+        }
+
+        function renderCalendar() {
+            const cal = document.getElementById('calendarDays');
+            cal.innerHTML = '';
+            const today = new Date();
+            const start = new Date(today.setDate(today.getDate() - today.getDay()));
+            for (let i = 0; i < 7; i++) {
+                const day = new Date(start);
+                day.setDate(start.getDate() + i);
+                const dateStr = window.SegumexDate.toISO(day);
+                const ts = tareas.filter(t => window.SegumexDate.toISO(t.fecha) === dateStr);
+                const isT = window.SegumexDate.toISO(new Date()) === dateStr;
+                cal.innerHTML += `
+                <div class="bg-[#161b22] border ${isT ? 'border-primary' : 'border-[#2d3442]'} rounded-xl p-2 flex flex-col gap-1 overflow-hidden">
+                    <span class="text-[10px] font-bold text-center ${isT ? 'text-primary' : 'text-[#475569]'}">${day.getDate()}</span>
+                    ${ts.map(t => `<div class="text-[8px] bg-primary/10 text-blue-300 p-1 rounded truncate leading-tight">${t.titulo}</div>`).join('')}
+                </div>`;
+            }
+        }
+
+        function openModal(id = null) {
+            const modal = document.getElementById('taskModal');
+            modal.classList.remove('hidden');
+            if (id) {
+                const t = tareas.find(x => x.id === id);
+                document.getElementById('modalTitle').innerText = "Editar Tarea";
+                document.getElementById('taskId').value = t.id;
+                document.getElementById('tTitle').value = t.titulo;
+                document.getElementById('tDate').value = t.fecha;
+                document.getElementById('tPriority').value = t.prioridad;
+                document.getElementById('tDesc').value = t.descripcion;
+                document.getElementById('btnDelete').classList.remove('hidden');
+            } else {
+                document.getElementById('modalTitle').innerText = "Nueva Tarea";
+                document.getElementById('taskId').value = '';
+                document.getElementById('tTitle').value = '';
+                document.getElementById('tDate').value = window.SegumexDate.toISO(new Date());
+                document.getElementById('tPriority').value = 'Media';
+                document.getElementById('tDesc').value = '';
+                document.getElementById('btnDelete').classList.add('hidden');
+            }
+        }
+
+        async function saveTask() {
+            const id = document.getElementById('taskId').value;
+            const n = {
+                // id: id || undefined, // Supabase genera ID si es nuevo
+                titulo: document.getElementById('tTitle').value,
+                fecha: window.SegumexDate.toISO(document.getElementById('tDate').value),
+                prioridad: document.getElementById('tPriority').value,
+                descripcion: document.getElementById('tDesc').value,
+                completada: false
+            };
+
+            if (id) n.id = id; // Update mode
+
+            await window.supabaseClient
+                .from('tareas')
+                .upsert([n])
+                .select();
+
+            closeModal();
+            await initApp();
+        }
+
+        async function toggleTask(id) {
+            const t = tareas.find(x => x.id === id);
+            await window.supabaseClient.from('tareas').update({ completada: !t.completada }).eq('id', id);
+            await initApp();
+        }
+
+        async function deleteTask() {
+            const id = document.getElementById('taskId').value;
+            if (confirm("¿Estás seguro de que deseas eliminar esta tarea permanentemente?")) {
+                await window.supabaseClient.from('tareas').delete().eq('id', id);
+                closeModal();
+                await initApp();
+            }
+        }
+
+        function closeModal() { document.getElementById('taskModal').classList.add('hidden'); }
+    </script>
+</body>
+
+</html>

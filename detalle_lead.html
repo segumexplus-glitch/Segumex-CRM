@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Detalle Lead - Segumex</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = { darkMode: "class", theme: { extend: { colors: { "primary": "#135bec", "background-dark": "#101622", "surface-dark": "#111318", "surface-card": "#1c1f27", "text-secondary": "#9da6b9" }, fontFamily: { "display": ["Inter", "sans-serif"] } } } }
+    </script>
+</head>
+<body class="bg-[#f6f6f8] dark:bg-background-dark font-display text-white">
+<div class="flex h-screen w-full">
+    
+    <aside class="flex w-64 flex-col border-r border-[#3b4354] bg-[#111318] flex-shrink-0">
+        <div class="flex h-full flex-col justify-between p-4">
+            <div class="flex flex-col gap-6">
+                <div class="flex items-center gap-3 px-2">
+                    <div class="bg-primary h-10 w-10 rounded-full flex items-center justify-center font-bold text-white">SX</div>
+                    <div class="flex flex-col"><h1 class="text-white text-base font-semibold leading-tight">Segumex</h1><p class="text-text-secondary text-xs font-normal">Panel Principal</p></div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#282e39] transition-colors group" href="index.html"><span class="material-symbols-outlined text-[#9da6b9]">dashboard</span><p class="text-[#9da6b9] text-sm font-medium">Dashboard</p></a>
+                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg bg-primary/10 text-primary border border-primary/20" href="leads.html"><span class="material-symbols-outlined">filter_alt</span><p class="text-sm font-bold">Leads (Ventas)</p></a>
+                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#282e39] transition-colors group" href="clientes.html"><span class="material-symbols-outlined text-[#9da6b9]">group</span><p class="text-[#9da6b9] text-sm font-medium">Clientes</p></a>
+                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#282e39] transition-colors group" href="polizas.html"><span class="material-symbols-outlined text-[#9da6b9]">description</span><p class="text-[#9da6b9] text-sm font-medium">Pólizas</p></a>
+                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#282e39] transition-colors group" href="cobranza.html"><span class="material-symbols-outlined text-[#9da6b9]">account_balance_wallet</span><p class="text-[#9da6b9] text-sm font-medium">Pay Tracker</p></a>
+                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#282e39] transition-colors group" href="siniestros.html"><span class="material-symbols-outlined text-[#9da6b9]">medical_services</span><p class="text-[#9da6b9] text-sm font-medium">Siniestros</p></a>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-y-auto bg-background-dark p-4 md:p-8">
+        <div class="max-w-7xl mx-auto w-full pb-10">
+            
+            <div class="flex items-center gap-2 text-sm text-[#9da6b9] mb-6">
+                <a href="leads.html" class="hover:text-white flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">arrow_back</span> Leads</a>
+                <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+                <span class="text-white">Detalle de Oportunidad</span>
+            </div>
+
+            <div class="flex justify-between items-start mb-8">
+                <div>
+                    <h1 class="text-3xl font-bold text-white flex items-center gap-3">
+                        <span id="leadNombre">Cargando...</span>
+                        <span id="leadEtapa" class="text-xs px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 uppercase font-bold tracking-wide">...</span>
+                    </h1>
+                    <p class="text-[#9da6b9] mt-1 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">verified_user</span> <span id="leadProducto">...</span>
+                    </p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="abrirModalEditar()" class="px-4 py-2 border border-[#3b4354] rounded-lg text-[#9da6b9] hover:text-white hover:bg-[#282e39] flex items-center gap-2 font-medium">
+                        <span class="material-symbols-outlined text-[18px]">edit</span> Editar
+                    </button>
+                    <button onclick="convertirGanada()" class="px-6 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg font-bold shadow-lg shadow-primary/30 flex items-center gap-2 transition-transform hover:scale-105">
+                        <span class="material-symbols-outlined">emoji_events</span> ¡Ganada!
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <div class="space-y-6">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-surface-card border border-[#3b4354] rounded-xl p-4">
+                            <p class="text-[#9da6b9] text-xs font-bold uppercase mb-1">Valor Estimado</p>
+                            <h2 class="text-2xl font-bold text-white" id="leadValor">$0</h2>
+                            <p class="text-[#9da6b9] text-[10px]">MXN / Anual</p>
+                        </div>
+                        <div class="bg-surface-card border border-[#3b4354] rounded-xl p-4 relative overflow-hidden">
+                            <p class="text-[#9da6b9] text-xs font-bold uppercase mb-1">Probabilidad</p>
+                            <h2 class="text-2xl font-bold text-green-400" id="leadProb">0%</h2>
+                            <div class="w-full bg-[#111318] h-1.5 rounded-full mt-2 overflow-hidden">
+                                <div class="bg-green-500 h-full rounded-full" style="width: 60%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-surface-card border border-[#3b4354] rounded-xl p-6">
+                        <div class="flex gap-4 justify-around mb-6">
+                            <button onclick="contactar('tel')" class="flex flex-col items-center gap-1 text-[#9da6b9] hover:text-white transition-colors"><div class="size-10 rounded-full bg-[#111318] flex items-center justify-center border border-[#3b4354] hover:border-primary hover:text-primary transition-colors"><span class="material-symbols-outlined">call</span></div><span class="text-[10px]">Llamar</span></button>
+                            <button onclick="contactar('wa')" class="flex flex-col items-center gap-1 text-[#9da6b9] hover:text-white transition-colors"><div class="size-10 rounded-full bg-[#111318] flex items-center justify-center border border-[#3b4354] hover:border-green-500 hover:text-green-500 transition-colors"><span class="material-symbols-outlined">chat</span></div><span class="text-[10px]">WhatsApp</span></button>
+                            <button onclick="contactar('email')" class="flex flex-col items-center gap-1 text-[#9da6b9] hover:text-white transition-colors"><div class="size-10 rounded-full bg-[#111318] flex items-center justify-center border border-[#3b4354] hover:border-yellow-500 hover:text-yellow-500 transition-colors"><span class="material-symbols-outlined">mail</span></div><span class="text-[10px]">Email</span></button>
+                        </div>
+                        
+                        <h3 class="text-white font-bold text-xs uppercase mb-4 border-b border-[#3b4354] pb-2">Datos de Contacto</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-[#9da6b9]">person</span>
+                                <div><p class="text-[#9da6b9] text-xs">Nombre Completo</p><p class="text-white text-sm font-medium" id="infoNombre">...</p></div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-[#9da6b9]">phone_iphone</span>
+                                <div><p class="text-[#9da6b9] text-xs">Teléfono</p><p class="text-white text-sm font-medium" id="infoTel">...</p></div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-[#9da6b9]">email</span>
+                                <div><p class="text-[#9da6b9] text-xs">Email</p><p class="text-white text-sm font-medium" id="infoEmail">...</p></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-surface-card border border-[#3b4354] rounded-xl p-6">
+                        <div class="flex justify-between items-center mb-4 pb-2 border-b border-[#3b4354]">
+                            <h3 class="text-white font-bold text-xs uppercase">Cotizaciones (PDF)</h3>
+                            <button onclick="document.getElementById('inputCotizacion').click()" class="text-primary hover:text-white text-[10px] flex items-center gap-1 font-bold">
+                                <span class="material-symbols-outlined text-[14px]">upload</span> Subir
+                            </button>
+                            <input type="file" id="inputCotizacion" accept="application/pdf" class="hidden" onchange="subirCotizacion(this)">
+                        </div>
+                        <div id="listaDocumentos" class="space-y-3">
+                            <p class="text-[#9da6b9] text-xs italic text-center py-2">Sin cotizaciones adjuntas.</p>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/30 rounded-xl p-4 flex gap-4 items-start">
+                        <div class="p-2 bg-purple-500/20 rounded-lg text-purple-400"><span class="material-symbols-outlined">auto_awesome</span></div>
+                        <div>
+                            <h4 class="text-white font-bold text-sm mb-1">Resumen IA</h4>
+                            <p class="text-[#9da6b9] text-xs leading-relaxed">El cliente mostró interés en la cobertura. Se recomienda enfatizar los beneficios de la red médica preferente en la próxima llamada.</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-surface-card border border-[#3b4354] rounded-xl p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-white font-bold flex items-center gap-2"><span class="material-symbols-outlined text-blue-500">play_circle</span> Próxima Acción</h3>
+                            <span id="badgeRequerido" class="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30 uppercase font-bold">Requerido</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="txtAccion" placeholder="Ej: Enviar nueva cotización..." class="flex-1 bg-[#111318] border border-[#3b4354] rounded-lg px-4 py-2 text-white text-sm focus:border-primary outline-none">
+                            <input type="date" id="dateAccion" class="bg-[#111318] border border-[#3b4354] rounded-lg px-4 py-2 text-white text-sm">
+                            <button onclick="guardarSeguimiento()" class="bg-[#282e39] hover:bg-primary text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[16px]">save</span> Guardar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-surface-card border border-[#3b4354] rounded-xl p-6">
+                        <h3 class="text-white font-bold text-sm mb-6">Historial de Actividad</h3>
+                        <div id="historialContainer" class="relative border-l border-[#3b4354] ml-2 pl-6 space-y-6">
+                            </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <div id="modalEditarLead" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl w-full max-w-md p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-bold text-white">Editar Prospecto</h2>
+                <button onclick="cerrarModalEditar()" class="text-[#9da6b9] hover:text-white"><span class="material-symbols-outlined">close</span></button>
+            </div>
+            <form onsubmit="guardarEdicionLead(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-[#9da6b9] mb-1">Nombre</label>
+                    <input type="text" id="editNombre" required class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-[#9da6b9] mb-1">Producto</label>
+                        <select id="editProducto" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
+                            <option value="Seguro de Vida">Seguro de Vida</option>
+                            <option value="Gastos Médicos">Gastos Médicos</option>
+                            <option value="Autos">Autos</option>
+                            <option value="Flotilla">Flotilla</option>
+                            <option value="Daños">Daños</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-[#9da6b9] mb-1">Valor</label>
+                        <input type="number" id="editValor" required class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-[#9da6b9] mb-1">Probabilidad</label>
+                        <select id="editProb" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
+                            <option value="Baja">Baja</option>
+                            <option value="Media">Media</option>
+                            <option value="Alta">Alta</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-[#9da6b9] mb-1">Etapa</label>
+                        <select id="editEtapa" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
+                            <option value="nuevo">Nuevo Lead</option>
+                            <option value="calificado">Calificado</option>
+                            <option value="cotizacion">Cotización</option>
+                            <option value="cierre">Cierre</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="border-t border-[#3b4354] pt-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-[#9da6b9] mb-1">Teléfono</label>
+                            <input type="tel" id="editTel" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-[#9da6b9] mb-1">Email</label>
+                            <input type="email" id="editEmail" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
+                        </div>
+                    </div>
+                </div>
+                <div class="pt-4 flex justify-end gap-2">
+                    <button type="button" onclick="cerrarModalEditar()" class="px-4 py-2 text-sm text-[#9da6b9] hover:text-white">Cancelar</button>
+                    <button type="submit" class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-primary/20">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Se mantienen todas las variables y funciones originales (DOMContentLoaded, render, subirCotizacion, etc.)
+    let leadActual = null;
+    let leadIndex = null;
+    let leads = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const id = parseInt(urlParams.get('id'));
+        leads = JSON.parse(localStorage.getItem('segumex_leads')) || [];
+        
+        leadIndex = leads.findIndex(l => l.id === id);
+        leadActual = leads[leadIndex];
+
+        if(leadActual) {
+            if(!leadActual.historial) leadActual.historial = [];
+            if(!leadActual.documentos) leadActual.documentos = [];
+            
+            if(leadActual.historial.length === 0) {
+                leadActual.historial.push({
+                    tipo: 'Registro',
+                    texto: 'Prospecto ingresado al sistema.',
+                    fecha: leadActual.fecha || new Date().toLocaleDateString('es-MX')
+                });
+            }
+
+            renderDatos();
+            renderHistorial();
+            renderDocumentos();
+        } else {
+            alert("Lead no encontrado");
+            window.location.href = 'leads.html';
+        }
+    });
+
+    // Se mantiene renderDatos, renderHistorial, renderDocumentos, guardarSeguimiento, subirCotizacion, etc.
+    function renderDatos() {
+        document.getElementById('leadNombre').innerText = leadActual.nombre;
+        document.getElementById('infoNombre').innerText = leadActual.nombre;
+        document.getElementById('leadProducto').innerText = leadActual.producto;
+        document.getElementById('leadValor').innerText = new Intl.NumberFormat('es-MX', {style:'currency', currency:'MXN', maximumFractionDigits:0}).format(leadActual.valor);
+        document.getElementById('leadEtapa').innerText = leadActual.etapa.toUpperCase();
+        document.getElementById('leadProb').innerText = leadActual.prob === 'Alta' ? '85%' : (leadActual.prob === 'Media' ? '50%' : '20%');
+        document.getElementById('infoEmail').innerText = leadActual.email || '---';
+        document.getElementById('infoTel').innerText = leadActual.telefono || '---';
+    }
+
+    function renderHistorial() {
+        const container = document.getElementById('historialContainer');
+        container.innerHTML = '';
+        const historialReversed = [...leadActual.historial].reverse();
+        historialReversed.forEach(h => {
+            let colorDot = "bg-blue-500";
+            if(h.tipo === 'Seguimiento') colorDot = "bg-green-500";
+            if(h.tipo === 'Archivo') colorDot = "bg-yellow-500";
+            container.innerHTML += `
+                <div class="relative">
+                    <div class="absolute -left-[31px] top-0 size-2.5 rounded-full ${colorDot} ring-4 ring-[#1c1f27]"></div>
+                    <p class="text-[#9da6b9] text-[10px] mb-1">${h.fecha}</p>
+                    <h4 class="text-white font-bold text-sm">${h.tipo}</h4>
+                    <p class="text-[#9da6b9] text-xs mt-1 bg-[#111318] p-3 rounded-lg border border-[#3b4354]">${h.texto}</p>
+                </div>
+            `;
+        });
+    }
+
+    function renderDocumentos() {
+        const container = document.getElementById('listaDocumentos');
+        container.innerHTML = '';
+        if(leadActual.documentos.length === 0) {
+            container.innerHTML = '<p class="text-[#9da6b9] text-xs italic text-center py-2">Sin cotizaciones adjuntas.</p>';
+            return;
+        }
+        leadActual.documentos.forEach((doc, index) => {
+            container.innerHTML += `
+                <div class="flex items-center gap-3 p-2 bg-[#111318] border border-[#3b4354] rounded-lg group">
+                    <span class="material-symbols-outlined text-red-400 text-lg">picture_as_pdf</span>
+                    <div class="flex-1 overflow-hidden">
+                        <p class="text-white text-xs font-bold truncate">${doc.nombre}</p>
+                        <p class="text-[#9da6b9] text-[10px]">${doc.fecha}</p>
+                    </div>
+                    <button onclick="borrarDocumento(${index})" class="text-[#9da6b9] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span class="material-symbols-outlined text-sm">delete</span>
+                    </button>
+                </div>
+            `;
+        });
+    }
+
+    function guardarSeguimiento() {
+        const texto = document.getElementById('txtAccion').value;
+        const fecha = document.getElementById('dateAccion').value;
+        if(!texto) { alert("Escribe una acción."); return; }
+        leadActual.historial.push({
+            tipo: 'Seguimiento',
+            texto: `Próxima acción programada para ${fecha}: ${texto}`,
+            fecha: new Date().toLocaleDateString('es-MX')
+        });
+        leads[leadIndex] = leadActual;
+        localStorage.setItem('segumex_leads', JSON.stringify(leads));
+        document.getElementById('txtAccion').value = '';
+        document.getElementById('dateAccion').value = '';
+        document.getElementById('badgeRequerido').className = "text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/30 uppercase font-bold";
+        document.getElementById('badgeRequerido').innerText = "Guardado";
+        renderHistorial();
+        alert("Seguimiento guardado correctamente");
+    }
+
+    function subirCotizacion(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const nuevoDoc = {
+                nombre: file.name,
+                fecha: new Date().toLocaleDateString('es-MX'),
+                size: (file.size / 1024).toFixed(1) + ' KB'
+            };
+            leadActual.documentos.push(nuevoDoc);
+            leadActual.historial.push({
+                tipo: 'Archivo',
+                texto: `Se adjuntó cotización: ${file.name}`,
+                fecha: new Date().toLocaleDateString('es-MX')
+            });
+            leads[leadIndex] = leadActual;
+            localStorage.setItem('segumex_leads', JSON.stringify(leads));
+            renderDocumentos();
+            renderHistorial();
+        }
+    }
+
+    function borrarDocumento(index) {
+        if(confirm("¿Eliminar este documento?")) {
+            leadActual.documentos.splice(index, 1);
+            leads[leadIndex] = leadActual;
+            localStorage.setItem('segumex_leads', JSON.stringify(leads));
+            renderDocumentos();
+        }
+    }
+
+    function abrirModalEditar() {
+        document.getElementById('modalEditarLead').classList.remove('hidden');
+        document.getElementById('editNombre').value = leadActual.nombre;
+        document.getElementById('editProducto').value = leadActual.producto;
+        document.getElementById('editValor').value = leadActual.valor;
+        document.getElementById('editProb').value = leadActual.prob;
+        document.getElementById('editEtapa').value = leadActual.etapa;
+        document.getElementById('editTel').value = leadActual.telefono;
+        document.getElementById('editEmail').value = leadActual.email;
+    }
+
+    function cerrarModalEditar() {
+        document.getElementById('modalEditarLead').classList.add('hidden');
+    }
+
+    function guardarEdicionLead(e) {
+        e.preventDefault();
+        leadActual.nombre = document.getElementById('editNombre').value;
+        leadActual.producto = document.getElementById('editProducto').value;
+        leadActual.valor = parseFloat(document.getElementById('editValor').value) || 0;
+        leadActual.prob = document.getElementById('editProb').value;
+        leadActual.etapa = document.getElementById('editEtapa').value;
+        leadActual.telefono = document.getElementById('editTel').value;
+        leadActual.email = document.getElementById('editEmail').value;
+        leads[leadIndex] = leadActual;
+        localStorage.setItem('segumex_leads', JSON.stringify(leads));
+        renderDatos();
+        cerrarModalEditar();
+        alert("Lead actualizado correctamente");
+    }
+
+    // CORRECCIÓN EN convertirGanada
+    function convertirGanada() {
+        if(!confirm("¿Marcar venta como GANADA? Esto creará el cliente y la póliza automáticamente.")) return;
+
+        let clientes = JSON.parse(localStorage.getItem('segumex_clientes')) || [];
+        const nuevoClienteId = Date.now(); // GENERAMOS EL ID ÚNICO AQUÍ
+
+        const partesNombre = leadActual.nombre.split(" ");
+        const nombre = partesNombre[0];
+        const apellido = partesNombre.slice(1).join(" ") || "";
+
+        const nuevoCliente = {
+            id: nuevoClienteId, // <--- ID FUNDAMENTAL PARA EL VÍNCULO
+            nombre: nombre,
+            apellido: apellido,
+            email: leadActual.email,
+            telefono: leadActual.telefono,
+            estatus: "Activo",
+            tipo: "Persona",
+            rfc: "XAXX010101000",
+            direccion: "Por definir",
+            imagen: null
+        };
+        clientes.push(nuevoCliente);
+        localStorage.setItem('segumex_clientes', JSON.stringify(clientes));
+
+        // USAMOS LA BASE DE DATOS UNIFICADA
+        let polizas = JSON.parse(localStorage.getItem('segumex_polizas')) || [];
+        
+        let ramo = 'vida';
+        let icono = 'favorite';
+        let color = 'text-pink-500 bg-pink-500/10';
+        
+        if(leadActual.producto.toLowerCase().includes('autos') || leadActual.producto.toLowerCase().includes('flotilla')) {
+            ramo = 'auto';
+            icono = 'directions_car';
+            color = 'text-orange-500 bg-orange-500/10';
+        } else if(leadActual.producto.toLowerCase().includes('médicos')) {
+            ramo = 'gmm';
+            icono = 'medical_services';
+            color = 'text-blue-500 bg-blue-500/10';
+        }
+
+        const nuevaPoliza = {
+            id: Date.now() + 1,
+            cliente_id: nuevoClienteId, // <--- VÍNCULO CORRECTO AL ID DEL CLIENTE
+            numero: "PENDIENTE-" + Math.floor(Math.random()*1000),
+            aseguradora: "Por Definir",
+            ramo: ramo,
+            icono: icono,
+            estiloIcono: color,
+            estado: "vigente",
+            vence: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+            prima: leadActual.valor
+        };
+        polizas.push(nuevaPoliza);
+        localStorage.setItem('segumex_polizas', JSON.stringify(polizas));
+
+        leadActual.etapa = 'ganada';
+        leads[leadIndex] = leadActual;
+        localStorage.setItem('segumex_leads', JSON.stringify(leads));
+
+        alert("🎉 ¡Felicidades! Venta registrada.\n\nCliente creado.\nPóliza creada.");
+        window.location.href = 'clientes.html';
+    }
+
+    function contactar(metodo) {
+        if(metodo === 'tel') window.location.href = `tel:${leadActual.telefono}`;
+        if(metodo === 'email') window.location.href = `mailto:${leadActual.email}`;
+        if(metodo === 'wa') window.open(`https://wa.me/52${leadActual.telefono.replace(/\D/g,'')}`, '_blank');
+    }
+</script>
+</body>
+</html>

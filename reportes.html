@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Reportes - Segumex</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <script>
+        // --- SCRIPT DE SEGURIDAD MODIFICADO ---
+        (async function () {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+            }
+        })();
+
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3b82f6",
+                        "background-dark": "#0f111a",
+                        "surface-dark": "#161b22",
+                        "surface-card": "#1f242e",
+                        "text-secondary": "#94a3b8"
+                    },
+                    fontFamily: { "display": ["Inter", "sans-serif"] }
+                },
+            },
+        }
+    </script>
+</head>
+
+<body class="bg-background-dark font-display text-white overflow-hidden relative" onload="cargarReportes()">
+    <!-- Overlay Mobile -->
+    <div id="sidebarOverlay" onclick="toggleMenu()"
+        class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass transition-opacity"></div>
+
+    <div class="flex h-screen w-full overflow-hidden">
+
+        <aside id="sidebar"
+            class="fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-[#2d3442] bg-[#161b22] flex-shrink-0 shadow-2xl md:shadow-none">
+        </aside>
+
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-background-dark relative w-full">
+            <!-- Mobile Header / Toggle -->
+            <div class="md:hidden p-4 pb-0 flex items-center gap-3">
+                <button onclick="toggleMenu()" class="p-2 -ml-2 text-white hover:bg-white/10 rounded-lg">
+                    <span class="material-symbols-outlined text-2xl">menu</span>
+                </button>
+                <span class="font-bold text-lg">Segumex</span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto px-6 py-6 scroll-smooth">
+                <div class="max-w-[1600px] mx-auto flex flex-col gap-6">
+
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <div class="flex items-center gap-2 text-sm text-[#94a3b8] mb-1">
+                                <span>Segumex</span> <span
+                                    class="material-symbols-outlined text-[12px]">chevron_right</span>
+                                <span>Inteligencia</span>
+                            </div>
+                            <h1 class="text-white text-3xl font-bold tracking-tight">Reportes y Analítica</h1>
+                            <p class="text-[#94a3b8] text-sm mt-1">Visualiza el rendimiento real de tu agencia.</p>
+                        </div>
+
+                        <div class="flex bg-[#1f242e] border border-[#2d3442] rounded-lg p-1">
+                            <button
+                                class="px-4 py-1.5 rounded-md bg-[#2d3442] text-white text-xs font-bold shadow-sm">2026</button>
+                            <button
+                                class="px-4 py-1.5 rounded-md text-[#94a3b8] hover:text-white text-xs font-medium transition-colors">Histórico</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden">
+                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Prima Neta
+                                Total</p>
+                            <h2 class="text-xl font-bold text-white" id="kpiVentasNeta">$0.00</h2>
+                            <span class="text-green-500 text-[10px] font-bold flex items-center gap-1 mt-1">Ingreso
+                                Base</span>
+                        </div>
+                        <div
+                            class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden border-l-4 border-l-primary">
+                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Prima Total
+                                (Bruta)</p>
+                            <h2 class="text-xl font-bold text-white" id="kpiVentasTotal">$0.00</h2>
+                            <span class="text-primary text-[10px] font-bold flex items-center gap-1 mt-1">Recaudación
+                                Final</span>
+                        </div>
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden">
+                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Comisiones
+                                Est.</p>
+                            <h2 class="text-xl font-bold text-green-400" id="kpiComisiones">$0.00</h2>
+                            <span class="text-[#94a3b8] text-[10px] font-bold mt-1">Utilidad Proyectada</span>
+                        </div>
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden">
+                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Total Pólizas
+                            </p>
+                            <h2 class="text-xl font-bold text-white" id="kpiCount">0</h2>
+                            <span class="text-blue-500 text-[10px] font-bold flex items-center gap-1 mt-1">Cartera
+                                Activa</span>
+                        </div>
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden">
+                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Siniestralidad
+                            </p>
+                            <h2 class="text-xl font-bold text-white" id="kpiSiniestralidad">0%</h2>
+                            <span class="text-yellow-500 text-[10px] font-bold mt-1">Ratio de Riesgo</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 shadow-lg">
+                            <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary text-lg">engineering</span> Pólizas
+                                por Agente
+                            </h3>
+                            <div class="relative h-64 w-full">
+                                <canvas id="chartAgentes"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 shadow-lg">
+                            <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary text-lg">apartment</span> Volumen
+                                por Aseguradora
+                            </h3>
+                            <div class="relative h-64 w-full">
+                                <canvas id="chartAseguradoras"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 shadow-lg">
+                            <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-yellow-500 text-lg">star</span> Top Clientes
+                                (Más Pólizas)
+                            </h3>
+                            <div class="overflow-hidden">
+                                <table class="w-full text-left text-sm">
+                                    <thead class="text-[#94a3b8] border-b border-[#2d3442]">
+                                        <tr>
+                                            <th class="pb-2 font-medium">Cliente</th>
+                                            <th class="pb-2 font-medium text-center">Pólizas</th>
+                                            <th class="pb-2 font-medium text-right">Valor Cartera</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tableTopClientes" class="divide-y divide-[#2d3442]">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 shadow-lg">
+                            <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-green-500 text-lg">category</span>
+                                Distribución por Ramo
+                            </h3>
+                            <div class="relative h-64 w-full flex justify-center">
+                                <canvas id="chartRamos"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 shadow-lg lg:col-span-2">
+                            <h3 class="text-white font-bold text-sm mb-4">Evolución de Ventas (Mensual)</h3>
+                            <div class="relative h-72 w-full">
+                                <canvas id="chartMensual"></canvas>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="menu.js"></script>
+
+    <script>
+        let chartAseg = null, chartRam = null, chartMen = null, chartAge = null;
+
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = '#2d3442';
+
+        async function cargarReportes() {
+            // --- CONSULTA SUPABASE ---
+            const { data: polizas } = await window.supabaseClient.from('polizas').select('*');
+            const { data: siniestros } = await window.supabaseClient.from('siniestros').select('*');
+            const { data: clientesRaw } = await window.supabaseClient.from('clientes').select('*');
+
+            let totalNeta = 0;
+            let totalBruta = 0;
+            let totalComision = 0;
+            let countPolizas = 0;
+
+            let aseguradorasMap = {}; // Para conteo
+            let ramosMap = {};
+            let agentesMap = {};
+            let clientesMap = {}; // Para top clientes
+            let ventasMensuales = new Array(12).fill(0);
+
+            // --- FILTRO DE SEGURIDAD ---
+            const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+            const esAdmin = sesion.rol === 'admin';
+
+            (polizas || []).forEach(p => {
+                if (p.estado === 'cancelada') return;
+                if (!esAdmin && p.restringida === true) return; // OCULTAR RESTRINGIDAS A AGENTES
+
+                const neta = parseFloat(p.finanzas?.primaNeta) || 0;
+                const bruta = parseFloat(p.prima) || parseFloat(p.finanzas?.primaTotal) || 0;
+                const comisionPct = parseFloat(p.finanzas?.comisionPct) || 10;
+
+                totalNeta += neta;
+                totalBruta += bruta;
+                totalComision += (neta * (comisionPct / 100));
+                countPolizas++;
+
+                // Mapeo Agentes
+                const agente = p.agente || "Sin Asignar";
+                agentesMap[agente] = (agentesMap[agente] || 0) + 1;
+
+                // Mapeo Aseguradoras (Conteo)
+                const aseg = p.aseguradora || "Otra";
+                aseguradorasMap[aseg] = (aseguradorasMap[aseg] || 0) + 1;
+
+                // Mapeo Ramos
+                const ramo = p.ramo || "Otro";
+                ramosMap[ramo] = (ramosMap[ramo] || 0) + 1;
+
+                // Mapeo Clientes para el Top
+                const cId = p.cliente_id;
+                if (!clientesMap[cId]) clientesMap[cId] = { count: 0, valor: 0 };
+                clientesMap[cId].count += 1;
+                clientesMap[cId].valor += neta;
+
+                const fechaStr = p.finanzas?.inicio || p.vence;
+                const fecha = new Date(fechaStr);
+                if (!isNaN(fecha)) {
+                    ventasMensuales[fecha.getMonth()] += neta;
+                }
+            });
+
+            // ACTUALIZAR KPIs
+            const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+            document.getElementById('kpiVentasNeta').innerText = fmt.format(totalNeta);
+            document.getElementById('kpiVentasTotal').innerText = fmt.format(totalBruta);
+            document.getElementById('kpiComisiones').innerText = fmt.format(totalComision);
+            document.getElementById('kpiCount').innerText = countPolizas;
+            document.getElementById('kpiSiniestralidad').innerText = (countPolizas > 0 ? ((siniestros || []).length / countPolizas) * 100 : 0).toFixed(1) + "%";
+
+            // TOP CLIENTES TABLE
+            const topClientesSorted = Object.keys(clientesMap)
+                .map(id => {
+                    const c = (clientesRaw || []).find(cli => cli.id == id);
+                    return {
+                        nombre: c ? `${c.nombre} ${c.apellido || ''}` : 'Cliente Desconocido',
+                        pols: clientesMap[id].count,
+                        valor: clientesMap[id].valor
+                    }
+                })
+                .sort((a, b) => b.pols - a.pols)
+                .slice(0, 5);
+
+            const tableBody = document.getElementById('tableTopClientes');
+            tableBody.innerHTML = '';
+            topClientesSorted.forEach(item => {
+                tableBody.innerHTML += `
+                <tr class="hover:bg-[#161b22] transition-colors">
+                    <td class="py-3 text-white font-medium">${item.nombre}</td>
+                    <td class="py-3 text-center text-primary font-bold">${item.pols}</td>
+                    <td class="py-3 text-right text-[#94a3b8]">${fmt.format(item.valor)}</td>
+                </tr>
+            `;
+            });
+
+            // GRÁFICAS
+            if (chartAseg) chartAseg.destroy();
+            if (chartRam) chartRam.destroy();
+            if (chartMen) chartMen.destroy();
+            if (chartAge) chartAge.destroy();
+
+            // Chart Agentes
+            chartAge = new Chart(document.getElementById('chartAgentes'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(agentesMap),
+                    datasets: [{ label: 'Pólizas Asignadas', data: Object.values(agentesMap), backgroundColor: '#8b5cf6', borderRadius: 4 }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            // Chart Aseguradoras (Conteo)
+            chartAseg = new Chart(document.getElementById('chartAseguradoras'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(aseguradorasMap),
+                    datasets: [{ label: 'Número de Pólizas', data: Object.values(aseguradorasMap), backgroundColor: '#3b82f6', borderRadius: 4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            // Chart Ramos
+            chartRam = new Chart(document.getElementById('chartRamos'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(ramosMap).map(r => r.toUpperCase()),
+                    datasets: [{ data: Object.values(ramosMap), backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6'], borderWidth: 0 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } } }
+            });
+
+            // Chart Mensual
+            const ctxMes = document.getElementById('chartMensual').getContext('2d');
+            const gradient = ctxMes.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
+            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+
+            chartMen = new Chart(ctxMes, {
+                type: 'line',
+                data: {
+                    labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                    datasets: [{ label: 'Producción Neta 2026', data: ventasMensuales, borderColor: '#3b82f6', backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 4 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, grid: { color: '#2d3442' } }, x: { grid: { display: false } } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Gestión de Usuarios - Segumex</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <script>
+        // --- SEGURIDAD DE ADMINISTRADOR MODIFICADO ---
+        (async function () {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Verificamos el rol desde los metadatos de Supabase
+            if (session.user.user_metadata.rol !== 'admin') {
+                alert("Acceso denegado: Se requieren permisos de Administrador.");
+                window.location.href = 'index.html';
+            }
+        })();
+
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3b82f6",
+                        "background-dark": "#0f111a",
+                        "surface-dark": "#161b22",
+                        "surface-card": "#1f242e",
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+
+<body class="bg-background-dark font-display text-white overflow-hidden relative" onload="renderizarUsuarios()">
+    <!-- Overlay Mobile -->
+    <div id="sidebarOverlay" onclick="toggleMenu()"
+        class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass transition-opacity"></div>
+
+    <div class="flex h-screen w-full overflow-hidden">
+
+        <aside id="sidebar"
+            class="fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-[#2d3442] bg-[#161b22] flex-shrink-0 shadow-2xl md:shadow-none">
+        </aside>
+
+        <main class="flex-1 flex flex-col h-full bg-background-dark relative w-full">
+            <!-- Mobile Header / Toggle -->
+            <div class="md:hidden p-4 pb-0 flex items-center gap-3 bg-[#0f111a]">
+                <button onclick="toggleMenu()" class="p-2 -ml-2 text-white hover:bg-white/10 rounded-lg">
+                    <span class="material-symbols-outlined text-2xl">menu</span>
+                </button>
+                <span class="font-bold text-lg">Segumex</span>
+            </div>
+            <header class="p-6 flex justify-between items-center border-b border-[#2d3442] bg-[#0f111a] shrink-0">
+                <div>
+                    <h1 class="text-3xl font-bold tracking-tight">Gestión de Usuarios</h1>
+                    <p class="text-[#94a3b8] text-sm mt-1">Controla quién tiene acceso al CRM y sus permisos.</p>
+                </div>
+                <button onclick="abrirModalUsuario()"
+                    class="bg-primary hover:bg-blue-600 px-6 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all shadow-lg shadow-blue-900/20">
+                    <span class="material-symbols-outlined">person_add</span> Nuevo Usuario
+                </button>
+            </header>
+
+            <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                <div class="max-w-4xl mx-auto space-y-4" id="contenedorUsuarios">
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modalUsuario"
+        class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-surface-card border border-[#2d3442] w-full max-md rounded-2xl p-6 shadow-2xl">
+            <h2 class="text-xl font-bold mb-4">Crear Nuevo Usuario</h2>
+            <form onsubmit="crearUsuario(event)" class="space-y-4">
+                <div>
+                    <label class="text-xs text-[#94a3b8] font-bold uppercase">Nombre Completo</label>
+                    <input type="text" id="uNombre" required
+                        class="w-full bg-[#161b22] border-[#2d3442] rounded-lg text-white mt-1 focus:border-primary outline-none p-3">
+                </div>
+                <div>
+                    <label class="text-xs text-[#94a3b8] font-bold uppercase">Correo Electrónico</label>
+                    <input type="email" id="uEmail" required
+                        class="w-full bg-[#161b22] border-[#2d3442] rounded-lg text-white mt-1 focus:border-primary outline-none p-3">
+                </div>
+                <div>
+                    <label class="text-xs text-[#94a3b8] font-bold uppercase">Contraseña Provisional</label>
+                    <input type="password" id="uPass" required
+                        class="w-full bg-[#161b22] border-[#2d3442] rounded-lg text-white mt-1 focus:border-primary outline-none p-3">
+                </div>
+                <div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                    <p class="text-[10px] text-blue-400 font-bold uppercase mb-1">Nota de Seguridad</p>
+                    <p class="text-xs text-[#94a3b8]">Los nuevos usuarios se crean con rol de <b>Agente</b>. No pueden
+                        crear otros usuarios ni acceder a este panel de configuración.</p>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="submit"
+                        class="flex-1 bg-primary hover:bg-blue-600 py-3 rounded-xl font-bold transition-colors">Crear
+                        Cuenta</button>
+                    <button type="button" onclick="cerrarModalUsuario()"
+                        class="flex-1 bg-[#2d3442] hover:bg-[#3b4354] py-3 rounded-xl font-bold transition-colors">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="menu.js"></script>
+    <script>
+        async function renderizarUsuarios() {
+            // En Supabase, para listar usuarios reales de Auth se requiere clave de servicio (segura)
+            // Por ahora leeremos una tabla de 'perfiles' vinculada para visualización
+            const { data: usuarios } = await window.supabaseClient.from('perfiles').select('*');
+            const cont = document.getElementById('contenedorUsuarios');
+            cont.innerHTML = '';
+
+            (usuarios || []).forEach((u) => {
+                const isAdmin = u.rol === 'admin';
+                cont.innerHTML += `
+                <div class="bg-surface-card border border-[#2d3442] p-5 rounded-2xl flex items-center justify-between group hover:border-primary/40 transition-all">
+                    <div class="flex items-center gap-4">
+                        <div class="size-12 rounded-full ${isAdmin ? 'bg-primary' : 'bg-[#2d3442]'} flex items-center justify-center text-white font-black">
+                            ${u.nombre.charAt(0)}
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white">${u.nombre} ${isAdmin ? '<span class="ml-2 text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full uppercase">Admin Maestro</span>' : ''}</h3>
+                            <p class="text-xs text-[#94a3b8]">${u.email}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="text-[10px] text-[#475569] font-bold uppercase tracking-widest">${u.rol}</span>
+                        ${!isAdmin ? `
+                            <button onclick="eliminarUsuario('${u.id}')" class="text-red-500/50 hover:text-red-500 transition-colors p-2">
+                                <span class="material-symbols-outlined">delete</span>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            });
+        }
+
+        function abrirModalUsuario() { document.getElementById('modalUsuario').classList.remove('hidden'); }
+        function cerrarModalUsuario() { document.getElementById('modalUsuario').classList.add('hidden'); }
+
+        async function crearUsuario(e) {
+            e.preventDefault();
+            const nombre = document.getElementById('uNombre').value;
+            const email = document.getElementById('uEmail').value;
+            const pass = document.getElementById('uPass').value;
+
+            // TRUCO: Creamos un cliente temporal para no cerrar la sesión del Admin actual al registrar otro
+            // Supabase Auth por defecto loguea al usuario nuevo si usas el cliente principal.
+            const tempClient = supabase.createClient(window.supabaseUrl, window.supabaseKey);
+
+            const { data, error } = await tempClient.auth.signUp({
+                email: email,
+                password: pass,
+                options: {
+                    data: { nombre: nombre, rol: 'agente' }
+                }
+            });
+
+            if (error) {
+                alert("Error: " + error.message);
+            } else {
+                // También guardamos en la tabla de perfiles para el listado
+                await window.supabaseClient.from('perfiles').insert([{
+                    id: data.user.id,
+                    nombre: nombre,
+                    email: email,
+                    rol: 'agente'
+                }]);
+
+                cerrarModalUsuario();
+                await renderizarUsuarios();
+            }
+        }
+
+        async function eliminarUsuario(id) {
+            if (confirm("¿Estás seguro de que deseas revocar el acceso a este usuario?")) {
+                // Borramos el perfil (el usuario de Auth debe borrarse desde el panel de Supabase)
+                await window.supabaseClient.from('perfiles').delete().eq('id', id);
+                await renderizarUsuarios();
+            }
+        }
+    </script>
+</body>
+
+</html>

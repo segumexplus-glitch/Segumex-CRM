@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Lista de Clientes - Segumex</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <script>
+        // --- SEGURIDAD: Verificar sesión activa en Supabase ---
+        let currentUser = null;
+
+        // --- SEGURIDAD: Verificar sesión activa en Supabase ---
+        async function checkSession() {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+            } else {
+                currentUser = session.user.user_metadata;
+            }
+        }
+        checkSession();
+
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-dark": "#101622",
+                        "surface-dark": "#111318",
+                        "surface-card": "#1c1f27",
+                        "text-secondary": "#9da6b9"
+                    },
+                    fontFamily: { "display": ["Inter", "sans-serif"] }
+                },
+            },
+        }
+    </script>
+</head>
+
+<body class="bg-[#f6f6f8] dark:bg-background-dark font-display text-white relative" onload="cargarClientes()">
+    <!-- Overlay Mobile -->
+    <div id="sidebarOverlay" onclick="toggleMenu()"
+        class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass transition-opacity"></div>
+
+    <div class="flex h-screen w-full overflow-hidden">
+        <aside id="sidebar"
+            class="fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-[#3b4354] bg-[#111318] flex-shrink-0 shadow-2xl md:shadow-none">
+        </aside>
+
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-background-dark relative w-full">
+            <!-- Mobile Header / Toggle -->
+            <div class="md:hidden p-4 pb-0 flex items-center gap-3">
+                <button onclick="toggleMenu()" class="p-2 -ml-2 text-white hover:bg-white/10 rounded-lg">
+                    <span class="material-symbols-outlined text-2xl">menu</span>
+                </button>
+                <span class="font-bold text-lg">Segumex</span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto px-6 py-6 scroll-smooth pb-24">
+                <div class="max-w-[1400px] mx-auto flex flex-col gap-6">
+
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <div class="flex items-center gap-2 text-sm text-[#9da6b9] mb-1">
+                                <span>Segumex</span> <span
+                                    class="material-symbols-outlined text-[12px]">chevron_right</span>
+                                <span>Clientes</span>
+                            </div>
+                            <h1 class="text-white text-3xl font-bold tracking-tight">Listado de Clientes</h1>
+                            <p class="text-[#9da6b9] text-sm mt-1">Gestiona tu cartera, renovaciones y estado de
+                                cobranza en tiempo real.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <button
+                                class="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1c1f27] border border-[#3b4354] text-[#9da6b9] hover:text-white hover:border-white transition-colors text-sm font-medium">
+                                <span class="material-symbols-outlined text-[18px]">download</span> Exportar Reporte
+                            </button>
+                            <button
+                                class="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1c1f27] border border-[#3b4354] text-[#9da6b9] hover:text-white hover:border-white transition-colors text-sm font-medium">
+                                <span class="material-symbols-outlined text-[18px]">settings</span> Configuración
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-5 relative overflow-hidden">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-[#9da6b9] text-xs font-bold uppercase tracking-wider mb-1">Total
+                                        Clientes</p>
+                                    <h2 class="text-3xl font-bold text-white" id="kpiTotalClientes">0</h2>
+                                    <span class="text-green-500 text-xs font-bold flex items-center gap-1 mt-1"><span
+                                            class="material-symbols-outlined text-[14px]">trending_up</span> +12%</span>
+                                </div>
+                                <div class="p-2 bg-[#282e39] rounded-lg text-[#9da6b9]"><span
+                                        class="material-symbols-outlined">group</span></div>
+                            </div>
+                        </div>
+                        <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-5 relative overflow-hidden">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-[#9da6b9] text-xs font-bold uppercase tracking-wider mb-1">Pólizas
+                                        Vigentes</p>
+                                    <h2 class="text-3xl font-bold text-white" id="kpiPolizasVigentes">0</h2>
+                                    <span class="text-green-500 text-xs font-bold flex items-center gap-1 mt-1"><span
+                                            class="material-symbols-outlined text-[14px]">trending_up</span> +5%</span>
+                                </div>
+                                <div class="p-2 bg-[#282e39] rounded-lg text-[#9da6b9]"><span
+                                        class="material-symbols-outlined">verified_user</span></div>
+                            </div>
+                        </div>
+                        <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-5 relative overflow-hidden">
+                            <div class="absolute right-0 top-0 p-4 opacity-5"><span
+                                    class="material-symbols-outlined text-6xl text-yellow-500">warning</span></div>
+                            <div class="flex justify-between items-start relative z-10">
+                                <div>
+                                    <p class="text-[#9da6b9] text-xs font-bold uppercase tracking-wider mb-1">Por Vencer
+                                        (30 días)</p>
+                                    <h2 class="text-3xl font-bold text-white" id="kpiPorVencer">0</h2>
+                                    <span
+                                        class="bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded text-[10px] font-bold mt-1 inline-block border border-yellow-500/30">Requiere
+                                        Atención</span>
+                                </div>
+                                <div class="p-2 bg-[#282e39] rounded-lg text-yellow-500"><span
+                                        class="material-symbols-outlined">warning</span></div>
+                            </div>
+                        </div>
+                        <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-5 relative overflow-hidden">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-[#9da6b9] text-xs font-bold uppercase tracking-wider mb-1">En
+                                        Morosidad</p>
+                                    <h2 class="text-3xl font-bold text-white" id="kpiMorosidad">0</h2>
+                                    <span class="text-red-500 text-xs font-bold flex items-center gap-1 mt-1"><span
+                                            class="material-symbols-outlined text-[14px]">trending_down</span>
+                                        -1.5%</span>
+                                </div>
+                                <div class="p-2 bg-[#282e39] rounded-lg text-red-500"><span
+                                        class="material-symbols-outlined">error</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-4 flex flex-col gap-4">
+                        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div class="relative w-full md:max-w-md">
+                                <span
+                                    class="absolute left-3 top-2.5 material-symbols-outlined text-[#9da6b9] text-[20px]">search</span>
+                                <input type="text" id="buscadorCliente" onkeyup="buscarCliente()"
+                                    placeholder="Buscar por nombre, RFC o ID de póliza..."
+                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg pl-10 pr-4 py-2 text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none placeholder-[#586074]">
+                            </div>
+                            <div class="flex items-center gap-3 w-full md:w-auto">
+                                <span class="text-[#9da6b9] text-sm whitespace-nowrap">Ordenar por:</span>
+                                <select
+                                    class="bg-[#111318] border border-[#3b4354] text-white text-sm rounded-lg p-2 outline-none focus:border-primary w-full md:w-48">
+                                    <option>Nombre (A-Z)</option>
+                                    <option>Más recientes</option>
+                                    <option>Pólizas (Mayor a Menor)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-[#3b4354]">
+                            <button
+                                class="px-3 py-1 bg-primary text-white rounded-full text-xs font-bold hover:bg-blue-600 transition-colors">Todos</button>
+                            <button
+                                class="px-3 py-1 bg-[#111318] border border-[#3b4354] text-[#9da6b9] rounded-full text-xs font-medium hover:text-white hover:border-white transition-colors flex items-center gap-1">Aseguradora
+                                <span class="material-symbols-outlined text-[14px]">expand_more</span></button>
+                            <button
+                                class="px-3 py-1 bg-[#111318] border border-[#3b4354] text-[#9da6b9] rounded-full text-xs font-medium hover:text-white hover:border-white transition-colors flex items-center gap-1">Ramo
+                                <span class="material-symbols-outlined text-[14px]">expand_more</span></button>
+                            <button
+                                class="px-3 py-1 bg-[#111318] border border-[#3b4354] text-[#9da6b9] rounded-full text-xs font-medium hover:text-white hover:border-white transition-colors flex items-center gap-1">Estatus
+                                Póliza <span class="material-symbols-outlined text-[14px]">expand_more</span></button>
+                            <div class="flex-1"></div>
+                            <button class="text-primary text-xs font-bold hover:underline">Limpiar filtros</button>
+                        </div>
+                    </div>
+
+                    <section
+                        class="bg-[#1c1f27] border border-[#3b4354] rounded-xl overflow-hidden shadow-lg flex-1 mb-8">
+                        <div class="w-full overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-[#3b4354] bg-[#111318]">
+                                        <th
+                                            class="p-4 text-xs font-bold tracking-wide text-[#9da6b9] uppercase w-[300px]">
+                                            Cliente</th>
+                                        <th class="p-4 text-xs font-bold tracking-wide text-[#9da6b9] uppercase">Pólizas
+                                        </th>
+                                        <th class="p-4 text-xs font-bold tracking-wide text-[#9da6b9] uppercase">Próx.
+                                            Renovación</th>
+                                        <th class="p-4 text-xs font-bold tracking-wide text-[#9da6b9] uppercase">Estado
+                                        </th>
+                                        <th class="p-4 text-xs font-bold tracking-wide text-[#9da6b9] uppercase">Asesor
+                                        </th>
+                                        <th
+                                            class="p-4 text-xs font-bold tracking-wide text-[#9da6b9] uppercase text-right">
+                                            Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabla-clientes" class="divide-y divide-[#2d3442]">
+                                </tbody>
+                            </table>
+
+                            <div id="sin-datos"
+                                class="hidden flex flex-col items-center justify-center p-16 text-[#9da6b9]">
+                                <span class="material-symbols-outlined text-5xl mb-3 opacity-50">folder_off</span>
+                                <p class="text-sm font-medium">No hay clientes registrados aún.</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <div class="absolute bottom-8 left-8 z-20">
+                <button onclick="abrirModal()"
+                    class="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-blue-600 text-white font-bold rounded-lg shadow-xl shadow-primary/30 transition-all transform hover:scale-105">
+                    <span class="material-symbols-outlined">person_add</span> Nuevo Cliente
+                </button>
+            </div>
+        </main>
+
+        <div id="modalCliente"
+            class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in overflow-y-auto">
+            <div
+                class="bg-[#1c1f27] border border-[#3b4354] rounded-xl w-full max-w-2xl p-6 shadow-2xl transform transition-all scale-100 my-8">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white mb-1">Nuevo Cliente</h2>
+                        <p class="text-[#9da6b9] text-sm">Completa la ficha de registro.</p>
+                    </div>
+                    <button onclick="cerrarModal()" class="text-[#9da6b9] hover:text-white"><span
+                            class="material-symbols-outlined">close</span></button>
+                </div>
+
+                <form id="formCliente" onsubmit="guardarCliente(event)" class="space-y-6">
+                    <div class="flex flex-col items-center justify-center mb-4">
+                        <div class="relative cursor-pointer" onclick="document.getElementById('fotoInput').click()">
+                            <div id="previewContainer"
+                                class="size-24 rounded-full bg-[#111318] border-2 border-dashed border-[#3b4354] flex items-center justify-center overflow-hidden hover:border-primary transition-colors">
+                                <img id="imgPreview" src="" class="hidden w-full h-full object-cover">
+                                <span id="iconUpload"
+                                    class="material-symbols-outlined text-[#9da6b9] text-3xl">add_a_photo</span>
+                            </div>
+                            <div
+                                class="absolute bottom-0 right-0 bg-primary text-white rounded-full p-1 shadow-lg pointer-events-none">
+                                <span class="material-symbols-outlined text-xs">edit</span>
+                            </div>
+                        </div>
+                        <input type="file" id="fotoInput" accept="image/*" class="hidden"
+                            onchange="mostrarPrevisualizacion(this)">
+                        <p class="text-[#9da6b9] text-xs mt-2 font-medium">Tocá para subir foto</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Tipo</label><select
+                                id="tipoInput"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                                <option value="Persona">Persona Física</option>
+                                <option value="Empresa">Persona Moral</option>
+                            </select></div>
+                        <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">RFC</label><input type="text"
+                                id="rfcInput"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white uppercase"
+                                placeholder="XAXX010101000"></div>
+                        <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Nombre</label><input
+                                type="text" id="nombreInput" required
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white"></div>
+                        <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Apellido</label><input
+                                type="text" id="apellidoInput"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white"></div>
+                        <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Nacimiento</label><input
+                                type="date" id="nacimientoInput"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white"></div>
+                        <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Estatus</label><select
+                                id="estatusInput"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                                <option value="Activo">Activo</option>
+                                <option value="Inactivo">Inactivo</option>
+                            </select></div>
+                    </div>
+
+                    <div class="border-t border-[#3b4354] pt-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Email</label><input
+                                    type="email" id="emailInput" required
+                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                            </div>
+                            <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Teléfono</label><input
+                                    type="tel" id="telefonoInput"
+                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-[#3b4354] pt-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="md:col-span-2"><label
+                                    class="block text-xs font-medium text-[#9da6b9] mb-1">Dirección</label><input
+                                    type="text" id="direccionInput"
+                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                            </div>
+                            <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">CP</label><input
+                                    type="text" id="cpInput"
+                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                            </div>
+                            <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Municipio</label><input
+                                    type="text" id="municipioInput"
+                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                            </div>
+                            <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Estado</label><input
+                                    type="text" id="estadoGeoInput"
+                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                            </div>
+
+                            <div class="col-span-1 md:col-span-2 mt-2" id="containerRestringidaCliente">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="restringidoInput"
+                                        class="w-4 h-4 rounded border-[#3b4354] bg-[#111318] text-red-500 focus:ring-red-500/50">
+                                    <span class="text-sm text-[#9da6b9] font-medium">Restringir (Privado)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="mensajeErrorModal"
+                        class="hidden p-3 mb-4 text-sm text-red-500 bg-red-500/10 border border-red-500/20 rounded-lg">
+                    </div>
+
+                    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-[#3b4354]">
+                        <button type="button" onclick="cerrarModal()"
+                            class="px-4 py-2 text-sm font-medium text-[#9da6b9] hover:text-white">Cancelar</button>
+                        <button type="submit"
+                            class="px-4 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-bold rounded-lg shadow-lg shadow-primary/30">Guardar
+                            Cliente</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="menu.js"></script>
+
+    <script>
+        let imagenBase64 = null;
+        let fileSeleccionado = null;
+        const sesionLocal = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+
+        async function cargarClientes() {
+            const tabla = document.getElementById('tabla-clientes');
+            const mensajeVacio = document.getElementById('sin-datos');
+
+            // --- CONSULTA A SUPABASE ---
+            const { data: clientesRaw, error: errClientes } = await window.supabaseClient
+                .from('clientes')
+                .select('*');
+
+            const { data: polizasGlobales, error: errPolizas } = await window.supabaseClient
+                .from('polizas')
+                .select('*');
+
+            if (errClientes || errPolizas) {
+                console.error("Error cargando datos:", errClientes || errPolizas);
+                return;
+            }
+
+            // --- FILTRO DE VISIBILIDAD ---
+            const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+            let clientes = [];
+
+            if (sesion.rol === 'admin') {
+                // Admin ve TODO
+                clientes = clientesRaw || [];
+            } else {
+                // VISIBILIDAD RESTRINGIDA (Opt-out):
+                // Si restringida = true, solo lo ve el dueño.
+                // Si restringida = false (default), lo ven todos.
+                clientes = (clientesRaw || []).filter(c => {
+                    if (c.restringida === true) {
+                        return c.agente === sesion.nombre;
+                    }
+                    return true;
+                });
+            }
+
+            // --- DIBUJAR TABLA ---
+            tabla.innerHTML = '';
+
+            if (!clientes || clientes.length === 0) {
+                mensajeVacio.classList.remove('hidden');
+                document.getElementById('kpiTotalClientes').innerText = "0";
+                document.getElementById('kpiPolizasVigentes').innerText = "0";
+                document.getElementById('kpiPorVencer').innerText = "0";
+                document.getElementById('kpiMorosidad').innerText = "0";
+                return;
+            } else {
+                mensajeVacio.classList.add('hidden');
+            }
+
+            let kpiPolizasTotal = 0;
+            let kpiVencerTotal = 0;
+            let kpiMorosidadTotal = 0;
+            const hoy = new Date();
+
+            clientes.forEach((cliente) => {
+                const nombreMostrar = cliente.nombre || "";
+                const apellidoMostrar = cliente.apellido || "";
+                const iniciales = (nombreMostrar.charAt(0) + (apellidoMostrar ? apellidoMostrar.charAt(0) : "")).toUpperCase();
+
+                // Usamos imagen_url desde Supabase
+                const avatarHTML = cliente.imagen_url
+                    ? `<img src="${cliente.imagen_url}" class="size-10 rounded-full object-cover border border-[#3b4354]">`
+                    : `<div class="size-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs">${iniciales}</div>`;
+
+                let colorEstado = 'bg-[#0bda5e]/10 text-[#0bda5e] border border-[#0bda5e]/20';
+                if (cliente.estatus === 'Inactivo') colorEstado = 'bg-red-500/10 text-red-500 border border-red-500/20';
+
+                const misPolizas = (polizasGlobales || []).filter(p => p.cliente_id == cliente.id);
+                const polizasCliente = misPolizas.length;
+
+                kpiPolizasTotal += polizasCliente;
+
+                misPolizas.forEach(p => {
+                    if (p.estado === 'cancelada') return;
+                    const fin = new Date(p.vence);
+                    const diff = Math.ceil((fin - hoy) / (1000 * 60 * 60 * 24));
+
+                    if (diff >= 0 && diff <= 30) kpiVencerTotal++;
+                    if (fin < hoy) kpiMorosidadTotal++;
+                });
+
+                let renovacion = "Sin Pólizas";
+                let colorRenovacion = "text-[#9da6b9]";
+                if (polizasCliente > 0) {
+                    // Asumiendo que vence es la fecha de renovación
+                    renovacion = misPolizas[0].vence;
+                    colorRenovacion = "text-white";
+                }
+
+                const fila = `
+                <tr class="group hover:bg-[#282e39]/50 transition-colors border-b border-[#2d3442] last:border-0 text-sm">
+                    <td class="p-4 min-w-[200px]">
+                        <div class="flex items-center gap-3">
+                            ${avatarHTML}
+                            <div class="flex flex-col">
+                                <span class="text-white font-bold">${nombreMostrar} ${apellidoMostrar}</span>
+                                <span class="text-[#9da6b9] text-xs">ID: ${cliente.id || 'N/A'} • ${cliente.email}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-4 whitespace-nowrap">
+                        <div class="flex flex-col gap-1">
+                            <span class="text-white font-bold">${polizasCliente} Activas</span>
+                            <span class="text-[#9da6b9] text-xs">Relacionadas</span>
+                        </div>
+                    </td>
+                    <td class="p-4 whitespace-nowrap">
+                        <span class="${colorRenovacion} font-medium">${renovacion}</span>
+                    </td>
+                    <td class="p-4 whitespace-nowrap">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${colorEstado}">
+                            <span class="size-1.5 rounded-full bg-current"></span>
+                            ${cliente.estatus || 'Activo'}
+                        </span>
+                    </td>
+                    <td class="p-4 whitespace-nowrap">
+                        <div class="flex items-center gap-2">
+                            <div class="size-6 rounded-full bg-[#3b4354] flex items-center justify-center text-[10px] text-white font-bold">
+                                ${(cliente.agente || 'ND').charAt(0)}
+                            </div>
+                            <span class="text-[#9da6b9]">${cliente.agente || 'Agente Segumex'}</span>
+                        </div>
+                    </td>
+                    <td class="p-4 text-right whitespace-nowrap sticky right-0 bg-[#1c1f27] md:bg-transparent shadow-[-10px_0_10px_-5px_rgba(0,0,0,0.3)] md:shadow-none">
+                        <div class="flex items-center justify-end gap-2">
+                            <a href="perfil_cliente.html?id=${cliente.id}" class="text-[#9da6b9] hover:text-white transition-colors p-2 hover:bg-[#3b4354] rounded-lg">
+                                <span class="material-symbols-outlined text-[20px]">visibility</span>
+                            </a>
+                            <button onclick="borrarCliente(${cliente.id})" class="text-[#9da6b9] hover:text-red-500 transition-colors p-2 hover:bg-[#3b4354] rounded-lg">
+                                <span class="material-symbols-outlined text-[20px]">more_vert</span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+                tabla.innerHTML += fila;
+            });
+
+            document.getElementById('kpiTotalClientes').innerText = new Intl.NumberFormat('es-MX').format(clientes.length);
+            document.getElementById('kpiPolizasVigentes').innerText = new Intl.NumberFormat('es-MX').format(kpiPolizasTotal);
+            document.getElementById('kpiPorVencer').innerText = kpiVencerTotal;
+            document.getElementById('kpiMorosidad').innerText = kpiMorosidadTotal;
+        }
+
+        function mostrarPrevisualizacion(input) {
+            if (input.files && input.files[0]) {
+                fileSeleccionado = input.files[0];
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('imgPreview').src = e.target.result;
+                    document.getElementById('imgPreview').classList.remove('hidden');
+                    document.getElementById('iconUpload').classList.add('hidden');
+                    imagenBase64 = e.target.result;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        async function guardarCliente(e) {
+            e.preventDefault();
+            const btnGuardar = document.querySelector('button[type="submit"]');
+            const originalText = btnGuardar.innerText;
+            btnGuardar.innerText = "Guardando...";
+            btnGuardar.disabled = true;
+
+            try {
+                let urlFinal = null;
+
+                // 1. Subir Foto a Storage si existe
+                if (fileSeleccionado) {
+                    const fileName = `cliente_${Date.now()}_${fileSeleccionado.name.replace(/\s/g, '_')}`;
+                    const { data: uploadData, error: uploadError } = await window.supabaseClient
+                        .storage
+                        .from('fotos-clientes')
+                        .upload(fileName, fileSeleccionado);
+
+                    if (uploadError) {
+                        throw new Error("Error al subir la foto: " + uploadError.message);
+                    }
+
+                    // Obtener URL Publica
+                    const { data: publicDesc } = window.supabaseClient.storage.from('fotos-clientes').getPublicUrl(fileName);
+                    urlFinal = publicDesc.publicUrl;
+                }
+
+                const nuevoCliente = {
+                    // id: undefined, // Dejar que Supabase genere ID
+                    tipo: document.getElementById('tipoInput').value,
+                    rfc: document.getElementById('rfcInput').value,
+                    nombre: document.getElementById('nombreInput').value,
+                    apellido: document.getElementById('apellidoInput').value,
+                    nacimiento: document.getElementById('nacimientoInput').value || null,
+                    estatus: document.getElementById('estatusInput').value,
+                    email: document.getElementById('emailInput').value,
+                    telefono: document.getElementById('telefonoInput').value,
+                    direccion: document.getElementById('direccionInput').value,
+                    cp: document.getElementById('cpInput').value,
+                    municipio: document.getElementById('municipioInput').value,
+                    estado_geo: document.getElementById('estadoGeoInput').value,
+                    imagen_url: urlFinal,
+                    agente: sesionLocal.nombre || 'Agente Segumex',
+                    restringida: document.getElementById('restringidoInput').checked
+                };
+
+                console.log("Intentando guardar cliente:", nuevoCliente);
+
+                const { error, data } = await window.supabaseClient
+                    .from('clientes')
+                    .insert([nuevoCliente])
+                    .select();
+
+                if (error) {
+                    console.error("Supabase Error:", error);
+                    throw error; // Re-throw to catch below
+                }
+
+                alert('Cliente registrado exitosamente en la nube');
+                cerrarModal();
+                cargarClientes();
+
+            } catch (err) {
+                console.error("Error en guardarCliente:", err);
+                const msgDiv = document.getElementById('mensajeErrorModal');
+                msgDiv.classList.remove('hidden');
+                msgDiv.innerText = "Error: " + (err.message || JSON.stringify(err));
+            } finally {
+                btnGuardar.innerText = originalText;
+                btnGuardar.disabled = false;
+            }
+        }
+
+        async function borrarCliente(id) {
+            if (confirm('¿Estás seguro de eliminar este cliente?')) {
+                const { error } = await window.supabaseClient
+                    .from('clientes')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    console.error("Error eliminando cliente:", error);
+                    alert("No se pudo eliminar el cliente.");
+                } else {
+                    cargarClientes();
+                }
+            }
+        }
+
+        function abrirModal() {
+            document.getElementById('modalCliente').classList.remove('hidden');
+            document.getElementById('mensajeErrorModal').classList.add('hidden'); // Reset error
+            document.getElementById('formCliente').reset();
+
+            // Ocultar opción restringir para agentes
+            const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+            const container = document.getElementById('containerRestringidaCliente');
+
+            if (container) {
+                if (sesion.rol !== 'admin') {
+                    container.classList.add('hidden');
+                } else {
+                    container.classList.remove('hidden');
+                }
+            }
+
+            imagenBase64 = null;
+            fileSeleccionado = null;
+            document.getElementById('imgPreview').src = "";
+            document.getElementById('imgPreview').classList.add('hidden');
+            document.getElementById('iconUpload').classList.remove('hidden');
+        }
+
+        function cerrarModal() {
+            document.getElementById('modalCliente').classList.add('hidden');
+        }
+
+        function buscarCliente() {
+            const texto = document.getElementById('buscadorCliente').value.toLowerCase();
+            const filas = document.querySelectorAll('#tabla-clientes tr');
+            filas.forEach(fila => {
+                const contenido = fila.innerText.toLowerCase();
+                fila.style.display = contenido.includes(texto) ? '' : 'none';
+            });
+        }
+    </script>
+</body>
+
+</html>

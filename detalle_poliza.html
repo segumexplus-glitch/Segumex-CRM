@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Detalle de Póliza - Segumex</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        // --- SCRIPT DE SEGURIDAD MODIFICADO ---
+        (async function() {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+            }
+        })();
+        // ---------------------------
+
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-dark": "#101622", 
+                        "surface-dark": "#111318",
+                        "surface-card": "#1c1f27",
+                        "text-secondary": "#9da6b9"
+                    },
+                    fontFamily: { "display": ["Inter", "sans-serif"] }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-[#f6f6f8] dark:bg-background-dark font-display text-white">
+<div class="flex h-screen w-full">
+    
+    <aside class="flex w-64 flex-col border-r border-[#3b4354] bg-[#111318] flex-shrink-0">
+        </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-y-auto bg-background-dark p-4 md:p-8">
+        <div class="max-w-6xl mx-auto w-full pb-10">
+            
+            <div class="flex items-center gap-2 text-sm text-[#9da6b9] mb-6">
+                <a id="btnRegresar" href="polizas.html" class="hover:text-white transition-colors flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+                    <span id="txtRegresar">Pólizas</span>
+                </a>
+                <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+                <span class="text-white">Detalle de Póliza</span>
+            </div>
+
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                <div>
+                    <div class="flex items-center gap-3">
+                        <h1 class="text-3xl font-bold text-white" id="tituloPoliza">Póliza #---</h1>
+                        <span id="badgeEstado" class="px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border">...</span>
+                        <span id="badgeDomiciliada" class="hidden px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border border-purple-500/20 bg-purple-500/10 text-purple-400">Domiciliada</span>
+                    </div>
+                    <p class="text-[#9da6b9] text-sm mt-1" id="subtituloPoliza">Cargando información...</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="borrarPolizaActual()" class="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all text-sm font-medium">
+                        <span class="material-symbols-outlined text-[18px]">delete</span> Eliminar
+                    </button>
+                    <button onclick="irAEditar()" class="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-blue-600 text-white font-bold rounded-lg shadow-lg shadow-primary/30 transition-all">
+                        <span class="material-symbols-outlined text-[20px]">edit</span> Editar Póliza
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <div class="lg:col-span-2 space-y-6">
+                    
+                    <div class="bg-surface-card border border-[#3b4354] rounded-xl p-6 relative overflow-hidden">
+                        <div class="flex items-start justify-between">
+                            <div class="flex gap-4">
+                                <div id="iconContainer" class="size-14 rounded-xl flex items-center justify-center bg-[#282e39] text-white">
+                                    <span class="material-symbols-outlined text-3xl">verified</span>
+                                </div>
+                                <div>
+                                    <p class="text-[#9da6b9] text-xs font-bold uppercase tracking-wider">Aseguradora</p>
+                                    <h2 class="text-xl font-bold text-white mt-1" id="txtAseguradora">---</h2>
+                                    <p class="text-primary text-sm font-medium mt-1" id="txtRamo">---</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-[#9da6b9] text-xs font-bold uppercase tracking-wider">Prima Total</p>
+                                <h2 class="text-2xl font-bold text-white mt-1" id="txtPrimaTotal">$0.00</h2>
+                                <p class="text-[#9da6b9] text-xs mt-1" id="txtFormaPago">Anual</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mt-8 pt-6 border-t border-[#3b4354]">
+                            <div>
+                                <p class="text-[#9da6b9] text-xs mb-1">Inicio Vigencia</p>
+                                <p class="text-white font-mono" id="txtInicio">---</p>
+                            </div>
+                            <div>
+                                <p class="text-[#9da6b9] text-xs mb-1">Fin Vigencia</p>
+                                <p class="text-white font-mono" id="txtFin">---</p>
+                            </div>
+                            <div>
+                                <p class="text-[#9da6b9] text-xs mb-1">No. Póliza</p>
+                                <p class="text-white font-mono" id="txtNumero">---</p>
+                            </div>
+                            <div>
+                                <p class="text-[#9da6b9] text-xs mb-1">Inciso</p>
+                                <p class="text-white font-mono" id="txtInciso">1</p>
+                            </div>
+                            <div>
+                                <p class="text-[#9da6b9] text-xs mb-1">Agente Responsable</p>
+                                <p class="text-primary font-bold" id="txtAgente">---</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="cardVehiculo" class="hidden bg-surface-card border border-[#3b4354] rounded-xl p-6">
+                        <h3 class="text-white font-bold mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-orange-500">directions_car</span> Datos del Vehículo</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-8 text-sm">
+                            <div><p class="text-[#9da6b9] text-xs">Marca</p><p class="text-white font-medium" id="vMarca">---</p></div>
+                            <div><p class="text-[#9da6b9] text-xs">Modelo</p><p class="text-white font-medium" id="vModelo">---</p></div>
+                            <div><p class="text-[#9da6b9] text-xs">Año</p><p class="text-white font-medium" id="vAnio">---</p></div>
+                            <div><p class="text-[#9da6b9] text-xs">Placas</p><p class="text-white font-medium uppercase" id="vPlacas">---</p></div>
+                            <div class="col-span-2"><p class="text-[#9da6b9] text-xs">Serie (VIN)</p><p class="text-white font-mono text-xs uppercase" id="vSerie">---</p></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-surface-card border border-[#3b4354] rounded-xl p-6">
+                        <h3 class="text-white font-bold mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-blue-400">folder</span> Documentos</h3>
+                        <div id="listaDocumentos" class="space-y-2">
+                            <p class="text-[#9da6b9] text-sm italic">No hay documentos adjuntos.</p>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="space-y-6">
+                    
+                    <div class="bg-[#111318] border border-[#3b4354] rounded-xl p-4 flex items-center gap-3">
+                        <div class="size-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold" id="avatarCliente">U</div>
+                        <div class="overflow-hidden">
+                            <p class="text-[#9da6b9] text-xs uppercase font-bold">Titular</p>
+                            <p class="text-white font-bold truncate" id="nombreCliente">---</p>
+                        </div>
+                        <button onclick="contactarCliente()" class="ml-auto p-2 rounded-lg bg-[#282e39] hover:bg-green-500/20 hover:text-green-500 text-[#9da6b9] transition-colors">
+                            <span class="material-symbols-outlined">chat</span>
+                        </button>
+                    </div>
+
+                    <div class="bg-surface-card border border-[#3b4354] rounded-xl overflow-hidden">
+                        <div class="p-4 border-b border-[#3b4354] flex justify-between items-center">
+                            <h3 class="text-white font-bold text-sm">Calendario de Pagos</h3>
+                            <span class="text-[#9da6b9] text-xs" id="lblProgresoPagos">0/0</span>
+                        </div>
+                        <div class="max-h-80 overflow-y-auto overflow-x-auto">
+                            <table class="w-full text-left text-xs whitespace-nowrap">
+                                <thead class="bg-[#282e39] text-[#9da6b9] font-medium">
+                                    <tr>
+                                        <th class="p-2">#</th>
+                                        <th class="p-2">Programada</th>
+                                        <th class="p-2 text-right">Total</th>
+                                        <th class="p-2 text-right text-green-400">Com.</th>
+                                        <th class="p-2">Fecha Pago</th>
+                                        <th class="p-2 text-center">OK</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaPagosMini" class="divide-y divide-[#2d3442]">
+                                    </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<script src="menu.js"></script>
+
+<script>
+    let polizaId = null;
+    let polizaData = null;
+    let origen = 'lista';
+    let clienteIdRef = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        polizaId = urlParams.get('id');
+        origen = urlParams.get('origen') || 'lista';
+        clienteIdRef = urlParams.get('clienteId');
+
+        const btnRegresar = document.getElementById('btnRegresar');
+        const txtRegresar = document.getElementById('txtRegresar');
+
+        if (origen === 'cliente' && clienteIdRef !== null) {
+            btnRegresar.href = `perfil_cliente.html?id=${clienteIdRef}`;
+            txtRegresar.innerText = "Volver al Cliente";
+        } else if (origen === 'cobranza') {
+            btnRegresar.href = `cobranza.html`;
+            txtRegresar.innerText = "Volver a Cobranza";
+        } else {
+            btnRegresar.href = `polizas.html`;
+            txtRegresar.innerText = "Listado de Pólizas";
+        }
+
+        if (polizaId === null) {
+            alert("No se especificó ninguna póliza.");
+            window.location.href = 'polizas.html';
+            return;
+        }
+
+        await renderDetalle();
+    });
+
+    async function renderDetalle() {
+        // --- CAMBIO A SUPABASE ---
+        const { data: poliza, error } = await window.supabaseClient
+            .from('polizas')
+            .select('*')
+            .eq('id', polizaId)
+            .single();
+
+        if (error || !poliza) {
+            alert("Póliza no encontrada.");
+            window.location.href = 'polizas.html';
+            return;
+        }
+        polizaData = poliza;
+
+        document.getElementById('tituloPoliza').innerText = `Póliza ${polizaData.no_poliza || 'S/N'}`;
+        document.getElementById('subtituloPoliza').innerText = `${polizaData.aseguradora} • ${(polizaData.ramo || '').toUpperCase()}`;
+        
+        document.getElementById('txtAgente').innerText = polizaData.agente || 'No asignado';
+
+        const badge = document.getElementById('badgeEstado');
+        const hoy = new Date();
+        const finVig = new Date(polizaData.vence);
+        if (polizaData.estado === 'cancelada') {
+            badge.innerText = "Cancelada";
+            badge.className = "px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border bg-gray-500/10 text-gray-400 border-gray-500/20";
+        } else if (finVig < hoy) {
+            badge.innerText = "Vencida";
+            badge.className = "px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border bg-red-500/10 text-red-500 border-red-500/20";
+        } else {
+            badge.innerText = "Vigente";
+            badge.className = "px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border bg-green-500/10 text-green-400 border-green-500/20";
+        }
+
+        if(polizaData.domiciliada) {
+            document.getElementById('badgeDomiciliada').classList.remove('hidden');
+        }
+
+        document.getElementById('txtAseguradora').innerText = polizaData.aseguradora || 'Por definir';
+        document.getElementById('txtRamo').innerText = polizaData.ramo || 'Seguro';
+        
+        const primaTotalVal = polizaData.finanzas ? polizaData.finanzas.primaTotal : (polizaData.prima || 0);
+        document.getElementById('txtPrimaTotal').innerText = new Intl.NumberFormat('es-MX', {style:'currency', currency: 'MXN'}).format(primaTotalVal);
+        
+        const fPagos = { '1': 'Pago Anual', '2': 'Pago Semestral', '4': 'Pago Trimestral', '12': 'Pago Mensual' };
+        document.getElementById('txtFormaPago').innerText = polizaData.finanzas ? (fPagos[polizaData.finanzas.formaPago] || '---') : 'Anual';
+
+        document.getElementById('txtInicio').innerText = polizaData.finanzas ? polizaData.finanzas.inicio : '---';
+        document.getElementById('txtFin').innerText = polizaData.vence || '---';
+        document.getElementById('txtNumero').innerText = polizaData.no_poliza || 'S/N';
+        document.getElementById('txtInciso').innerText = polizaData.inciso || '1';
+
+        const iconContainer = document.getElementById('iconContainer');
+        iconContainer.innerHTML = `<span class="material-symbols-outlined text-3xl">${polizaData.icono || 'description'}</span>`;
+        if(polizaData.estiloIcono) iconContainer.className = `size-14 rounded-xl flex items-center justify-center ${polizaData.estiloIcono}`;
+
+        if(polizaData.ramo === 'auto') {
+            document.getElementById('cardVehiculo').classList.remove('hidden');
+            const v = polizaData.vehiculo || {};
+            document.getElementById('vMarca').innerText = v.marca || '---';
+            document.getElementById('vModelo').innerText = v.modelo || '---';
+            document.getElementById('vAnio').innerText = v.anio || '---';
+            document.getElementById('vPlacas').innerText = v.placas || '---';
+            document.getElementById('vSerie').innerText = v.serie || '---';
+        }
+
+        const docsDiv = document.getElementById('listaDocumentos');
+        if(polizaData.documentos && polizaData.documentos.length > 0) {
+            docsDiv.innerHTML = '';
+            polizaData.documentos.forEach(doc => {
+                docsDiv.innerHTML += `
+                    <div class="flex items-center gap-3 p-3 bg-[#111318] border border-[#3b4354] rounded-lg">
+                        <span class="material-symbols-outlined text-red-400">picture_as_pdf</span>
+                        <div class="flex-1 overflow-hidden">
+                            <p class="text-white text-sm truncate font-medium">${doc.nombre}</p>
+                            <p class="text-[#9da6b9] text-xs">${doc.tamano || 'PDF'}</p>
+                        </div>
+                        <button class="text-[#9da6b9] hover:text-white"><span class="material-symbols-outlined">download</span></button>
+                    </div>
+                `;
+            });
+        }
+
+        // --- CONSULTA CLIENTE RELACIONADO EN SUPABASE ---
+        const { data: cliente } = await window.supabaseClient.from('clientes').select('nombre, apellido').eq('id', polizaData.cliente_id).single();
+        
+        let clienteNombre = "Sin Titular Asignado";
+        if(cliente) {
+             clienteNombre = `${cliente.nombre} ${cliente.apellido || ''}`; 
+        }
+        document.getElementById('nombreCliente').innerText = clienteNombre;
+        document.getElementById('avatarCliente').innerText = clienteNombre.charAt(0).toUpperCase();
+
+        const tablaPagos = document.getElementById('tablaPagosMini');
+        tablaPagos.innerHTML = '';
+        
+        if (polizaData.finanzas) {
+            const numPagos = parseInt(polizaData.finanzas.formaPago) || 1;
+            let pagadosCount = 0;
+            let fechaProgramada = new Date(polizaData.finanzas.inicio + "T12:00:00");
+            
+            const montoTotal = (polizaData.finanzas.primaTotal || 0) / numPagos;
+            const montoNeta = (polizaData.finanzas.primaNeta || 0) / numPagos;
+            const bono = (parseFloat(polizaData.finanzas.moduloHDI) || 0) / numPagos;
+            const pctComision = parseFloat(polizaData.finanzas.comisionPct) || 0;
+            const comision = (montoNeta * (pctComision / 100)) + bono;
+
+            for(let i=0; i<numPagos; i++) {
+                const esPagado = polizaData.pagos_status && polizaData.pagos_status[i] === true;
+                const fechaPagoReal = polizaData.pagos_fechas ? polizaData.pagos_fechas[i] : null;
+                
+                if(esPagado) pagadosCount++;
+                
+                const fechaStr = isNaN(fechaProgramada.getTime()) ? '---' : fechaProgramada.toLocaleDateString('es-MX', {day:'numeric', month:'short'});
+                const statusClass = esPagado ? "text-green-400" : (fechaProgramada < new Date() ? "text-red-500" : "text-[#9da6b9]");
+                const icon = esPagado ? "check_circle" : "radio_button_unchecked";
+
+                let txtFechaPagoReal = "";
+                if(esPagado && fechaPagoReal) {
+                    const fReal = new Date(fechaPagoReal + "T12:00:00");
+                    txtFechaPagoReal = fReal.toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit'});
+                }
+
+                tablaPagos.innerHTML += `
+                    <tr class="hover:bg-[#282e39] transition-colors">
+                        <td class="p-2 text-[#9da6b9] text-center">${i+1}</td>
+                        <td class="p-2 text-white">${fechaStr}</td>
+                        <td class="p-2 text-white font-medium text-right">$${montoTotal.toFixed(2)}</td>
+                        <td class="p-2 text-green-400 font-bold text-right">$${comision.toFixed(2)}</td>
+                        <td class="p-2 text-center text-[10px] text-green-500 font-mono">
+                            ${txtFechaPagoReal}
+                        </td>
+                        <td class="p-2 text-center">
+                            <span class="material-symbols-outlined text-[16px] ${statusClass}">${icon}</span>
+                        </td>
+                    </tr>
+                `;
+                fechaProgramada.setMonth(fechaProgramada.getMonth() + (12/numPagos));
+            }
+            document.getElementById('lblProgresoPagos').innerText = `${pagadosCount}/${numPagos} Pagados`;
+        }
+    }
+
+    function irAEditar() {
+        let clienteParam = clienteIdRef !== null ? `&clienteId=${clienteIdRef}` : `&clienteId=${polizaData.cliente_id}`;
+        let url = `nueva_poliza.html?id=${polizaId}&origen=detalle&retornoOrigen=${origen}${clienteParam}`;
+        window.location.href = url;
+    }
+
+    async function borrarPolizaActual() {
+        if(confirm("¿Estás seguro de eliminar esta póliza permanentemente?")) {
+            const { error } = await window.supabaseClient.from('polizas').delete().eq('id', polizaId);
+            if(!error) {
+                alert("Póliza eliminada.");
+                window.location.href = origen === 'cliente' ? `perfil_cliente.html?id=${clienteIdRef}` : 'polizas.html';
+            }
+        }
+    }
+
+    async function contactarCliente() {
+        const { data: cliente } = await window.supabaseClient.from('clientes').select('telefono').eq('id', polizaData.cliente_id).single();
+        if(cliente && cliente.telefono) {
+            window.open(`https://wa.me/52${cliente.telefono.replace(/\D/g,'')}`, '_blank');
+        } else {
+            alert("El cliente no tiene un teléfono registrado.");
+        }
+    }
+</script>
+</body>
+</html>

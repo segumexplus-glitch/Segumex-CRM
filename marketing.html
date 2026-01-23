@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Marketing Center - Segumex</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <script>
+        // --- SCRIPT DE SEGURIDAD MODIFICADO ---
+        (async function () {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+            }
+        })();
+        // ---------------------------
+
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3b82f6",
+                        "background-dark": "#0f111a",
+                        "surface-dark": "#161b22",
+                        "surface-card": "#1f242e",
+                    },
+                    fontFamily: { "display": ["Inter", "sans-serif"] }
+                },
+            },
+        }
+    </script>
+</head>
+
+<body class="bg-background-dark font-display text-white relative" onload="initMarketing()">
+    <!-- Overlay Mobile -->
+    <div id="sidebarOverlay" onclick="toggleMenu()"
+        class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass transition-opacity"></div>
+
+    <div class="flex flex-col md:flex-row min-h-screen w-full">
+
+        <aside id="sidebar"
+            class="fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-[#2d3442] bg-[#161b22] flex-shrink-0 shadow-2xl md:shadow-none">
+        </aside>
+
+        <main class="flex-1 flex flex-col h-full relative w-full">
+            <!-- Mobile Header / Toggle -->
+            <div class="md:hidden p-4 pb-0 flex items-center gap-3 bg-[#161b22]">
+                <button onclick="toggleMenu()" class="p-2 -ml-2 text-white hover:bg-white/10 rounded-lg">
+                    <span class="material-symbols-outlined text-2xl">menu</span>
+                </button>
+                <span class="font-bold text-lg">Segumex</span>
+            </div>
+            <header
+                class="h-auto md:h-16 py-4 md:py-0 border-b border-[#2d3442] bg-[#161b22] flex flex-col md:flex-row items-center justify-between px-6 shrink-0 gap-4">
+                <div class="flex items-center gap-4 w-full md:w-auto">
+                    <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">campaign</span> Centro de Marketing
+                    </h1>
+                </div>
+                <div class="flex bg-[#0f111a] rounded-lg p-1 border border-[#2d3442] w-full md:w-auto overflow-x-auto">
+                    <button id="btnVistaCampana" onclick="cambiarVista('campana')"
+                        class="px-4 py-1.5 rounded-md text-xs font-bold bg-primary text-white transition-all whitespace-nowrap">Campañas</button>
+                    <button id="btnVistaFidelizacion" onclick="cambiarVista('fidelizacion')"
+                        class="px-4 py-1.5 rounded-md text-xs font-medium text-[#94a3b8] hover:text-white transition-all">Fidelización</button>
+                    <button id="btnVistaHistorial" onclick="cambiarVista('historial')"
+                        class="px-4 py-1.5 rounded-md text-xs font-medium text-[#94a3b8] hover:text-white transition-all">Historial</button>
+                </div>
+            </header>
+
+            <div class="flex-1 overflow-hidden p-6">
+                <div id="vistaCampanas" class="max-w-[1600px] mx-auto h-full grid grid-cols-12 gap-6">
+
+                    <div class="col-span-12 lg:col-span-5 flex flex-col gap-6 overflow-y-auto pr-2 custom-scroll">
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 space-y-6">
+                            <h3
+                                class="text-lg font-bold flex items-center gap-2 text-primary border-b border-[#2d3442] pb-3">
+                                <span class="material-symbols-outlined">edit_note</span> 1. Crear Contenido
+                            </h3>
+                            <div>
+                                <label class="block text-xs font-bold text-[#94a3b8] uppercase mb-2">Nombre de la
+                                    Campaña</label>
+                                <input type="text" id="nombreCampana" placeholder="Ej: Promoción GMM Enero"
+                                    class="w-full bg-[#0f111a] border border-[#2d3442] rounded-lg text-white text-sm focus:border-primary outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-[#94a3b8] uppercase mb-2">Imagen de la
+                                    Campaña</label>
+                                <div class="flex items-center justify-center w-full">
+                                    <label for="dropzone-file"
+                                        class="flex flex-col items-center justify-center w-full h-32 border-2 border-[#2d3442] border-dashed rounded-lg cursor-pointer bg-[#0f111a] hover:bg-[#161b22] transition-colors">
+                                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                            <span
+                                                class="material-symbols-outlined text-[#94a3b8] text-3xl mb-2">cloud_upload</span>
+                                            <p class="mb-2 text-xs text-[#94a3b8] font-semibold">Haz clic para subir</p>
+                                        </div>
+                                        <input id="dropzone-file" type="file" class="hidden" accept="image/*"
+                                            onchange="procesarImagen(this)" />
+                                    </label>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-[#94a3b8] uppercase mb-2">Mensaje
+                                    Publicitario</label>
+                                <textarea id="textoMensaje" rows="5" onkeyup="previsualizar()"
+                                    placeholder="Redacta tu mensaje aquí..."
+                                    class="w-full bg-[#0f111a] border border-[#2d3442] rounded-lg text-white text-sm focus:border-primary outline-none resize-none"></textarea>
+                                <p class="text-[10px] text-[#94a3b8] mt-1 italic">Usa {nombre} para personalizar.</p>
+                            </div>
+                        </div>
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6">
+                            <h3
+                                class="text-lg font-bold flex items-center gap-2 text-green-500 border-b border-[#2d3442] pb-3">
+                                <span class="material-symbols-outlined">send</span> 3. Ejecutar Acción
+                            </h3>
+                            <div class="grid grid-cols-2 gap-4 mt-6">
+                                <button onclick="lanzarWhatsApp()"
+                                    class="flex flex-col items-center justify-center gap-3 p-4 bg-green-500/10 border border-green-500/20 rounded-xl hover:bg-green-500/20 transition-all group">
+                                    <span
+                                        class="material-symbols-outlined text-3xl text-green-500 group-hover:scale-110 transition-transform">chat</span>
+                                    <span class="text-xs font-bold text-green-400">WhatsApp</span>
+                                </button>
+                                <button onclick="lanzarEmail()"
+                                    class="flex flex-col items-center justify-center gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl hover:bg-blue-500/20 transition-all group">
+                                    <span
+                                        class="material-symbols-outlined text-3xl text-blue-500 group-hover:scale-110 transition-transform">mail</span>
+                                    <span class="text-xs font-bold text-blue-400">Email</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-span-12 lg:col-span-7 flex flex-col gap-6 overflow-hidden">
+                        <div
+                            class="h-80 bg-[#161b22] border border-[#2d3442] rounded-xl flex flex-col overflow-hidden shadow-lg">
+                            <div
+                                class="p-3 border-b border-[#2d3442] bg-[#0f111a] flex justify-between items-center shrink-0">
+                                <h3 class="text-sm font-bold text-[#94a3b8] flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary text-base">group_add</span>
+                                    Seleccionar Clientes
+                                </h3>
+                                <div class="flex gap-3 items-center">
+                                    <span
+                                        class="text-[10px] font-bold bg-primary/20 text-primary px-2 py-0.5 rounded-full"
+                                        id="contadorSeleccion">0 seleccionados</span>
+                                    <button onclick="seleccionarTodos()"
+                                        class="text-xs text-[#94a3b8] hover:text-white hover:underline transition-colors">Todos</button>
+                                </div>
+                            </div>
+                            <div class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1" id="listaClientesMarketing">
+                            </div>
+                        </div>
+                        <div class="h-48 bg-[#0f111a] border border-[#2d3442] rounded-xl p-4 flex gap-4 items-center">
+                            <div
+                                class="w-32 h-full bg-[#161b22] rounded-lg overflow-hidden border border-[#2d3442] shrink-0">
+                                <img id="imgPreview" src="" class="w-full h-full object-contain hidden">
+                                <div id="imgPlaceholder"
+                                    class="w-full h-full flex items-center justify-center text-[#2d3442]"><span
+                                        class="material-symbols-outlined text-4xl">image</span></div>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-[10px] font-bold text-primary uppercase mb-1 italic">Vista Previa</p>
+                                <div id="txtPreview" class="text-xs text-[#94a3b8] italic line-clamp-4">Tu mensaje
+                                    aparecerá aquí...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="vistaFidelizacion" class="hidden max-w-[1200px] mx-auto h-full overflow-y-auto custom-scroll">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="space-y-4">
+                            <h3 class="text-lg font-bold flex items-center gap-2 text-pink-500"><span
+                                    class="material-symbols-outlined">cake</span> Cumpleaños</h3>
+                            <div id="listaCumpleanos" class="space-y-3"></div>
+                        </div>
+                        <div class="space-y-4">
+                            <h3 class="text-lg font-bold flex items-center gap-2 text-yellow-500"><span
+                                    class="material-symbols-outlined">workspace_premium</span> Aniversarios</h3>
+                            <div id="listaAniversarios" class="space-y-3"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="vistaHistorial"
+                    class="hidden max-w-[1200px] mx-auto h-full overflow-y-auto custom-scroll pb-10">
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-bold flex items-center gap-2 text-[#94a3b8] mb-6">
+                            <span class="material-symbols-outlined">history</span> Historial de Campañas
+                        </h3>
+                        <div id="listaHistorial" class="space-y-4"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modalDetalle"
+        class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div
+            class="bg-surface-card border border-[#2d3442] w-full max-w-2xl rounded-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="p-6 border-b border-[#2d3442] flex justify-between items-center">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">info</span> Detalle de Campaña
+                </h2>
+                <button onclick="cerrarModal()" class="text-[#94a3b8] hover:text-white transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-6" id="contenidoModal">
+            </div>
+        </div>
+    </div>
+
+    <script src="menu.js"></script>
+    <script>
+        let clientesSeleccionados = new Set();
+        let listaClientesGlobal = [];
+        let imagenBase64 = "";
+
+        async function initMarketing() {
+            // --- CONSULTA SUPABASE ---
+            const { data: clientes } = await window.supabaseClient.from('clientes').select('*');
+            listaClientesGlobal = clientes || [];
+
+            renderLista();
+            await renderFidelizacion();
+            await renderHistorial();
+        }
+
+        function cambiarVista(vista) {
+            ['vistaCampanas', 'vistaFidelizacion', 'vistaHistorial'].forEach(v => document.getElementById(v).classList.add('hidden'));
+            ['btnVistaCampana', 'btnVistaFidelizacion', 'btnVistaHistorial'].forEach(b => {
+                document.getElementById(b).className = "px-4 py-1.5 rounded-md text-xs font-medium text-[#94a3b8] hover:text-white transition-all";
+            });
+            const targetView = vista === 'campana' ? 'vistaCampanas' : vista === 'fidelizacion' ? 'vistaFidelizacion' : 'vistaHistorial';
+            const targetBtn = vista === 'campana' ? 'btnVistaCampana' : vista === 'fidelizacion' ? 'btnVistaFidelizacion' : 'btnVistaHistorial';
+            document.getElementById(targetView).classList.remove('hidden');
+            document.getElementById(targetBtn).className = "px-4 py-1.5 rounded-md text-xs font-bold bg-primary text-white transition-all";
+            if (vista === 'historial') renderHistorial();
+        }
+
+        function renderLista() {
+            const cont = document.getElementById('listaClientesMarketing');
+            cont.innerHTML = listaClientesGlobal.map(c => `
+            <div class="flex items-center gap-4 p-3 hover:bg-[#161b22] border-b border-[#2d3442]/30 transition-colors">
+                <input type="checkbox" onchange="toggleCliente('${c.id}')" class="rounded border-[#2d3442] bg-transparent text-primary focus:ring-0 cursor-pointer">
+                <div class="flex-1">
+                    <p class="text-sm font-medium text-white">${c.nombre} ${c.apellido || ''}</p>
+                    <p class="text-[10px] text-[#94a3b8]">${c.telefono || 'Sin Tel'} • ${c.email || 'Sin Email'}</p>
+                </div>
+            </div>`).join('');
+        }
+
+        async function guardarEnHistorial(tipo, nombreCampana, mensaje, destinatarios, img) {
+            const campaña = {
+                fecha: new Date().toLocaleString('es-MX'),
+                tipo,
+                nombre: nombreCampana || "Campaña sin nombre",
+                mensaje,
+                conteo: destinatarios.length,
+                destinatarios,
+                imagen: img
+            };
+
+            await window.supabaseClient.from('historial_marketing').insert([campaña]);
+        }
+
+        async function renderHistorial() {
+            const cont = document.getElementById('listaHistorial');
+            const { data: historial } = await window.supabaseClient.from('historial_marketing').select('*').order('created_at', { ascending: false });
+
+            if (!historial || historial.length === 0) {
+                cont.innerHTML = '<p class="text-center py-20 text-[#475569] italic font-medium">No hay campañas registradas.</p>';
+                return;
+            }
+            cont.innerHTML = historial.map(h => `
+            <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5 flex justify-between items-center hover:border-primary/40 transition-all">
+                <div class="flex items-center gap-4">
+                    <div class="size-12 rounded-lg bg-[#161b22] flex items-center justify-center text-primary border border-[#2d3442]">
+                        <span class="material-symbols-outlined">${h.tipo === 'WhatsApp' ? 'chat' : 'mail'}</span>
+                    </div>
+                    <div>
+                        <h4 class="text-white font-bold">${h.nombre}</h4>
+                        <p class="text-xs text-[#94a3b8]">${h.fecha} • <span class="text-primary font-medium">${h.conteo} Destinatarios</span></p>
+                    </div>
+                </div>
+                <button onclick="verDetalle(${h.id})" class="px-4 py-2 bg-[#161b22] hover:bg-primary/20 hover:text-primary border border-[#2d3442] rounded-lg text-xs font-bold transition-all flex items-center gap-2">
+                    Ver Detalles <span class="material-symbols-outlined text-sm">visibility</span>
+                </button>
+            </div>`).join('');
+        }
+
+        async function verDetalle(id) {
+            const { data: h } = await window.supabaseClient.from('historial_marketing').select('*').eq('id', id).single();
+            if (!h) return;
+
+            const modal = document.getElementById('modalDetalle');
+            const content = document.getElementById('contenidoModal');
+
+            content.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h5 class="text-[10px] text-[#94a3b8] uppercase font-black mb-2 tracking-widest">Contenido Enviado</h5>
+                    <div class="bg-[#161b22] p-4 rounded-xl border border-[#2d3442] space-y-4">
+                        ${h.imagen ? `<img src="${h.imagen}" class="w-full h-32 object-contain bg-black rounded-lg">` : ''}
+                        <p class="text-sm text-white italic whitespace-pre-wrap">"${h.mensaje}"</p>
+                    </div>
+                </div>
+                <div>
+                    <h5 class="text-[10px] text-[#94a3b8] uppercase font-black mb-2 tracking-widest">Destinatarios (${h.conteo})</h5>
+                    <div class="bg-[#161b22] p-3 rounded-xl border border-[#2d3442] max-h-48 overflow-y-auto custom-scroll space-y-2">
+                        ${h.destinatarios.map(d => `<div class="text-xs text-white flex items-center gap-2"><span class="size-1.5 rounded-full bg-primary"></span>${d}</div>`).join('')}
+                    </div>
+                    <div class="mt-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                        <p class="text-xs text-primary font-medium">Enviado vía ${h.tipo} el día ${h.fecha}</p>
+                    </div>
+                </div>
+            </div>`;
+            modal.classList.remove('hidden');
+        }
+
+        function cerrarModal() { document.getElementById('modalDetalle').classList.add('hidden'); }
+
+        async function lanzarWhatsApp() {
+            if (clientesSeleccionados.size === 0) return;
+            const textoOriginal = document.getElementById('textoMensaje').value;
+            if (!textoOriginal) return;
+            const nombresDestinatarios = [];
+            clientesSeleccionados.forEach(id => {
+                const c = listaClientesGlobal.find(cli => String(cli.id) === String(id));
+                if (c && c.telefono) {
+                    nombresDestinatarios.push(`${c.nombre} ${c.apellido || ''}`);
+                    window.open(`https://wa.me/52${c.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(textoOriginal.replace('{nombre}', c.nombre))}`, '_blank');
+                }
+            });
+            await guardarEnHistorial('WhatsApp', document.getElementById('nombreCampana').value, textoOriginal, nombresDestinatarios, imagenBase64);
+        }
+
+        async function lanzarEmail() {
+            if (clientesSeleccionados.size === 0) return;
+            const textoOriginal = document.getElementById('textoMensaje').value;
+            const campaña = document.getElementById('nombreCampana').value || "Información de Segumex";
+            const nombresDestinatarios = [];
+            clientesSeleccionados.forEach(id => {
+                const c = listaClientesGlobal.find(cli => String(cli.id) === String(id));
+                if (c && c.email) {
+                    nombresDestinatarios.push(`${c.nombre} ${c.apellido || ''}`);
+                    window.open(`mailto:${c.email}?subject=${encodeURIComponent(campaña)}&body=${encodeURIComponent(textoOriginal.replace('{nombre}', c.nombre))}`, '_blank');
+                }
+            });
+            await guardarEnHistorial('Email', campaña, textoOriginal, nombresDestinatarios, imagenBase64);
+        }
+
+        // --- FUNCIONES SOPORTE ---
+        async function renderFidelizacion() {
+            const contCumple = document.getElementById('listaCumpleanos');
+            const contAniv = document.getElementById('listaAniversarios');
+            const { data: polizas } = await window.supabaseClient.from('polizas').select('*');
+
+            const hoy = new Date();
+            const mesDiaHoy = `${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+            const cumplenHoy = listaClientesGlobal.filter(c => c.nacimiento && c.nacimiento.endsWith(mesDiaHoy));
+            contCumple.innerHTML = cumplenHoy.length > 0 ? cumplenHoy.map(c => renderCardFidelidad(c, `¡Feliz Cumpleaños! 🎂`, 'pink')).join('') : '<p class="text-xs text-[#475569] italic">Nadie hoy.</p>';
+            const aniversariosHoy = (polizas || []).filter(p => p.finanzas?.inicio && p.finanzas.inicio.endsWith(mesDiaHoy));
+            contAniv.innerHTML = aniversariosHoy.length > 0 ? aniversariosHoy.map(p => {
+                const c = listaClientesGlobal.find(cli => String(cli.id) === String(p.cliente_id));
+                return c ? renderCardFidelidad(c, `Aniversario: ${p.ramo} 🎊`, 'yellow') : '';
+            }).join('') : '<p class="text-xs text-[#475569] italic">Nadie hoy.</p>';
+        }
+        function renderCardFidelidad(c, titulo, color) {
+            return `<div class="bg-surface-card border border-[#2d3442] p-4 rounded-xl flex items-center justify-between group hover:border-${color}-500/50 transition-all"><div><p class="text-white font-bold text-sm">${c.nombre} ${c.apellido || ''}</p><p class="text-[10px] text-${color}-400 font-medium uppercase tracking-wider mt-0.5">${titulo}</p></div><a href="https://wa.me/52${c.telefono.replace(/\D/g, '')}?text=${encodeURIComponent('¡Hola ' + c.nombre + '! Saludos de Segumex.')}" target="_blank" class="p-2 bg-green-500/10 text-green-500 rounded-lg hover:bg-green-500 transition-all"><span class="material-symbols-outlined text-sm">chat</span></a></div>`;
+        }
+        function toggleCliente(id) { if (clientesSeleccionados.has(String(id))) clientesSeleccionados.delete(String(id)); else clientesSeleccionados.add(String(id)); document.getElementById('contadorSeleccion').innerText = `${clientesSeleccionados.size} seleccionados`; }
+        function seleccionarTodos() { clientesSeleccionados.clear(); document.querySelectorAll('#listaClientesMarketing input[type="checkbox"]').forEach((cb, idx) => { cb.checked = true; clientesSeleccionados.add(String(listaClientesGlobal[idx].id)); }); document.getElementById('contadorSeleccion').innerText = `${clientesSeleccionados.size} seleccionados`; }
+        function procesarImagen(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = function (e) { imagenBase64 = e.target.result; const img = document.getElementById('imgPreview'); img.src = imagenBase64; img.classList.remove('hidden'); document.getElementById('imgPlaceholder').classList.add('hidden'); }; reader.readAsDataURL(input.files[0]); } }
+        function previsualizar() { document.getElementById('txtPreview').innerText = document.getElementById('textoMensaje').value || "Tu mensaje aparecerá aquí..."; }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Listado de Pólizas - Segumex</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <script>
+        // --- SCRIPT DE SEGURIDAD ---
+        async function checkSession() {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+            }
+        }
+        checkSession();
+
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-dark": "#101622",
+                        "surface-dark": "#111318",
+                        "surface-card": "#1c1f27",
+                        "text-secondary": "#9da6b9"
+                    },
+                    fontFamily: { "display": ["Inter", "sans-serif"] }
+                },
+            },
+        }
+    </script>
+</head>
+
+<body class="bg-[#f6f6f8] dark:bg-background-dark font-display text-white relative" onload="renderizarPolizas()">
+    <!-- Overlay Mobile -->
+    <div id="sidebarOverlay" onclick="toggleMenu()"
+        class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass transition-opacity"></div>
+
+    <div class="flex h-screen w-full overflow-hidden">
+
+        <aside id="sidebar"
+            class="fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-[#3b4354] bg-[#111318] flex-shrink-0 shadow-2xl md:shadow-none">
+        </aside>
+
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-background-dark relative w-full">
+            <!-- Mobile Header / Toggle -->
+            <div class="md:hidden p-4 pb-0 flex items-center gap-3">
+                <button onclick="toggleMenu()" class="p-2 -ml-2 text-white hover:bg-white/10 rounded-lg">
+                    <span class="material-symbols-outlined text-2xl">menu</span>
+                </button>
+                <span class="font-bold text-lg">Segumex</span>
+            </div>
+
+            <div class="flex-1 overflow-y-auto px-6 py-6 scroll-smooth">
+                <div class="max-w-[1400px] mx-auto flex flex-col gap-6">
+
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <div class="flex items-center gap-2 text-sm text-[#9da6b9] mb-1">
+                                <span>Segumex</span> <span
+                                    class="material-symbols-outlined text-[12px]">chevron_right</span>
+                                <span>Cartera</span>
+                            </div>
+                            <h1 class="text-white text-3xl font-bold tracking-tight">Listado de Pólizas</h1>
+                            <p class="text-[#9da6b9] text-sm mt-1">Monitorea vencimientos y rendimiento de contratos.
+                            </p>
+                        </div>
+                        <div class="flex gap-3">
+                            <button
+                                class="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1c1f27] border border-[#3b4354] text-[#9da6b9] hover:text-white hover:border-white transition-colors text-sm font-medium">
+                                <span class="material-symbols-outlined text-[18px]">print</span>
+                            </button>
+                            <a href="nueva_poliza.html?origen=lista"
+                                class="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-blue-600 text-white font-bold rounded-lg shadow-lg shadow-primary/30 transition-all">
+                                <span class="material-symbols-outlined text-[20px]">add</span> Nueva Póliza
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-5 relative overflow-hidden">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-[#9da6b9] text-xs font-bold uppercase tracking-wider mb-1">Total
+                                        Pólizas</p>
+                                    <h2 class="text-3xl font-bold text-white" id="kpiTotalPolizas">0</h2>
+                                    <span class="text-[#9da6b9] text-xs mt-1 block">En base de datos</span>
+                                </div>
+                                <div class="p-2 bg-[#282e39] rounded-lg text-primary"><span
+                                        class="material-symbols-outlined">folder_shared</span></div>
+                            </div>
+                        </div>
+                        <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-5 relative overflow-hidden">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-[#9da6b9] text-xs font-bold uppercase tracking-wider mb-1">Prima
+                                        Anual Est.</p>
+                                    <h2 class="text-3xl font-bold text-white" id="kpiPrimaTotal">$0</h2>
+                                    <span class="text-green-500 text-xs font-bold flex items-center gap-1 mt-1"><span
+                                            class="material-symbols-outlined text-[14px]">trending_up</span>
+                                        Ventas</span>
+                                </div>
+                                <div class="p-2 bg-[#282e39] rounded-lg text-green-500"><span
+                                        class="material-symbols-outlined">payments</span></div>
+                            </div>
+                        </div>
+                        <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-5 relative overflow-hidden">
+                            <div class="absolute right-0 top-0 p-4 opacity-5"><span
+                                    class="material-symbols-outlined text-6xl text-yellow-500">alarm</span></div>
+                            <div class="flex justify-between items-start relative z-10">
+                                <div>
+                                    <p class="text-[#9da6b9] text-xs font-bold uppercase tracking-wider mb-1">Por Vencer
+                                        (30 días)</p>
+                                    <h2 class="text-3xl font-bold text-white" id="kpiPorVencer">0</h2>
+                                    <span
+                                        class="bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded text-[10px] font-bold mt-1 inline-block border border-yellow-500/30">Requiere
+                                        Atención</span>
+                                </div>
+                                <div class="p-2 bg-[#282e39] rounded-lg text-yellow-500"><span
+                                        class="material-symbols-outlined">notification_important</span></div>
+                            </div>
+                        </div>
+                        <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-5 relative overflow-hidden">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-[#9da6b9] text-xs font-bold uppercase tracking-wider mb-1">Canceladas
+                                    </p>
+                                    <h2 class="text-3xl font-bold text-white" id="kpiCanceladas">0</h2>
+                                    <span
+                                        class="text-red-500 text-xs font-bold flex items-center gap-1 mt-1">Histórico</span>
+                                </div>
+                                <div class="p-2 bg-[#282e39] rounded-lg text-gray-500"><span
+                                        class="material-symbols-outlined">cancel</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-4 flex flex-col gap-4">
+                        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div class="relative w-full md:max-w-md">
+                                <span
+                                    class="absolute left-3 top-2.5 material-symbols-outlined text-[#9da6b9] text-[20px]">search</span>
+                                <input type="text" id="buscador" onkeyup="filtrarTabla()"
+                                    placeholder="Buscar por póliza, cliente o aseguradora..."
+                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg pl-10 pr-4 py-2 text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none placeholder-[#586074]">
+                            </div>
+                            <div class="flex items-center gap-3 w-full md:w-auto">
+                                <span class="text-[#9da6b9] text-sm whitespace-nowrap">Filtrar por:</span>
+                                <div class="flex bg-[#111318] rounded-lg p-1 border border-[#3b4354]">
+                                    <button onclick="filtrarEstado('Todos')"
+                                        class="px-3 py-1 text-xs font-medium text-white bg-[#3b4354] rounded transition-colors"
+                                        id="btnTodos">Todos</button>
+                                    <button onclick="filtrarEstado('Vigente')"
+                                        class="px-3 py-1 text-xs font-medium text-[#9da6b9] hover:text-white transition-colors"
+                                        id="btnVigente">Vigentes</button>
+                                    <button onclick="filtrarEstado('Por Vencer')"
+                                        class="px-3 py-1 text-xs font-medium text-[#9da6b9] hover:text-white transition-colors"
+                                        id="btnPorVencer">Por Vencer</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-[#3b4354]">
+                            <button
+                                class="px-3 py-1 bg-[#111318] border border-[#3b4354] text-[#9da6b9] rounded-full text-xs font-medium hover:text-white hover:border-white transition-colors flex items-center gap-1">Aseguradora
+                                <span class="material-symbols-outlined text-[14px]">expand_more</span></button>
+                            <button
+                                class="px-3 py-1 bg-[#111318] border border-[#3b4354] text-[#9da6b9] rounded-full text-xs font-medium hover:text-white hover:border-white transition-colors flex items-center gap-1">Ramo
+                                <span class="material-symbols-outlined text-[14px]">expand_more</span></button>
+                            <div class="flex-1"></div>
+                            <span id="contadorResultados" class="text-[#9da6b9] text-xs">Cargando...</span>
+                        </div>
+                    </div>
+
+                    <section
+                        class="bg-[#1c1f27] border border-[#3b4354] rounded-xl overflow-hidden shadow-lg flex-1 mb-8">
+                        <div class="w-full overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-[#3b4354] bg-[#111318]">
+                                        <th class="p-4 text-xs font-bold tracking-wide text-[#9da6b9] uppercase">No.
+                                            Póliza</th>
+                                        <th class="p-4 text-xs font-bold tracking-wide text-[#9da6b9] uppercase">
+                                            Aseguradora</th>
+                                        <th class="p-4 text-xs font-bold tracking-wide text-[#9da6b9] uppercase">Ramo
+                                        </th>
+                                        <th class="p-4 text-xs font-bold tracking-wide text-[#9da6b9] uppercase">Titular
+                                        </th>
+                                        <th class="p-4 text-xs font-bold tracking-wide text-[#9da6b9] uppercase">
+                                            Vigencia</th>
+                                        <th class="p-4 text-xs font-bold tracking-wide text-[#9da6b9] uppercase">Asesor
+                                        </th>
+                                        <th class="p-4 text-xs font-bold tracking-wide text-[#9da6b9] uppercase">Estado
+                                        </th>
+                                        <th
+                                            class="p-4 text-xs font-bold tracking-wide text-[#9da6b9] uppercase text-right">
+                                            Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabla-polizas" class="divide-y divide-[#2d3442]">
+                                </tbody>
+                            </table>
+
+                            <div id="sin-datos"
+                                class="hidden flex flex-col items-center justify-center p-16 text-[#9da6b9]">
+                                <span class="material-symbols-outlined text-5xl mb-3 opacity-50">folder_open</span>
+                                <p class="text-sm font-medium">No se encontraron pólizas.</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="menu.js"></script>
+
+    <script>
+        let polizasGlobales = [];
+
+        async function renderizarPolizas() {
+            const tabla = document.getElementById('tabla-polizas');
+            const mensajeVacio = document.getElementById('sin-datos');
+            const contador = document.getElementById('contadorResultados');
+
+            // --- LLAMADA A SUPABASE ---
+            const { data: polizasRaw, error } = await window.supabaseClient
+                .from('polizas')
+                .select('*');
+
+            if (error) {
+                console.error("Error cargando pólizas:", error);
+                return;
+            }
+
+            // --- FILTRO VISIBILIDAD ---
+            const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+            let polizasFiltradas = [];
+            window.polizasGlobalesRaw = polizasRaw; // Expose for debug
+
+            if (sesion.rol === 'admin') {
+                polizasFiltradas = polizasRaw || [];
+            } else {
+                polizasFiltradas = (polizasRaw || []).filter(p => {
+                    // Lógica RESTRINGIDA (Opt-out):
+                    // Si restringida = true, SOLO la ve el agente dueño.
+                    // Si restringida = false (o null), la ven TODOS.
+                    if (p.restringida === true) {
+                        return p.agente === sesion.nombre;
+                    }
+                    return true; // Visible por defecto
+                });
+            }
+
+            polizasGlobales = polizasFiltradas;
+
+            const hoy = new Date();
+            let totalPrimas = 0;
+            let porVencer = 0;
+            let canceladas = 0;
+
+            polizasGlobales.forEach(p => {
+                const prima = parseFloat(p.prima) || 0;
+                totalPrimas += prima;
+
+                if (p.estado !== 'cancelada') {
+                    const diff = window.SegumexDate.diffDays(p.vence);
+                    if (diff >= 0 && diff <= 30) porVencer++;
+                }
+
+                if (p.estado === 'cancelada') canceladas++;
+            });
+
+            document.getElementById('kpiTotalPolizas').innerText = polizasGlobales.length;
+            document.getElementById('kpiPrimaTotal').innerText = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(totalPrimas);
+            document.getElementById('kpiPorVencer').innerText = porVencer;
+            document.getElementById('kpiCanceladas').innerText = canceladas;
+
+            await dibujarTabla(polizasGlobales);
+        }
+
+        async function dibujarTabla(datos) {
+            const tabla = document.getElementById('tabla-polizas');
+            const mensajeVacio = document.getElementById('sin-datos');
+            const contador = document.getElementById('contadorResultados');
+
+            tabla.innerHTML = '';
+
+            if (datos.length === 0) {
+                mensajeVacio.classList.remove('hidden');
+
+                // --- DEBUG DE AGENTE ---
+                const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+                const polizasOcultas = polizasGlobalesRaw || []; // Necesitamos acceso a raw
+                if (polizasOcultas.length > 0 && sesion.rol !== 'admin') {
+                    const agentesEncontrados = [...new Set(polizasOcultas.map(p => p.agente))].join(", ");
+                    mensajeVacio.innerHTML = `
+                        <div class="flex flex-col items-center text-center p-8 bg-yellow-500/5 rounded-xl border border-yellow-500/20 max-w-lg">
+                            <span class="material-symbols-outlined text-4xl mb-3 text-yellow-500">visibility_off</span>
+                            <h3 class="text-lg font-bold text-white mb-2">No tienes pólizas visibles</h3>
+                            <p class="text-sm text-[#9da6b9] mb-4">
+                                Hay <strong>${polizasOcultas.length}</strong> pólizas en el sistema, pero no coinciden con tu usuario.
+                            </p>
+                            <div class="text-xs text-left bg-[#111318] p-4 rounded-lg border border-[#3b4354] w-full">
+                                <p><strong class="text-primary">Tu Usuario (Sesión):</strong> "${sesion.nombre}"</p>
+                                <p class="mt-2"><strong class="text-yellow-500">Agentes en las pólizas:</strong> "${agentesEncontrados || 'Sin Asignar'}"</p>
+                                <p class="mt-2 text-[10px] text-gray-500">Las pólizas ocultas están marcadas como "Restringidas" y no te pertenecen, o tu nombre de usuario no coincide exactamente.</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Restaurar mensaje original si no hay datos raw tampoco
+                    mensajeVacio.innerHTML = `
+                        <span class="material-symbols-outlined text-5xl mb-3 opacity-50">folder_open</span>
+                        <p class="text-sm font-medium">No se encontraron pólizas.</p>
+                     `;
+                }
+
+                contador.innerText = "0 resultados";
+                return;
+            } else {
+                mensajeVacio.classList.add('hidden');
+            }
+
+            // Obtener clientes para los nombres de los titulares
+            const { data: clientes } = await window.supabaseClient.from('clientes').select('id, nombre, apellido, agente');
+
+            datos.forEach((p) => {
+                const finVigenciaStr = window.SegumexDate.toDisplay(p.vence);
+                const diffDays = window.SegumexDate.diffDays(p.vence);
+
+                let estadoTexto = "Vigente";
+                let estadoClase = "bg-[#0bda5e]/10 text-[#0bda5e] border border-[#0bda5e]/20";
+
+                if (p.estado === 'cancelada') {
+                    estadoTexto = "Cancelada";
+                    estadoClase = "bg-gray-500/10 text-gray-400 border border-gray-500/20";
+                } else if (diffDays < 0) {
+                    estadoTexto = "Vencida";
+                    estadoClase = "bg-red-500/10 text-red-500 border border-red-500/20";
+                } else if (diffDays <= 30) {
+                    estadoTexto = "Por Vencer";
+                    estadoClase = "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20";
+                }
+
+                const dueño = (clientes || []).find(c => String(c.id) === String(p.cliente_id));
+                const nombreTitular = dueño ? `${dueño.nombre} ${dueño.apellido || ''}` : "Sin Titular";
+
+                let iconoAseguradora = p.icono || 'verified';
+                let colorIcono = p.estiloIcono || 'text-blue-500 bg-blue-500/10';
+                let ramo = p.ramo || "Seguro";
+
+                const fila = `
+                <tr class="group hover:bg-[#282e39]/50 transition-colors border-b border-[#2d3442] last:border-0">
+                    <td class="p-4">
+                        <span class="text-white font-bold text-sm font-mono tracking-wider">${p.no_poliza || p.numero}</span>
+                    </td>
+                    <td class="p-4">
+                        <div class="flex items-center gap-2">
+                            <div class="size-8 rounded-lg ${colorIcono} flex items-center justify-center border border-white/5">
+                                <span class="material-symbols-outlined text-[16px]">${iconoAseguradora}</span>
+                            </div>
+                            <span class="text-white text-sm font-medium">${p.aseguradora}</span>
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <span class="px-2 py-1 rounded text-[10px] font-bold bg-[#3b4354]/50 text-[#9da6b9] border border-[#3b4354] uppercase">${ramo}</span>
+                    </td>
+                    <td class="p-4">
+                         <div class="flex items-center gap-2">
+                            <div class="size-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-[10px] font-bold text-white shadow-sm">
+                                ${nombreTitular.charAt(0)}
+                            </div>
+                            <span class="text-[#9da6b9] text-sm">${nombreTitular}</span>
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <div class="flex flex-col">
+                            <span class="text-white text-sm font-medium">${finVigenciaStr}</span>
+                            <span class="text-[#9da6b9] text-[10px]">${diffDays > 0 ? 'Faltan ' + diffDays + ' días' : 'Venció hace ' + Math.abs(diffDays) + ' días'}</span>
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <div class="flex items-center gap-2">
+                             <div class="size-6 rounded-full bg-[#3b4354] flex items-center justify-center text-[10px] text-white font-bold">
+                                ${(dueño && dueño.agente ? dueño.agente.charAt(0) : 'S')}
+                            </div>
+                            <span class="text-[#9da6b9] text-sm">${dueño && dueño.agente ? dueño.agente : 'Agente Segumex'}</span>
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${estadoClase}">
+                            <span class="size-1.5 rounded-full bg-current"></span>
+                            ${estadoTexto}
+                        </span>
+                    </td>
+                    <td class="p-4 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                            <a href="detalle_poliza.html?id=${p.id}&origen=lista" class="text-[#9da6b9] hover:text-white transition-colors p-2 hover:bg-[#3b4354] rounded-lg" title="Ver Detalle">
+                                <span class="material-symbols-outlined text-[20px]">visibility</span>
+                            </a>
+                            <button onclick="borrarPoliza('${p.id}')" class="text-[#9da6b9] hover:text-red-500 transition-colors p-2 hover:bg-[#3b4354] rounded-lg" title="Eliminar">
+                                <span class="material-symbols-outlined text-[20px]">delete</span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+                tabla.innerHTML += fila;
+            });
+
+            contador.innerText = `${datos.length} resultados`;
+        }
+
+        async function borrarPoliza(id) {
+            if (confirm("¿Estás seguro de eliminar esta póliza?")) {
+                const { error } = await window.supabaseClient
+                    .from('polizas')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    alert("Error eliminando póliza.");
+                } else {
+                    renderizarPolizas();
+                }
+            }
+        }
+
+        function filtrarTabla() {
+            const texto = document.getElementById('buscador').value.toLowerCase();
+            const filtrados = polizasGlobales.filter(p =>
+                (p.no_poliza || p.numero || "").toLowerCase().includes(texto) ||
+                (p.aseguradora || "").toLowerCase().includes(texto) ||
+                (p.ramo || "").toLowerCase().includes(texto)
+            );
+            dibujarTabla(filtrados);
+        }
+
+        function filtrarEstado(estado) {
+            document.getElementById('btnTodos').className = "px-3 py-1 text-xs font-medium text-[#9da6b9] hover:text-white transition-colors";
+            document.getElementById('btnVigente').className = "px-3 py-1 text-xs font-medium text-[#9da6b9] hover:text-white transition-colors";
+            document.getElementById('btnPorVencer').className = "px-3 py-1 text-xs font-medium text-[#9da6b9] hover:text-white transition-colors";
+
+            if (estado === 'Todos') document.getElementById('btnTodos').className = "px-3 py-1 text-xs font-medium text-white bg-[#3b4354] rounded transition-colors";
+            if (estado === 'Vigente') document.getElementById('btnVigente').className = "px-3 py-1 text-xs font-medium text-white bg-[#3b4354] rounded transition-colors";
+            if (estado === 'Por Vencer') document.getElementById('btnPorVencer').className = "px-3 py-1 text-xs font-medium text-white bg-[#3b4354] rounded transition-colors";
+
+            if (estado === 'Todos') {
+                dibujarTabla(polizasGlobales);
+                return;
+            }
+
+            const filtrados = polizasGlobales.filter(p => {
+                const diff = window.SegumexDate.diffDays(p.vence);
+
+                if (estado === 'Vigente') return diff > 30 && p.estado !== 'cancelada';
+                if (estado === 'Por Vencer') return diff >= 0 && diff <= 30 && p.estado !== 'cancelada';
+                return false;
+            });
+
+            dibujarTabla(filtrados);
+        }
+    </script>
+</body>
+
+</html>

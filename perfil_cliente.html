@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Perfil de Cliente - Segumex</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="finanzas.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <script src="pdf-generator.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <script>
+        // --- SCRIPT DE SEGURIDAD ---
+        async function checkSession() {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+            }
+        }
+        checkSession();
+
+        tailwind.config = { darkMode: "class", theme: { extend: { colors: { "primary": "#135bec", "background-dark": "#101622", "surface-dark": "#111318", "surface-card": "#1c1f27", "text-secondary": "#9da6b9" }, fontFamily: { "display": ["Inter", "sans-serif"] } } } }
+    </script>
+</head>
+
+<body class="bg-[#f6f6f8] dark:bg-background-dark font-display text-white relative">
+    <!-- Overlay Mobile -->
+    <div id="sidebarOverlay" onclick="toggleMenu()"
+        class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass transition-opacity"></div>
+
+    <div class="flex h-screen w-full overflow-hidden">
+        <aside id="sidebar"
+            class="fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-[#3b4354] bg-[#111318] flex-shrink-0 shadow-2xl md:shadow-none">
+        </aside>
+
+        <main class="flex-1 flex flex-col h-full overflow-y-auto bg-background-dark p-4 md:p-8 relative w-full">
+            <!-- Mobile Header / Toggle -->
+            <div class="md:hidden pb-4 flex items-center gap-3">
+                <button onclick="toggleMenu()" class="p-2 -ml-2 text-white hover:bg-white/10 rounded-lg">
+                    <span class="material-symbols-outlined text-2xl">menu</span>
+                </button>
+                <span class="font-bold text-lg">Segumex</span>
+            </div>
+            <div class="max-w-6xl mx-auto w-full pb-10">
+                <div class="flex items-center gap-2 text-sm text-[#9da6b9] mb-6">
+                    <a href="clientes.html" class="hover:text-white transition-colors">Clientes</a>
+                    <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+                    <span class="text-white" id="breadcrumbNombre">Cargando...</span>
+                </div>
+
+                <div class="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
+                    <div class="flex gap-5">
+                        <div id="avatarContainer"></div>
+
+                        <div class="flex flex-col pt-2">
+                            <h1 class="text-3xl font-bold text-white flex items-center gap-3">
+                                <span id="nombreCliente">Cargando...</span>
+                                <span id="badgeEstado"
+                                    class="px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 text-xs font-bold border border-green-500/20 uppercase tracking-wide">...</span>
+                                <span id="badgeRestringido"
+                                    class="hidden px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 text-xs font-bold border border-red-500/20 uppercase tracking-wide flex items-center gap-1"><span
+                                        class="material-symbols-outlined text-[14px]">lock</span> PRIVADO</span>
+                            </h1>
+                            <p class="text-[#9da6b9] mt-1 flex items-center gap-2 text-sm">
+                                <span class="material-symbols-outlined text-[18px]">badge</span> <span
+                                    id="rfcCliente">...</span>
+                                <span class="w-1 h-1 bg-[#3b4354] rounded-full mx-1"></span>
+                                <span class="material-symbols-outlined text-[18px]">location_on</span> <span
+                                    id="ubicacionCliente">...</span>
+                            </p>
+                        </div>
+                    </div>
+                    <button onclick="descargarFichaPDF()"
+                        class="h-10 px-4 rounded-lg border border-[#3b4354] hover:bg-[#3b4354] bg-[#2d3442] text-white text-sm font-medium transition-colors flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[20px]">picture_as_pdf</span> Ficha
+                    </button>
+                    <button onclick="abrirModalEditar()"
+                        class="h-10 px-4 rounded-lg border border-[#3b4354] hover:bg-[#282e39] text-white text-sm font-medium transition-colors flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[20px]">edit</span> Editar
+                    </button>
+                    <a id="btnNuevaPoliza" href="nueva_poliza.html"
+                        class="h-10 px-4 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold transition-colors flex items-center gap-2 shadow-lg shadow-primary/20">
+                        <span class="material-symbols-outlined text-[20px]">add_circle</span> Nueva Póliza
+                    </a>
+                </div>
+
+
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="space-y-6">
+                        <div class="bg-surface-card border border-[#3b4354] rounded-xl p-6">
+                            <h3 class="text-white font-bold mb-4 text-sm uppercase tracking-wider text-[#9da6b9]">
+                                Contacto Rápido</h3>
+                            <div class="grid grid-cols-4 gap-2 mb-6">
+                                <button onclick="contactar('whatsapp')"
+                                    class="aspect-square rounded-lg bg-[#111318] hover:bg-green-500/20 hover:text-green-500 text-[#9da6b9] flex flex-col items-center justify-center gap-1 transition-all"><span
+                                        class="material-symbols-outlined">chat</span><span
+                                        class="text-[10px]">WhatsApp</span></button>
+                                <button onclick="contactar('tel')"
+                                    class="aspect-square rounded-lg bg-[#111318] hover:bg-blue-500/20 hover:text-blue-500 text-[#9da6b9] flex flex-col items-center justify-center gap-1 transition-all"><span
+                                        class="material-symbols-outlined">call</span><span
+                                        class="text-[10px]">Llamar</span></button>
+                                <button onclick="contactar('mail')"
+                                    class="aspect-square rounded-lg bg-[#111318] hover:bg-yellow-500/20 hover:text-yellow-500 text-[#9da6b9] flex flex-col items-center justify-center gap-1 transition-all"><span
+                                        class="material-symbols-outlined">mail</span><span
+                                        class="text-[10px]">Email</span></button>
+                                <button
+                                    class="aspect-square rounded-lg bg-[#111318] hover:bg-purple-500/20 hover:text-purple-500 text-[#9da6b9] flex flex-col items-center justify-center gap-1 transition-all"><span
+                                        class="material-symbols-outlined">calendar_month</span><span
+                                        class="text-[10px]">Cita</span></button>
+                            </div>
+                            <div class="space-y-4 text-sm">
+                                <div><label class="text-[#9da6b9] text-xs block mb-1">Teléfono</label>
+                                    <p id="telefonoCliente" class="text-white font-medium">...</p>
+                                </div>
+                                <div><label class="text-[#9da6b9] text-xs block mb-1">Email</label>
+                                    <p id="emailCliente" class="text-white font-medium">...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="bg-surface-card border border-[#3b4354] rounded-xl overflow-hidden">
+                            <div class="flex items-center justify-between px-6 py-4 border-b border-[#3b4354]">
+                                <h3 class="text-white font-bold text-lg">Pólizas Activas</h3>
+                                <span id="contadorPolizas"
+                                    class="bg-primary/20 text-primary text-xs font-bold px-2 py-1 rounded">0
+                                    Total</span>
+                            </div>
+                            <div id="listaPolizas" class="divide-y divide-[#3b4354]">
+                                <div class="p-8 text-center text-[#9da6b9]"><span
+                                        class="material-symbols-outlined text-4xl mb-2">folder_off</span>
+                                    <p>No hay pólizas registradas aún.</p>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-[#111318] text-center border-t border-[#3b4354]">
+                                <button class="text-xs text-primary font-bold hover:underline">Ver Historial
+                                    Completo</button>
+                            </div>
+                        </div>
+
+                        <div class="bg-surface-card border border-[#3b4354] rounded-xl p-6">
+                            <h3 class="text-white font-bold mb-4">Notas Recientes</h3>
+                            <textarea
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white text-sm focus:ring-1 focus:ring-primary focus:border-primary resize-none h-24"
+                                placeholder="Escribe una nota sobre este cliente..."></textarea>
+                            <div class="flex justify-end mt-2"><button
+                                    class="px-4 py-2 bg-[#282e39] hover:bg-[#3b4354] text-white text-xs font-bold rounded-lg transition-colors">Guardar
+                                    Nota</button></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <div id="modalEditar"
+            class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in overflow-y-auto">
+            <div
+                class="bg-[#1c1f27] border border-[#3b4354] rounded-xl w-full max-w-2xl p-6 shadow-2xl transform transition-all scale-100 my-8">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white mb-1">Editar Cliente</h2>
+                        <p class="text-[#9da6b9] text-sm">Modifica los datos del cliente.</p>
+                    </div>
+                    <button onclick="cerrarModalEditar()" class="text-[#9da6b9] hover:text-white"><span
+                            class="material-symbols-outlined">close</span></button>
+                </div>
+
+                <form id="formEditar" onsubmit="guardarEdicion(event)" class="space-y-6">
+
+                    <div class="flex flex-col items-center justify-center mb-4">
+                        <div class="relative group cursor-pointer"
+                            onclick="document.getElementById('fotoInputEdit').click()">
+                            <div id="previewContainerEdit"
+                                class="size-24 rounded-full bg-[#111318] border-2 border-dashed border-[#3b4354] flex items-center justify-center overflow-hidden group-hover:border-primary transition-colors">
+                                <img id="imgPreviewEdit" src="" class="hidden w-full h-full object-cover">
+                                <span id="iconUploadEdit"
+                                    class="material-symbols-outlined text-[#9da6b9] text-3xl group-hover:text-primary">add_a_photo</span>
+                            </div>
+                            <div class="absolute bottom-0 right-0 bg-primary text-white rounded-full p-1 shadow-lg">
+                                <span class="material-symbols-outlined text-xs">edit</span>
+                            </div>
+                        </div>
+                        <input type="file" id="fotoInputEdit" accept="image/*" class="hidden"
+                            onchange="mostrarPrevisualizacionEdit(this)">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Tipo</label><select
+                                id="tipoEdit"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                                <option value="Persona">Persona</option>
+                                <option value="Empresa">Empresa</option>
+                            </select></div>
+                        <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">RFC</label><input type="text"
+                                id="rfcEdit"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white uppercase">
+                        </div>
+                        <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Nombre</label><input
+                                type="text" id="nombreEdit"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white"></div>
+                        <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Apellido</label><input
+                                type="text" id="apellidoEdit"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white"></div>
+                        <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Nacimiento</label><input
+                                type="date" id="nacimientoEdit"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white"></div>
+                        <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Estatus</label><select
+                                id="estatusEdit"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                                <option value="Activo">Activo</option>
+                                <option value="Inactivo">Inactivo</option>
+                            </select></div>
+
+                        <div id="divRestringidaEdit" class="hidden flex items-end pb-3"> <!-- Admin Only -->
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="restringidaEdit" class="sr-only peer">
+                                <div
+                                    class="relative w-11 h-6 bg-[#3b4354] rounded-full peer peer-checked:bg-red-500 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all">
+                                </div>
+                                <span class="ms-3 text-xs font-bold text-red-500 flex items-center gap-1"><span
+                                        class="material-symbols-outlined text-[16px]">lock</span> Privado (Admin)</span>
+                            </label>
+                        </div>
+
+                        <div class="border-t border-[#3b4354] pt-4">
+                            <h3 class="text-white text-sm font-bold mb-3">Contacto</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Email</label><input
+                                        type="email" id="emailEdit"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                                </div>
+                                <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Teléfono</label><input
+                                        type="tel" id="telefonoEdit"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-[#3b4354] pt-4">
+                            <h3 class="text-white text-sm font-bold mb-3">Domicilio</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="md:col-span-2"><label
+                                        class="block text-xs font-medium text-[#9da6b9] mb-1">Dirección</label><input
+                                        type="text" id="direccionEdit"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                                </div>
+                                <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">CP</label><input
+                                        type="text" id="cpEdit"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                                </div>
+                                <div><label
+                                        class="block text-xs font-medium text-[#9da6b9] mb-1">Municipio</label><input
+                                        type="text" id="municipioEdit"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                                </div>
+                                <div><label class="block text-xs font-medium text-[#9da6b9] mb-1">Estado</label><input
+                                        type="text" id="estadoGeoEdit"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-[#3b4354]">
+                            <button type="button" onclick="cerrarModalEditar()"
+                                class="px-4 py-2 text-sm font-medium text-[#9da6b9] hover:text-white">Cancelar</button>
+                            <button type="submit"
+                                class="px-4 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-bold rounded-lg shadow-lg shadow-primary/30 flex items-center gap-2"><span
+                                    class="material-symbols-outlined text-[18px]">save</span> Guardar Cambios</button>
+                        </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="menu.js"></script>
+
+    <script>
+        let clienteActual = null;
+        let clienteID = null;
+        let fileEditSeleccionado = null; // Guardar archivo File
+
+        document.addEventListener('DOMContentLoaded', async function () {
+            await cargarDatosPerfil();
+            await cargarPolizas();
+        });
+
+        async function cargarDatosPerfil() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const idParam = urlParams.get('id');
+
+            // --- LLAMADA A SUPABASE ---
+            const { data: cliente, error } = await window.supabaseClient
+                .from('clientes')
+                .select('*')
+                .eq('id', idParam)
+                .single();
+
+            if (error || !cliente) {
+                alert("Cliente no encontrado.");
+                window.location.href = 'clientes.html';
+                return;
+            }
+
+            clienteActual = cliente;
+            clienteID = clienteActual.id;
+
+            const nombreCompleto = `${clienteActual.nombre || ''} ${clienteActual.apellido || ''}`;
+            document.getElementById('nombreCliente').innerText = nombreCompleto;
+            document.getElementById('breadcrumbNombre').innerText = nombreCompleto;
+
+            const badge = document.getElementById('badgeEstado');
+            document.getElementById('badgeEstado').className = clienteActual.estatus === 'Inactivo'
+                ? "px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 text-xs font-bold border border-red-500/20 uppercase tracking-wide"
+                : "px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 text-xs font-bold border border-green-500/20 uppercase tracking-wide";
+
+            const badgeRest = document.getElementById('badgeRestringido');
+            if (badgeRest) {
+                if (clienteActual.restringida) badgeRest.classList.remove('hidden');
+                else badgeRest.classList.add('hidden');
+            }
+
+            document.getElementById('rfcCliente').innerText = clienteActual.rfc || 'Sin RFC';
+            document.getElementById('ubicacionCliente').innerText = (clienteActual.municipio && clienteActual.estado_geo)
+                ? `${clienteActual.municipio}, ${clienteActual.estado_geo}`
+                : 'Sin Dirección';
+            document.getElementById('telefonoCliente').innerText = clienteActual.telefono || '---';
+            document.getElementById('emailCliente').innerText = clienteActual.email || '---';
+
+            const avatarContainer = document.getElementById('avatarContainer');
+            if (clienteActual.imagen_url) {
+                avatarContainer.innerHTML = `<img src="${clienteActual.imagen_url}" class="size-24 rounded-full object-cover border-4 border-[#1c1f27] shadow-lg">`;
+            } else {
+                const iniciales = (clienteActual.nombre.charAt(0) + (clienteActual.apellido ? clienteActual.apellido.charAt(0) : '')).toUpperCase();
+                avatarContainer.innerHTML = `<div class="size-24 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-3xl font-bold text-white shadow-lg border-4 border-[#1c1f27]">${iniciales}</div>`;
+            }
+
+            document.getElementById('btnNuevaPoliza').href = `nueva_poliza.html?clienteId=${clienteID}`;
+        }
+
+        function abrirModalEditar() {
+            if (!clienteActual) return;
+
+            // Seguridad Toggle
+            const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+            const divRestringida = document.getElementById('divRestringidaEdit');
+            if (divRestringida) {
+                if (sesion.rol === 'admin') {
+                    divRestringida.classList.remove('hidden');
+                    document.getElementById('restringidaEdit').checked = clienteActual.restringida || false;
+                } else {
+                    divRestringida.classList.add('hidden');
+                }
+            }
+
+            document.getElementById('tipoEdit').value = clienteActual.tipo || 'Persona';
+            document.getElementById('rfcEdit').value = clienteActual.rfc || '';
+            document.getElementById('nombreEdit').value = clienteActual.nombre || '';
+            document.getElementById('apellidoEdit').value = clienteActual.apellido || '';
+            document.getElementById('nacimientoEdit').value = clienteActual.nacimiento || '';
+            document.getElementById('estatusEdit').value = clienteActual.estatus || 'Activo';
+
+            document.getElementById('emailEdit').value = clienteActual.email || '';
+            document.getElementById('telefonoEdit').value = clienteActual.telefono || '';
+
+            document.getElementById('direccionEdit').value = clienteActual.direccion || '';
+            document.getElementById('cpEdit').value = clienteActual.cp || '';
+            document.getElementById('municipioEdit').value = clienteActual.municipio || '';
+            document.getElementById('estadoGeoEdit').value = clienteActual.estado_geo || '';
+
+            const preview = document.getElementById('imgPreviewEdit');
+            const icon = document.getElementById('iconUploadEdit');
+
+            if (clienteActual.imagen_url) {
+                preview.src = clienteActual.imagen_url;
+                preview.classList.remove('hidden');
+                icon.classList.add('hidden');
+                preview.classList.remove('hidden');
+                icon.classList.add('hidden');
+                fileEditSeleccionado = null; // Reset para no re-subir la antigua si no cambia
+            } else {
+                preview.classList.add('hidden');
+                icon.classList.remove('hidden');
+                fileEditSeleccionado = null;
+            }
+
+            document.getElementById('modalEditar').classList.remove('hidden');
+        }
+
+        function cerrarModalEditar() {
+            document.getElementById('modalEditar').classList.add('hidden');
+        }
+
+        function mostrarPrevisualizacionEdit(input) {
+            if (input.files && input.files[0]) {
+                fileEditSeleccionado = input.files[0];
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('imgPreviewEdit').src = e.target.result;
+                    document.getElementById('imgPreviewEdit').classList.remove('hidden');
+                    document.getElementById('iconUploadEdit').classList.add('hidden');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        async function guardarEdicion(e) {
+            e.preventDefault();
+
+            let urlFinal = clienteActual.imagen_url; // Mantener la actual por defecto
+
+            // 1. Subir nueva imagen si existe
+            if (fileEditSeleccionado) {
+                const fileName = `cliente_${clienteID}_${Date.now()}_${fileEditSeleccionado.name.replace(/\s/g, '_')}`;
+                const { data, error: uploadError } = await window.supabaseClient
+                    .storage
+                    .from('fotos-clientes')
+                    .upload(fileName, fileEditSeleccionado);
+
+                if (uploadError) {
+                    console.error("Error upload:", uploadError);
+                    // Continuamos? O avisamos.
+                } else {
+                    const resUrl = window.supabaseClient.storage.from('fotos-clientes').getPublicUrl(fileName);
+                    urlFinal = resUrl.data.publicUrl;
+                }
+            }
+
+            const restringidaVal = document.getElementById('restringidaEdit') ? document.getElementById('restringidaEdit').checked : false;
+
+            const updates = {
+                tipo: document.getElementById('tipoEdit').value,
+                rfc: document.getElementById('rfcEdit').value,
+                nombre: document.getElementById('nombreEdit').value,
+                apellido: document.getElementById('apellidoEdit').value,
+                nacimiento: document.getElementById('nacimientoEdit').value || null,
+                estatus: document.getElementById('estatusEdit').value,
+                restringida: restringidaVal,
+                email: document.getElementById('emailEdit').value,
+                telefono: document.getElementById('telefonoEdit').value,
+                direccion: document.getElementById('direccionEdit').value,
+                cp: document.getElementById('cpEdit').value,
+                municipio: document.getElementById('municipioEdit').value,
+                estado_geo: document.getElementById('estadoGeoEdit').value,
+                imagen_url: urlFinal // URL del Storage
+            };
+
+            const { error } = await window.supabaseClient
+                .from('clientes')
+                .update(updates)
+                .eq('id', clienteID);
+
+            if (error) {
+                alert("Error al actualizar datos.");
+            } else {
+                alert("Datos actualizados correctamente en la nube");
+                cerrarModalEditar();
+                await cargarDatosPerfil();
+            }
+        }
+
+        function contactar(metodo) {
+            if (!clienteActual) return;
+            if (metodo === 'tel') window.location.href = `tel:${clienteActual.telefono}`;
+            if (metodo === 'mail') window.location.href = `mailto:${clienteActual.email}`;
+            if (metodo === 'whatsapp') {
+                const num = clienteActual.telefono.replace(/\D/g, '');
+                window.open(`https://wa.me/52${num}`, '_blank');
+            }
+        }
+
+        async function cargarPolizas() {
+            // --- LLAMADA A SUPABASE ---
+            const { data: susPolizas } = await window.supabaseClient
+                .from('polizas')
+                .select('*')
+                .eq('cliente_id', clienteID);
+
+            const lista = document.getElementById('listaPolizas');
+            const contador = document.getElementById('contadorPolizas');
+
+            contador.innerText = (susPolizas ? susPolizas.length : 0) + " Total";
+
+            if (susPolizas && susPolizas.length > 0) {
+                lista.innerHTML = '';
+                susPolizas.forEach((p) => {
+                    let ramoTexto = p.ramo.charAt(0).toUpperCase() + p.ramo.slice(1);
+                    if (p.ramo === 'gmm') ramoTexto = 'Gastos Médicos';
+                    let estiloIcono = p.estiloIcono || 'text-blue-500 bg-blue-500/10';
+
+                    lista.innerHTML += `
+                    <div class="p-4 hover:bg-[#282e39]/50 transition-colors flex items-center justify-between group cursor-pointer" 
+                         onclick="window.location.href='detalle_poliza.html?id=${p.id}&origen=cliente&clienteId=${clienteID}'">
+                        <div class="flex items-center gap-4">
+                            <div class="size-10 rounded-lg ${estiloIcono} flex items-center justify-center">
+                                <span class="material-symbols-outlined">${p.icono || 'description'}</span>
+                            </div>
+                            <div>
+                                <p class="text-white font-bold">${ramoTexto} - ${p.aseguradora || 'Por definir'}</p>
+                                <p class="text-[#9da6b9] text-xs">Póliza: ${p.no_poliza || p.numero} • Vence: ${p.vence}</p>
+                            </div>
+                        </div>
+                        <span class="material-symbols-outlined text-[#9da6b9] group-hover:text-white">chevron_right</span>
+                    </div>
+                `;
+                });
+            }
+        }
+
+        async function descargarFichaPDF() {
+            if (!clienteActual) return;
+            // Necesitamos pasar las polizas tambien
+            // Ya tenemos 'susPolizas' pero está local dentro de cargarPolizas, mejor lo hacemos global o volvemos a obtener
+            // Pero espera, cargarPolizas no guarda en variable global. Vamos a hacer un fetch rapido o modificar cargarPolizas.
+            // Modifiquemos cargarPolizas para guardar en variable global es mas limpio.
+            // Para no romper scopes, hare fetch aqui rapido.
+
+            const { data: polizas } = await window.supabaseClient.from('polizas').select('*').eq('cliente_id', clienteID);
+            window.SegumexPDF.generarFichaCliente(clienteActual, polizas || []);
+        }
+    </script>
+    <script src="menu.js"></script>
+</body>
+
+</html>
