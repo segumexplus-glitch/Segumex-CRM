@@ -1,13 +1,13 @@
 // Setup: npm i -g supabase
 // Deploy: supabase functions deploy webhook-meta --no-verify-jwt
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
+// LEER VARIABLES DE ENTORNO
+// Si no están configuradas, usamos strings vacíos para que no explote al inicio
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const VERIFY_TOKEN = Deno.env.get('META_VERIFY_TOKEN') || 'segumex_secure_token';
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 Deno.serve(async (req) => {
     const { method } = req;
@@ -28,6 +28,14 @@ Deno.serve(async (req) => {
     // 2. Recepción de Mensajes (Meta POST Request)
     if (method === 'POST') {
         try {
+            // Lazy Load: Iniciamos Supabase solo cuando llega un mensaje
+            if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+                console.error("Faltan credenciales de Supabase");
+                // Devolvemos 200 a Facebook para que no reintente infinitamente si fallamos nosotros
+                return new Response('Config Error', { status: 200 });
+            }
+
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
             const body = await req.json();
 
             // Verificar si es evento de WhatsApp
@@ -43,7 +51,6 @@ Deno.serve(async (req) => {
                     const message = change.messages[0];
                     const phoneNumber = message.from; // Número del usuario
                     const text = message.text ? message.text.body : '[Multimedia]';
-                    const platform = 'whatsapp';
                     const businessPhoneId = change.metadata.phone_number_id;
 
                     // A. Buscar o Crear Canal
@@ -54,7 +61,6 @@ Deno.serve(async (req) => {
                         .single();
 
                     if (!channel) {
-                        // Crear canal temporal si no existe
                         const { data: newChannel } = await supabase.from('comm_channels').insert({
                             platform: 'whatsapp',
                             identifier: businessPhoneId,
@@ -88,8 +94,8 @@ Deno.serve(async (req) => {
                         metadata: message
                     });
 
-                    // D. Invocar al Cerebro (AI Brain) asíncronamente
-                    // No esperamos la respuesta para que Meta no nos de timeout
+                    // D. Invocar al Cerebro (AI Brain)
+                    // Importante: No esperar con 'await' para responder rápido a Meta
                     if (conversation.status === 'ai_handling' && text !== '[Multimedia]') {
                         supabase.functions.invoke('ai-brain', {
                             body: { conversation_id: conversation.id, user_message: text }
