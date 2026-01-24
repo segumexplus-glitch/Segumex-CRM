@@ -74,6 +74,38 @@
                             class="material-symbols-outlined text-[18px]">block</span> Cancelar Póliza</button>
                 </div>
 
+                <!-- SELECTOR DE CLIENTE (Visible solo si no hay clienteId) -->
+                <div id="selectorClienteContainer" class="hidden mb-8 animate-fade-in">
+                    <div
+                        class="bg-surface-card border border-yellow-500/30 bg-yellow-500/5 rounded-xl p-8 text-center max-w-2xl mx-auto">
+                        <div class="mb-6">
+                            <span class="material-symbols-outlined text-5xl text-yellow-500 mb-4">person_search</span>
+                            <h2 class="text-2xl font-bold text-white mb-2">Asignar Cliente</h2>
+                            <p class="text-[#9da6b9]">Esta póliza necesita un titular. Busca un cliente existente o
+                                registra uno nuevo.</p>
+                        </div>
+
+                        <div class="relative max-w-md mx-auto mb-6">
+                            <span class="absolute left-3 top-3 material-symbols-outlined text-[#9da6b9]">search</span>
+                            <input type="text" id="inputBuscarCliente" onkeyup="buscarCliente(this.value)"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-lg"
+                                placeholder="Escribe el nombre del cliente..." autocomplete="off">
+
+                            <!-- Resultados Flotantes -->
+                            <div id="resultadosBusquedaCliente"
+                                class="hidden absolute top-full left-0 right-0 mt-2 bg-[#1c1f27] border border-[#3b4354] rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto divide-y divide-[#3b4354]">
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-center gap-3 text-sm">
+                            <span class="text-[#9da6b9]">¿No encuentras al cliente?</span>
+                            <a href="nuevo_cliente.html?origen=poliza"
+                                class="text-primary hover:text-white font-bold hover:underline">Registrar Nuevo
+                                Cliente</a>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="contenedorFormulario"
                     class="bg-surface-card border border-[#3b4354] rounded-xl p-6 shadow-lg transition-opacity duration-300">
                     <form class="space-y-8" id="formPoliza">
@@ -319,16 +351,101 @@
         let clienteId = null;
         let origen = 'lista';
 
+        // --- LÓGICA DE SELECCIÓN DE CLIENTE ---
+        let debounceTimer;
+
+        function buscarCliente(query) {
+            clearTimeout(debounceTimer);
+            const container = document.getElementById('resultadosBusquedaCliente');
+
+            if (query.length < 2) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            debounceTimer = setTimeout(async () => {
+                container.classList.remove('hidden');
+                container.innerHTML = '<div class="p-4 text-center text-[#9da6b9] text-xs">Buscando...</div>';
+
+                const { data: clientes, error } = await window.supabaseClient
+                    .from('clientes')
+                    .select('id, nombre, apellido, telefono')
+                    .ilike('nombre', `%${query}%`)
+                    .limit(5);
+
+                if (error) {
+                    console.error(error);
+                    container.innerHTML = '<div class="p-3 text-red-400 text-xs">Error en búsqueda</div>';
+                    return;
+                }
+
+                if (!clientes || clientes.length === 0) {
+                    container.innerHTML = '<div class="p-4 text-center text-[#9da6b9] text-xs">No se encontraron clientes</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                clientes.forEach(c => {
+                    const div = document.createElement('div');
+                    div.className = "p-3 hover:bg-[#3b4354] cursor-pointer transition-colors text-left flex items-center gap-3";
+                    div.innerHTML = `
+                        <div class="size-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">
+                            ${c.nombre.charAt(0)}
+                        </div>
+                        <div>
+                            <p class="text-white text-sm font-bold">${c.nombre} ${c.apellido || ''}</p>
+                            <p class="text-[#9da6b9] text-xs">${c.telefono || 'Sin teléfono'}</p>
+                        </div>
+                    `;
+                    div.onclick = () => seleccionarCliente(c);
+                    container.appendChild(div);
+                });
+            }, 300);
+        }
+
+        function seleccionarCliente(cliente) {
+            clienteId = cliente.id;
+
+            // Actualizar UI
+            document.getElementById('selectorClienteContainer').classList.add('hidden');
+            document.getElementById('contenedorFormulario').classList.remove('hidden');
+            document.getElementById('contenedorFormulario').classList.add('animate-fade-in');
+
+            // Actualizar Breadcrumbs y Título
+            document.getElementById('breadcrumbsArea').innerHTML =
+                `<a href="clientes.html">Clientes</a> > <a href="perfil_cliente.html?id=${cliente.id}">${cliente.nombre}</a> > Nueva Póliza`;
+
+            // Guardamos el cliente en la URL para que si recarga no se pierda (opcional pero buena UX)
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('clienteId', cliente.id);
+            window.history.pushState({}, '', newUrl);
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const idParam = urlParams.get('id');
             clienteId = urlParams.get('clienteId');
             origen = urlParams.get('origen') || 'lista';
 
+            // BLOQUEO INICIAL: Si no hay cliente y es nueva póliza
+            if (!idParam && !clienteId) {
+                document.getElementById('contenedorFormulario').classList.add('hidden');
+                document.getElementById('selectorClienteContainer').classList.remove('hidden');
+                document.getElementById('breadcrumbsArea').innerHTML = `<a href="polizas.html">Pólizas</a> > Nueva`;
+            } else {
+                if (clienteId) {
+                    document.getElementById('breadcrumbsArea').innerHTML =
+                        `<a href="clientes.html">Clientes</a> > <a href="perfil_cliente.html?id=${clienteId}">Perfil</a> > Póliza`;
+                } else {
+                    document.getElementById('breadcrumbsArea').innerHTML = `<a href="polizas.html">Pólizas</a> > Gestión`;
+                }
+            }
+
             if (idParam) {
                 const { data: poliza } = await window.supabaseClient.from('polizas').select('*').eq('id', idParam).single();
                 if (poliza) {
                     polizaID_Unico = poliza.id;
+                    clienteId = poliza.cliente_id; // Asegurar que tenemos el clienteID al editar
                     await cargarDatosParaEdicion(poliza);
                 }
             }
@@ -339,10 +456,6 @@
             } else {
                 btnAtras.href = clienteId ? `perfil_cliente.html?id=${clienteId}` : 'polizas.html';
             }
-
-            document.getElementById('breadcrumbsArea').innerHTML = clienteId ?
-                `<a href="clientes.html">Clientes</a> > <a href="perfil_cliente.html?id=${clienteId}">Perfil</a> > Póliza` :
-                `<a href="polizas.html">Pólizas</a> > Gestión`;
         });
 
         function verificarOtroAgente() {
@@ -552,6 +665,14 @@
 
                 // Debug log
                 console.log("Intentando guardar póliza. Restringida:", restringidaCheck ? restringidaCheck.checked : "ELEMENT NOT FOUND");
+
+                // VALIDACIÓN CRÍTICA: Impedir guardar sin cliente
+                if (!clienteId) {
+                    alert("❌ ERROR: No se ha asignado un cliente a esta póliza.\n\nPor favor usa el buscador para asignar un titular.");
+                    btnGuardar.disabled = false;
+                    btnGuardar.innerHTML = originalText;
+                    return;
+                }
 
                 const pData = {
                     // id: polizaID_Unico || undefined, // Dejamos que Supabase maneje ID si es nuevo
