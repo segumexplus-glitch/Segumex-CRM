@@ -113,3 +113,7 @@ function urlBase64ToUint8Array(base64String) {
     }
     return outputArray;
 }
+
+// Expose globally
+window.toggleNotification = toggleNotification;
+window.initNotifications = initNotifications;
