@@ -47,21 +47,11 @@ function updateBtnState(isSubscribed) {
 }
 
 async function toggleNotification() {
-    // 1. Diagnostico de Permisos
-    console.log("Estado actual del permiso:", Notification.permission);
-
-    // Si ya está denegado, avisar y salir
-    if (Notification.permission === 'denied') {
-        alert("⚠️ EL NAVEGADOR BLOQUEA LAS NOTIFICACIONES.\n\nEstado Interno: " + Notification.permission + "\n\nSOLUCIÓN:\n1. Ve a Preferencias de Safari > Sitios Web > Notificaciones.\n2. SELECCIONA 'localhost' y dale al botón 'Eliminar' (Remove).\n3. Recarga la página y vuelve a intentar.");
-        return;
-    }
-
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
 
     if (subscription) {
         // Ya suscrito -> Mostrar Historial (Inbox)
-        console.log("Abriendo historial de notificaciones...");
         showNotificationHistory();
         return;
     }
@@ -79,15 +69,15 @@ async function toggleNotification() {
         await syncSubscription(newSubscription);
 
         updateBtnState(true);
-        alert("¡Notificaciones Activadas Correctamente! 🔔");
+        // Feedback sutil
+        alert("✅ ¡Notificaciones Activadas!");
 
     } catch (e) {
         console.error("Error suscribiendo:", e);
-        // Si el error es de permisos, lo decimos claro
         if (e.message.includes("permission")) {
-            alert("Error durante la suscripción: " + e.message + "\n\nEsto suele pasar si cerraste la ventana de permiso muy rápido. Intenta recargar.");
+            alert("⚠️ Necesitamos tu permiso para enviarte alertas.\n\nPor favor, verifica la configuración del sitio en tu navegador.");
         } else {
-            alert("Error Técnico: " + e.message);
+            alert("Error al activar notificaciones: " + e.message);
         }
     }
 }
