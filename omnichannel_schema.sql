@@ -59,5 +59,5 @@ ON public.comm_messages FOR ALL TO authenticated USING (true);
 -- Insertar canales por defecto (Ejemplo - MODIFICAR CON TUS DATOS REALES)
 INSERT INTO public.comm_channels (platform, name, identifier)
 VALUES 
-('whatsapp', 'WhatsApp Principal', 'PENDING_PHONE_ID'),
+('whatsapp', 'WhatsApp Principal', '1008867112303622'),
 ('facebook', 'Facebook Page', 'PENDING_PAGE_ID');

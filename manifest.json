@@ -1,20 +1,40 @@
 {
   "name": "Segumex CRM",
   "short_name": "Segumex",
+  "description": "CRM Inteligente para Agentes de Seguros con Integración de IA",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#161b22",
-  "theme_color": "#161b22",
+  "background_color": "#111318",
+  "theme_color": "#135bec",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "segumex sin fondo.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "segumex sin fondo.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot-desktop.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Escritorio CRM"
+    },
+    {
+      "src": "screenshot-mobile.png",
+      "sizes": "1170x2532",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Vista Móvil"
     }
   ]
 }

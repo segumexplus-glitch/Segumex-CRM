@@ -1,11 +1,14 @@
-const CACHE_NAME = 'segumex-v1';
+const CACHE_NAME = 'segumex-v2';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './menu.js',
+    './ui.js',
+    './ui.css',
     './segumex sin fondo.png',
-    './manifest.json'
-    // Add other critical assets here if needed, but mostly we want to cache the shell
+    './manifest.json',
+    './screenshot-desktop.png',
+    './screenshot-mobile.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -44,5 +47,30 @@ self.addEventListener('activate', (event) => {
                 })
             );
         })
+    );
+});
+
+// --- PUSH NOTIFICATIONS HANDLER ---
+self.addEventListener('push', function (event) {
+    if (event.data) {
+        const payload = event.data.json();
+        const options = {
+            body: payload.body,
+            icon: 'segumex sin fondo.png',
+            badge: 'segumex sin fondo.png',
+            data: payload.data || {},
+            actions: payload.actions || []
+        };
+
+        event.waitUntil(
+            self.registration.showNotification(payload.title, options)
+        );
+    }
+});
+
+self.addEventListener('notificationclick', function (event) {
+    event.notification.close();
+    event.waitUntil(
+        clients.openWindow(event.notification.data.url || '/')
     );
 });

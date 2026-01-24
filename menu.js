@@ -9,12 +9,19 @@ document.addEventListener("DOMContentLoaded", async function () {
             .catch(err => console.log('SW fallo:', err));
     }
 
-    // Inyectar Manifest dinámicamente si no existe (para evitar editar 15 archivos)
     if (!document.querySelector('link[rel="manifest"]')) {
         const link = document.createElement('link');
         link.rel = 'manifest';
         link.href = 'manifest.json';
         document.head.appendChild(link);
+    }
+
+    // Inyectar Script de Notificaciones
+    if (!document.querySelector('script[src="notifications.js"]')) {
+        const script = document.createElement('script');
+        script.src = 'notifications.js';
+        script.onload = () => window.initNotifications && window.initNotifications();
+        document.body.appendChild(script);
     }
 
     // --- SEGURIDAD: Verificar sesión real en Supabase ---
@@ -136,8 +143,17 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     menuHTML += `
                 </div>
+                </div>
             </div>
             <div class="px-2 py-4 border-t border-[#2d3442]">
+                <!-- NOTIFICACIONES -->
+                <button id="btnNotificaciones" onclick="toggleNotification()" 
+                    class="w-full flex items-center gap-2 text-[#9da6b9] hover:bg-[#1f242e] hover:text-white px-2 py-2 rounded-lg transition-colors mb-2"
+                    title="Activar Notificaciones">
+                    <span class="material-symbols-outlined text-[20px]">notifications_off</span>
+                    <span class="text-xs font-bold uppercase tracking-wider">Alertas</span>
+                </button>
+
                 <div class="flex items-center gap-3 mb-3">
                     <div class="size-8 rounded bg-primary/20 flex items-center justify-center text-primary">
                         <span class="material-symbols-outlined text-sm">person</span>
