@@ -1,11 +1,12 @@
-const CACHE_NAME = 'segumex-v2';
+const CACHE_NAME = 'segumex-v4';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './menu.js',
     './ui.js',
     './ui.css',
-    './segumex sin fondo.png',
+    './icon-192.png',
+    './icon-512.png',
     './manifest.json',
     './screenshot-desktop.png',
     './screenshot-mobile.png'
@@ -56,8 +57,8 @@ self.addEventListener('push', function (event) {
         const payload = event.data.json();
         const options = {
             body: payload.body,
-            icon: 'segumex sin fondo.png',
-            badge: 'segumex sin fondo.png',
+            icon: 'icon-192.png',
+            badge: 'icon-192.png',
             data: payload.data || {},
             actions: payload.actions || []
         };
