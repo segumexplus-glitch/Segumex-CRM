@@ -138,9 +138,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             : "";
 
         if (item.action) {
-            // Es un botón con acción (Notificaciones)
+            // Es un botón con acción (Notificaciones) - Removemos onclick inline por seguridad
             menuHTML += `
-            <button id="${item.id}" onclick="${item.action}" class="w-full flex items-center gap-3 px-3 py-3 rounded-lg ${activeClass} text-left">
+            <button id="${item.id}" class="w-full flex items-center gap-3 px-3 py-3 rounded-lg ${activeClass} text-left">
                 <span class="material-symbols-outlined ${iconClass}">${item.icon}</span>
                 <p class="text-sm">${item.name}</p>
                 ${badgeHTML}
@@ -178,6 +178,25 @@ document.addEventListener("DOMContentLoaded", async function () {
     `;
 
     sidebar.innerHTML = menuHTML;
+
+    // --- EVENT LISTENERS (Más seguro que onclick inline) ---
+    const btnNotif = document.getElementById('btnNotificaciones');
+    if (btnNotif) {
+        btnNotif.addEventListener('click', function () {
+            console.log("🔔 Click en Notificaciones detectado");
+            if (window.toggleNotification) {
+                window.toggleNotification();
+            } else {
+                console.warn("toggleNotification no definido aún. Reintentando carga...");
+                // Fallback por si el script no ha terminado de cargar
+                if (window.initNotifications) {
+                    alert("El sistema se está inicializando, intenta de nuevo en 2 segundos.");
+                } else {
+                    alert("Error: El sistema de notificaciones no cargó correctamente.");
+                }
+            }
+        });
+    }
 
     // --- RESPONSIVE: Auto-close on link click ---
     if (window.innerWidth < 768) {
