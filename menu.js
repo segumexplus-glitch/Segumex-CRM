@@ -54,16 +54,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // Close menu when clicking a link on mobile
     const isMobile = window.innerWidth < 768;
-    // We will attach listeners after generating HTML
 
-
-    // --- OPTIMIZACIÓN: Consultar comisiones pendientes en Supabase ---
-    // Nota: Esta es una consulta asíncrona a tu tabla de polizas
     // --- OPTIMIZACIÓN: Consultar comisiones pendientes ---
     let pendientesCount = 0;
-
-    // Solo contar si es agente (los admins ven todo o no necesitan badge urgente)
-    // O si es admin, contamos todo. Pero filtremos columnas MINIMAS.
     let query = window.supabaseClient.from('polizas').select('pagos_status, comisiones_cobradas_status');
 
     if (sesion.rol !== 'admin') {
@@ -75,8 +68,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (polizasMenu) {
         polizasMenu.forEach(p => {
             if (p.pagos_status) {
-                // Contar pagos hechos (true) que NO han sido cobrados por el agente (!true)
-                // comisiones_cobradas_status[idx] es true cuando Admin ya pagó la comisión.
                 p.pagos_status.forEach((pagado, idx) => {
                     const cobrada = p.comisiones_cobradas_status && p.comisiones_cobradas_status[idx] === true;
                     if (pagado === true && !cobrada) {
@@ -98,7 +89,15 @@ document.addEventListener("DOMContentLoaded", async function () {
         { name: 'Siniestros', icon: 'medical_services', link: 'siniestros.html' },
         { name: 'Reportes', icon: 'analytics', link: 'reportes.html' },
         { name: 'Marketing', icon: 'campaign', link: 'marketing.html' },
-        { name: 'Task Planner', icon: 'task_alt', link: 'tareas.html' }
+        { name: 'Task Planner', icon: 'task_alt', link: 'tareas.html' },
+        // Botón especial de Notificaciones insertado como item del menú
+        {
+            name: 'Alertas',
+            icon: 'notifications_off',
+            id: 'btnNotificaciones',
+            action: 'toggleNotification()',
+            specialClass: 'text-[#9da6b9]'
+        }
     ];
 
     if (sesion.rol === 'admin') {
@@ -122,9 +121,15 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     menuItems.forEach(item => {
         const isActive = page === item.link;
-        const activeClass = isActive
+
+        let activeClass = isActive
             ? "bg-primary/10 text-primary border border-primary/20 font-bold"
             : "text-[#94a3b8] hover:bg-[#1f242e] hover:text-white transition-colors group";
+
+        // Overrides para botones especiales
+        if (item.specialClass && !isActive) {
+            activeClass = item.specialClass + " hover:bg-[#1f242e] hover:text-white transition-colors group";
+        }
 
         const iconClass = isActive ? "text-primary" : "text-[#94a3b8] group-hover:text-white";
 
@@ -132,28 +137,30 @@ document.addEventListener("DOMContentLoaded", async function () {
             ? `<span class="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full shadow-lg shadow-red-900/20">${item.badge}</span>`
             : "";
 
-        menuHTML += `
+        if (item.action) {
+            // Es un botón con acción (Notificaciones)
+            menuHTML += `
+            <button id="${item.id}" onclick="${item.action}" class="w-full flex items-center gap-3 px-3 py-3 rounded-lg ${activeClass} text-left">
+                <span class="material-symbols-outlined ${iconClass}">${item.icon}</span>
+                <p class="text-sm">${item.name}</p>
+                ${badgeHTML}
+            </button>
+            `;
+        } else {
+            menuHTML += `
             <a class="flex items-center gap-3 px-3 py-3 rounded-lg ${activeClass}" href="${item.link}">
                 <span class="material-symbols-outlined ${iconClass}">${item.icon}</span>
                 <p class="text-sm">${item.name}</p>
                 ${badgeHTML}
             </a>
         `;
+        }
     });
 
     menuHTML += `
                 </div>
-                </div>
             </div>
             <div class="px-2 py-4 border-t border-[#2d3442]">
-                <!-- NOTIFICACIONES -->
-                <button id="btnNotificaciones" onclick="toggleNotification()" 
-                    class="w-full flex items-center gap-2 text-[#9da6b9] hover:bg-[#1f242e] hover:text-white px-2 py-2 rounded-lg transition-colors mb-2"
-                    title="Activar Notificaciones">
-                    <span class="material-symbols-outlined text-[20px]">notifications_off</span>
-                    <span class="text-xs font-bold uppercase tracking-wider">Alertas</span>
-                </button>
-
                 <div class="flex items-center gap-3 mb-3">
                     <div class="size-8 rounded bg-primary/20 flex items-center justify-center text-primary">
                         <span class="material-symbols-outlined text-sm">person</span>
@@ -174,9 +181,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // --- RESPONSIVE: Auto-close on link click ---
     if (window.innerWidth < 768) {
-        const links = sidebar.querySelectorAll('a');
+        const links = sidebar.querySelectorAll('a, button');
         links.forEach(link => {
             link.addEventListener('click', () => {
+                // Don't close for notification toggle if desired, but for navigation yes.
+                // Assuming we want to close menu after clicking anything
                 const sidebar = document.getElementById('sidebar');
                 const overlay = document.getElementById('sidebarOverlay');
                 sidebar.classList.add('-translate-x-full');
