@@ -128,15 +128,23 @@
                     p.finanzas?.comisionPct
                 );
 
+                const pagosDetalle = p.finanzas?.pagos_detalle || []; // NUEVO
+
                 p.pagos_status.forEach((pagado, idx) => {
+                    // LÓGICA DE COMISIÓN: Si hay detalle manual, usarlo. Si no, usar cálculo global.
+                    let montoReal = monto;
+                    if (pagosDetalle[idx] && pagosDetalle[idx].comision !== undefined) {
+                        montoReal = parseFloat(pagosDetalle[idx].comision);
+                    }
+
                     if (pagado === true) {
                         const cobrada = p.comisiones_cobradas_status && p.comisiones_cobradas_status[idx] === true;
                         if (cobrada) {
-                            tC += monto;
-                            if (vistaActual === 'finalizadas') { renderFila(p, cli, idx, monto, true); tV += monto; }
+                            tC += montoReal;
+                            if (vistaActual === 'finalizadas') { renderFila(p, cli, idx, montoReal, true); tV += montoReal; }
                         } else {
-                            tG += monto;
-                            if (vistaActual === 'pendientes') { renderFila(p, cli, idx, monto, false); tV += monto; }
+                            tG += montoReal;
+                            if (vistaActual === 'pendientes') { renderFila(p, cli, idx, montoReal, false); tV += montoReal; }
                         }
                     }
                 });
@@ -161,18 +169,39 @@
 
         async function marcarComisionCobrada(polizaId, indexPago) {
             if (confirm("¿Confirmas que ya recibiste esta comisión?")) {
-                const { data: p } = await window.supabaseClient.from('polizas').select('*').eq('id', polizaId).single();
+                try {
+                    const { data: p, error: errFetch } = await window.supabaseClient.from('polizas').select('*').eq('id', polizaId).single();
 
-                if (p) {
-                    const totalCuotas = parseInt(p.finanzas?.formaPago) || 12;
-                    let nuevosCobradasStatus = p.comisiones_cobradas_status || new Array(totalCuotas).fill(false);
-                    nuevosCobradasStatus[indexPago] = true;
+                    if (errFetch) throw errFetch;
 
-                    await window.supabaseClient.from('polizas').update({
-                        comisiones_cobradas_status: nuevosCobradasStatus
-                    }).eq('id', polizaId);
+                    if (p) {
+                        const totalCuotas = parseInt(p.finanzas?.formaPago) || 12;
+                        // Asegurar que es un array válido
+                        let nuevosCobradasStatus = Array.isArray(p.comisiones_cobradas_status)
+                            ? [...p.comisiones_cobradas_status]
+                            : new Array(totalCuotas).fill(false);
 
-                    await cargarComisiones();
+                        // Si el array guardado es más corto que el actual (por cambios en pagos), rellenar
+                        if (nuevosCobradasStatus.length < totalCuotas) {
+                            const diff = totalCuotas - nuevosCobradasStatus.length;
+                            for (let i = 0; i < diff; i++) nuevosCobradasStatus.push(false);
+                        }
+
+                        nuevosCobradasStatus[indexPago] = true;
+
+                        const { error: errUpdate } = await window.supabaseClient.from('polizas').update({
+                            comisiones_cobradas_status: nuevosCobradasStatus
+                        }).eq('id', polizaId);
+
+                        if (errUpdate) throw errUpdate;
+
+                        // Recargar todo
+                        await cargarComisiones();
+                        alert("✅ Comisión correspodiente al Pago " + (indexPago + 1) + " conciliada correctamente.");
+                    }
+                } catch (e) {
+                    console.error("Error al conciliar:", e);
+                    alert("Error al guardar la conciliación: " + (e.message || "Error desconocido"));
                 }
             }
         }

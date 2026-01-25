@@ -157,6 +157,8 @@
                                         <option value="auto">Automóviles</option>
                                         <option value="hogar">Hogar</option>
                                         <option value="empresarial">Empresarial</option>
+                                        <option value="danos">Daños</option>
+                                        <option value="mascotas">Mascotas</option>
                                     </select></div>
                                 <div><label class="block text-sm text-[#9da6b9] mb-2">Aseguradora</label><select
                                         id="aseguradoraSelect" onchange="verificarLogicaNegocio()"
@@ -168,6 +170,7 @@
                                         <option value="Mapfre">Mapfre</option>
                                         <option value="Afirme">Afirme</option>
                                         <option value="Banorte">Banorte</option>
+                                        <option value="CHUBB">CHUBB</option>
                                         <option value="Otro">Otro...</option>
                                     </select><input type="text" id="otraAseguradoraInput"
                                         class="hidden mt-2 w-full bg-[#1c1f27] border border-[#3b4354] rounded-lg p-3 text-white"
@@ -296,8 +299,10 @@
                                         <tr>
                                             <th class="p-3">#</th>
                                             <th class="p-3">Fecha</th>
-                                            <th class="p-3">Total</th>
-                                            <th class="p-3 text-green-400">Comisión</th>
+                                            <th class="p-3">Total (Editable)</th>
+                                            <th class="p-3 text-blue-400">Prima Neta (Editable)</th>
+                                            <th class="p-3 text-green-400">Comisión (Editable)</th>
+                                            <th class="p-3">% Com.</th>
                                             <th class="p-3">Fecha de Pago</th>
                                             <th class="p-3 text-center">Estatus</th>
                                             <th class="p-3 text-center">Acción</th>
@@ -347,6 +352,9 @@
         let pagosGuardados = [];
         let pagosFechasGuardadas = [];
         let documentosGuardados = [];
+        // Nueva estructura para guardar detalles por renglón
+        let detallesPagos = [];
+
         let polizaID_Unico = null;
         let clienteId = null;
         let origen = 'lista';
@@ -512,9 +520,13 @@
             pagosGuardados = p.pagos_status || [];
             pagosFechasGuardadas = p.pagos_fechas || [];
             documentosGuardados = p.documentos || [];
+
+            // CARGAR DETALLES DE PAGOS SI EXISTEN, SI NO, CALCULARAN AUTOMATICAMENTE
+            detallesPagos = finanzas.pagos_detalle || [];
+
             renderizarDocumentos();
             verificarLogicaNegocio();
-            calcularPagos();
+            calcularPagos(true); // true = modo edición (intentar usar datos guardados)
 
             if (p.estado === 'cancelada') {
                 polizaActiva = false;
@@ -561,58 +573,142 @@
             }
         }
 
-        function calcularPagos() {
-            const primaNeta = parseFloat(document.getElementById('primaNeta').value) || 0;
-            const primaTotal = parseFloat(document.getElementById('primaTotal').value) || 0;
+        // --- LÓGICA DE TABLA DE PAGOS MEJORADA ---
+
+        function calcularPagos(isEditMode = false) {
+            const primaNetaGlobal = parseFloat(document.getElementById('primaNeta').value) || 0;
+            const primaTotalGlobal = parseFloat(document.getElementById('primaTotal').value) || 0;
+            const pctComisionGlobal = parseFloat(document.getElementById('porcentajeComision').value) || 0;
             const numPagos = parseInt(document.getElementById('formaPago').value);
             let fechaInput = document.getElementById('fechaInicio').value;
 
-            if (primaTotal <= 0) return;
+            if (primaTotalGlobal <= 0) return;
             document.getElementById('mensajeEspera').classList.add('hidden');
             document.getElementById('contenedorTabla').classList.remove('hidden');
 
+            const calendario = window.SegumexFinanzas.generarCalendarioPagos(fechaInput, numPagos);
+
+            // Si hay cambio en inputs globales o es primera vez y no hay detalles guardados
+            // O si cambio el numero de pagos con respecto a lo guardado, regenerar defaults
+            if (!isEditMode || detallesPagos.length !== numPagos) {
+                // Si NO estamos en modo edición puro (es decir, el usuario cambió algo global),
+                // regeneramos la estructura base pero intentamos mantener lo que podamos si el # pagos es igual.
+                // Para simplificar: Si cambian globales, reseteamos a distribución equitativa.
+                // UX Decision: Si usuario edita prima global, quiere recalcular todo.
+
+                const montoReciboBase = primaTotalGlobal / numPagos;
+                const primaNetaBase = primaNetaGlobal / numPagos;
+                const comisionBase = primaNetaBase * (pctComisionGlobal / 100);
+
+                detallesPagos = calendario.map((pago, idx) => ({
+                    numero: pago.numero,
+                    fecha: pago.fecha,
+                    total: montoReciboBase,
+                    primaNeta: primaNetaBase,
+                    comision: comisionBase,
+                    pctComision: pctComisionGlobal
+                }));
+            }
+
+            renderTablaPagos();
+            actualizarTotalCobrado();
+        }
+
+        function renderTablaPagos() {
             const tabla = document.getElementById('tablaPagos');
             tabla.innerHTML = '';
 
-            // Usamos la logica centralizada
-            const calendario = window.SegumexFinanzas.generarCalendarioPagos(fechaInput, numPagos);
+            // Por seguridad, aseguramos que detallesPagos tenga fechas correctas si cambiaron inicio vigencia
+            // (Esto es una optimización, por ahora asumimos renderizado desde el estado actual)
 
-            calendario.forEach((pago, index) => {
-                const i = pago.numero;
-                // fechaString para display
-                const fechaString = window.SegumexDate.toDisplay(pago.fecha);
+            detallesPagos.forEach((fila, index) => {
+                const i = fila.numero;
+                // Re-calcular fechas visuales basándonos en el input global para consistencia
+                // O usar la del objeto. Usaremos la generada al vuelo para consistencia de fechas si cambian inicio.
 
-                const estaPagado = pagosGuardados[i - 1] === true;
-                const fechaPagoReal = window.SegumexDate.toISO(pagosFechasGuardadas[i - 1]);
+                const fechaInput = document.getElementById('fechaInicio').value;
+                const numPagos = parseInt(document.getElementById('formaPago').value);
+                const calendario = window.SegumexFinanzas.generarCalendarioPagos(fechaInput, numPagos);
+                const fechaObj = calendario[index] ? calendario[index].fecha : new Date();
+                const fechaString = window.SegumexDate.toDisplay(fechaObj);
 
-                // Calculos de montos usando centralizacion
-                const montoRecibo = window.SegumexFinanzas.calcularMontoRecibo(primaTotal, numPagos);
-                const comisionRecibo = window.SegumexFinanzas.calcularComision(primaNeta, numPagos, 10); // Asumimos 10% base en UI por ahora
+                const estaPagado = pagosGuardados[index] === true;
+                const fechaPagoReal = pagosFechasGuardadas[index] ? window.SegumexDate.toISO(pagosFechasGuardadas[index]) : '';
 
                 tabla.innerHTML += `
-                <tr class="hover:bg-[#282e39]/30 transition-colors">
-                    <td class="p-3 text-[#9da6b9]">${i}/${numPagos}</td>
-                    <td class="p-3">${fechaString}</td>
-                    <td class="p-3 font-bold">${window.SegumexFinanzas.formatoMoneda(montoRecibo)}</td>
-                    <td class="p-3 text-green-400">${window.SegumexFinanzas.formatoMoneda(comisionRecibo)}</td>
-                    <td class="p-3">
-                        <input type="date" value="${fechaPagoReal}" 
-                            onchange="pagosFechasGuardadas[${i - 1}] = this.value"
-                            class="${estaPagado ? '' : 'hidden'} bg-[#161b22] border-[#3b4354] rounded text-[11px] text-white p-1 focus:ring-1 focus:ring-primary outline-none">
-                    </td>
-                    <td class="p-3 text-center">
-                        <span class="px-2 py-1 rounded text-[10px] font-bold ${estaPagado ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'} uppercase">
-                            ${estaPagado ? 'Liquidado' : 'Pendiente'}
-                        </span>
-                    </td>
-                    <td class="p-3 text-center">
-                        <button type="button" onclick="togglePago(${i - 1})" class="px-3 py-1 rounded-full text-xs font-bold border ${estaPagado ? 'border-green-500/30 bg-green-500/20 text-green-400' : 'border-[#3b4354] bg-[#111318] text-[#9da6b9]'}">
-                            ${estaPagado ? 'Pagado ✓' : 'Marcar'}
-                        </button>
-                    </td>
-                    </td>
-                </tr>`;
+                 <tr class="hover:bg-[#282e39]/30 transition-colors">
+                     <td class="p-3 text-[#9da6b9]">${i}/${numPagos}</td>
+                     <td class="p-3 text-xs md:text-sm">${fechaString}</td>
+                     
+                     <td class="p-2">
+                        <input type="number" 
+                            value="${fila.total.toFixed(2)}"
+                            onchange="actualizarFilaPago(${index}, 'total', this.value)"
+                            class="w-24 bg-[#161b22] border border-[#3b4354] rounded text-sm text-white p-1 focus:ring-1 focus:ring-primary outline-none">
+                     </td>
+                     
+                     <td class="p-2">
+                         <input type="number" 
+                            value="${fila.primaNeta.toFixed(2)}"
+                            onchange="actualizarFilaPago(${index}, 'primaNeta', this.value)"
+                            class="w-24 bg-[#161b22] border border-blue-500/30 text-blue-300 rounded text-sm p-1 focus:ring-1 focus:ring-primary outline-none">
+                     </td>
+                     
+                     <td class="p-2">
+                         <input type="number" 
+                            value="${fila.comision.toFixed(2)}"
+                            onchange="actualizarFilaPago(${index}, 'comision', this.value)"
+                            class="w-24 bg-[#161b22] border border-green-500/30 text-green-400 rounded text-sm p-1 focus:ring-1 focus:ring-primary outline-none font-bold">
+                     </td>
+                     
+                     <td class="p-3 text-xs text-[#9da6b9] text-center">
+                        ${fila.pctComision.toFixed(1)}%
+                     </td>
+
+                     <td class="p-2">
+                         <input type="date" value="${fechaPagoReal}" 
+                             onchange="pagosFechasGuardadas[${index}] = this.value"
+                             class="${estaPagado ? '' : 'hidden'} bg-[#161b22] border border-[#3b4354] rounded text-[10px] text-white p-1 w-full outline-none">
+                     </td>
+                     
+                     <td class="p-3 text-center">
+                         <span class="px-2 py-1 rounded text-[10px] font-bold ${estaPagado ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'} uppercase">
+                             ${estaPagado ? 'Liquidado' : 'Pendiente'}
+                         </span>
+                     </td>
+                     
+                     <td class="p-3 text-center">
+                         <button type="button" onclick="togglePago(${index})" class="px-3 py-1 rounded-full text-xs font-bold border ${estaPagado ? 'border-green-500/30 bg-green-500/20 text-green-400' : 'border-[#3b4354] bg-[#111318] text-[#9da6b9]'}">
+                             ${estaPagado ? 'Pagado ✓' : 'Marcar'}
+                         </button>
+                     </td>
+                 </tr>`;
             });
+        }
+
+        function actualizarFilaPago(index, campo, valorStr) {
+            let valor = parseFloat(valorStr) || 0;
+            const fila = detallesPagos[index];
+
+            if (campo === 'total') {
+                fila.total = valor;
+            } else if (campo === 'primaNeta') {
+                fila.primaNeta = valor;
+                // Si cambia prima neta, recalculamos comisión manteniendo el % actual
+                // O mejor aun, usamos el % global por defecto? No, mejor mantener la logica de fila.
+                // Logica Negocio: Si edito prima, recalculo comision basandome en el % actual de esa fila
+                fila.comision = fila.primaNeta * (fila.pctComision / 100);
+            } else if (campo === 'comision') {
+                fila.comision = valor;
+                // Si cambia comision, calculamos que % representa de la prima neta actual
+                if (fila.primaNeta > 0) {
+                    fila.pctComision = (fila.comision / fila.primaNeta) * 100;
+                } else {
+                    fila.pctComision = 0;
+                }
+            }
+
+            renderTablaPagos(); // Re-renderizar para actualizar columnas dependientes
             actualizarTotalCobrado();
         }
 
@@ -623,15 +719,17 @@
             } else if (!pagosGuardados[index]) {
                 pagosFechasGuardadas[index] = "";
             }
-            calcularPagos();
+            renderTablaPagos(); // Usamos renderTablaPagos en lugar de calcularPagos para no resetear valores
+            actualizarTotalCobrado();
         }
 
         function actualizarTotalCobrado() {
             let total = 0;
-            const numPagos = parseInt(document.getElementById('formaPago').value) || 1;
-            const primaNeta = parseFloat(document.getElementById('primaNeta').value) || 0;
-            const comisionMensual = (primaNeta / numPagos) * 0.10;
-            pagosGuardados.forEach(p => { if (p) total += comisionMensual; });
+            pagosGuardados.forEach((pagado, idx) => {
+                if (pagado && detallesPagos[idx]) {
+                    total += detallesPagos[idx].comision;
+                }
+            });
             document.getElementById('comisionCobradaDisplay').value = "$" + total.toFixed(2);
         }
 
@@ -663,9 +761,6 @@
                 const agenteValue = agenteSelect.value === 'Otro' ? document.getElementById('otroAgenteInput').value : agenteSelect.value;
                 const restringidaCheck = document.getElementById('polizaRestringidaInput');
 
-                // Debug log
-                console.log("Intentando guardar póliza. Restringida:", restringidaCheck ? restringidaCheck.checked : "ELEMENT NOT FOUND");
-
                 // VALIDACIÓN CRÍTICA: Impedir guardar sin cliente
                 if (!clienteId) {
                     alert("❌ ERROR: No se ha asignado un cliente a esta póliza.\n\nPor favor usa el buscador para asignar un titular.");
@@ -675,7 +770,6 @@
                 }
 
                 const pData = {
-                    // id: polizaID_Unico || undefined, // Dejamos que Supabase maneje ID si es nuevo
                     cliente_id: clienteId,
                     agente: agenteValue,
                     ramo: document.getElementById('ramoSelect').value,
@@ -698,12 +792,13 @@
                     finanzas: {
                         inicio: window.SegumexDate.toISO(document.getElementById('fechaInicio').value),
                         fin: window.SegumexDate.toISO(document.getElementById('fechaFin').value),
-                        // fin: document.getElementById('fechaFin').value, // Duplicado eliminado
                         formaPago: document.getElementById('formaPago').value,
                         primaNeta: document.getElementById('primaNeta').value,
                         primaTotal: document.getElementById('primaTotal').value,
                         comisionPct: document.getElementById('porcentajeComision').value,
-                        moduloHDI: document.getElementById('tipoModuloHDI').value
+                        moduloHDI: document.getElementById('tipoModuloHDI').value,
+                        // NUEVO: Guardamos el detalle de pagos
+                        pagos_detalle: detallesPagos
                     },
                     pagos_status: pagosGuardados,
                     pagos_fechas: pagosFechasGuardadas.map(f => window.SegumexDate.toISO(f)),

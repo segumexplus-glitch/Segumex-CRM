@@ -268,26 +268,34 @@
                 let fechaPago = new Date(f.inicio + "T12:00:00");
 
                 const estadosPagos = p.pagos_status || [];
+                const pagosDetalle = f.pagos_detalle || []; // NUEVO: Leer detalles guardados
 
                 for (let i = 0; i < numPagos; i++) {
                     const pagado = estadosPagos[i] === true;
+
+                    // LÓGICA DE MONTO: Si existe detalle personalizado, usarlo. Si no, promedio.
+                    let montoRealRecibo = montoRecibo;
+                    if (pagosDetalle[i] && pagosDetalle[i].total) {
+                        montoRealRecibo = parseFloat(pagosDetalle[i].total);
+                    }
+
                     const fechaLimite = new Date(fechaPago);
                     fechaLimite.setHours(0, 0, 0, 0);
                     const diffDias = Math.ceil((fechaLimite - hoy) / (1000 * 60 * 60 * 24));
 
                     if (pagado) {
                         if (fechaLimite.getMonth() === mesActual && fechaLimite.getFullYear() === anioActual) {
-                            totalCobradoMes += montoRecibo;
+                            totalCobradoMes += montoRealRecibo;
                         }
                     } else {
                         const estatusCalculado = window.SegumexFinanzas.calcularEstadoRecibo(fechaLimite, false);
                         const diffDias = window.SegumexFinanzas.diffDias(fechaLimite);
 
                         if (estatusCalculado === 'vencido') {
-                            totalVencido += montoRecibo;
+                            totalVencido += montoRealRecibo;
                             countVencido++;
                         } else if (estatusCalculado === 'proximo') {
-                            totalPorCobrar30 += montoRecibo;
+                            totalPorCobrar30 += montoRealRecibo;
                             countPorCobrar30++;
                         }
 
@@ -302,7 +310,7 @@
                                 ramo: p.ramo,
                                 concepto: `Pago ${i + 1}/${numPagos}`,
                                 fecha: fechaLimite,
-                                monto: montoRecibo,
+                                monto: montoRealRecibo,
                                 estatus: estatusCalculado,
                                 diffDias: diffDias
                             });
