@@ -12,6 +12,8 @@ const VERIFY_TOKEN = Deno.env.get('META_VERIFY_TOKEN') || 'segumex_secure_token'
 Deno.serve(async (req) => {
     const { method } = req;
     const url = new URL(req.url);
+    console.log(` INCOMING WEBHOOK: ${method} ${url.pathname}`);
+
 
     // 1. Verificación del Webhook (Meta GET Request)
     if (method === 'GET') {
@@ -36,6 +38,7 @@ Deno.serve(async (req) => {
 
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
             const body = await req.json();
+            console.log("📦 PAYLOAD:", JSON.stringify(body));
 
             // Verificar si es evento de WhatsApp
             if (body.object) {

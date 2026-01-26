@@ -820,6 +820,21 @@
 
                 alert("✅ Póliza guardada correctamente");
                 const newId = dataPoliza[0].id; // ID real
+
+                // --- TRIGGER WELCOME MESSAGE (Solo si es NUEVA) ---
+                if (!polizaID_Unico) {
+                    console.log("✨ Enviando mensaje de bienvenida...");
+                    // No usamos await para no bloquear la UI, pero mostramos un toast opcionalmente
+                    // O mejor, usamos fetch directo para evitar problemas de auth si el usuario es anonimo (pero aqui es admin)
+
+                    window.supabaseClient.functions.invoke('welcome-policy', {
+                        body: { record: dataPoliza[0] }
+                    }).then(({ data, error }) => {
+                        if (error) console.error("Error enviando bienvenida:", error);
+                        else console.log("Bienvenida enviada:", data);
+                    });
+                }
+
                 window.location.href = (origen === 'detalle') ? `detalle_poliza.html?id=${newId}` : (clienteId ? `perfil_cliente.html?id=${clienteId}` : 'polizas.html');
 
             } catch (e) {

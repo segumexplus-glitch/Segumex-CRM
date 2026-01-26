@@ -185,13 +185,16 @@
                 .from('comm_conversations')
                 .select(`
                     *,
-                    leads (nombre, apellido, telefono)
+                    leads (nombre, telefono)
                 `)
                 .order('last_message_at', { ascending: false });
 
             if (error) {
                 console.error('Error cargando chats:', error);
-                listContainer.innerHTML = '<div class="p-4 text-red-400 text-xs">Error de conexión</div>';
+                listContainer.innerHTML = `<div class="p-4 text-red-400 text-xs">
+                    <strong>Error:</strong> ${error.message}<br>
+                    <span class="text-[10px] opacity-75">${error.details || error.hint || ''}</span>
+                </div>`;
                 return;
             }
 
@@ -202,7 +205,7 @@
 
             listContainer.innerHTML = '';
             data.forEach(conv => {
-                const name = conv.leads ? `${conv.leads.nombre} ${conv.leads.apellido || ''}` : conv.platform_user_id;
+                const name = conv.leads ? conv.leads.nombre : conv.platform_user_id;
                 const time = conv.last_message_at ? new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
                 const activeClass = (currentConversationId === conv.id) ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]';
 
@@ -252,11 +255,25 @@
             // Cargar Mensajes
             await renderMessages(id);
             subscribirChat(id);
+
+            // FALLBACK POLLING: Si Realtime falla, recargar cada 4s
+            if (window.pollingInterval) clearInterval(window.pollingInterval);
+            window.pollingInterval = setInterval(() => {
+                // Solo recargar si estamos viendo la misma conversa y no estamos scrolleando activamente (opcional)
+                if (currentConversationId === id) {
+                    renderMessages(id, true); // true = silent mode (no loading spinner)
+                }
+            }, 4000);
         }
 
-        async function renderMessages(convId) {
+        async function renderMessages(convId, silent = false) {
             const area = document.getElementById('messagesArea');
-            area.innerHTML = '<div class="flex justify-center p-4"><span class="animate-spin material-symbols-outlined text-[#8696a0]">progress_activity</span></div>';
+            if (!silent) {
+                area.innerHTML = '<div class="flex justify-center p-4"><span class="animate-spin material-symbols-outlined text-[#8696a0]">progress_activity</span></div>';
+            }
+
+            // check scroll position before update
+            const wasAtBottom = area.scrollTop + area.clientHeight >= area.scrollHeight - 50;
 
             const { data: msgs } = await window.supabaseClient
                 .from('comm_messages')
@@ -267,12 +284,19 @@
             area.innerHTML = '';
 
             if (msgs) {
-                let lastDate = null;
+                // Si es silent, solo reemplazar si hay cambios (o simple replace para evitar flicker)
+                // Para simplificar: rebuilt content but try to maintain scroll
+                // Optimización: Comparar length
+
+                if (silent && area.childElementCount === msgs.length) return; // No changes (naive check)
+
+                area.innerHTML = '';
                 msgs.forEach(msg => {
                     const msgDiv = createMessageBubble(msg);
                     area.appendChild(msgDiv);
                 });
-                scrollToBottom();
+
+                if (!silent || wasAtBottom) scrollToBottom();
             }
         }
 
@@ -314,6 +338,7 @@
             // Optimistic UI Update (mostrar inmediatemente)
             // (Opcional, pero mejor esperar a Realtime para evitar duplicados si la red es rapida)
             // Lo agregaremos al enviarlo:
+            console.log("✨ Optimistic Update: Appending bubble...");
             document.getElementById('messagesArea').appendChild(createMessageBubble({
                 sender_type: 'agent',
                 content: txt,
@@ -322,22 +347,44 @@
             scrollToBottom();
             input.value = '';
 
-            // Llamar a Edge Function
+            // Llamar a Edge Function via direct Fetch to debug CORS
             try {
-                const { data, error } = await window.supabaseClient.functions.invoke('ai-brain', {
-                    body: {
+                const functionUrl = `${window.supabaseUrl}/functions/v1/ai-brain`;
+
+                const response = await fetch(functionUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${window.supabaseKey}`
+                    },
+                    body: JSON.stringify({
                         conversation_id: currentConversationId,
                         action: 'manual_reply',
                         agent_message: txt
-                    }
+                    })
                 });
 
-                if (error) throw error;
-                console.log('Mensaje enviado');
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server Error ${response.status}: ${errorText}`);
+                }
+
+                const data = await response.json();
+                console.log('Mensaje enviado (Direct Fetch):', data);
+                if (data.debug) console.log('Debug Flags:', data.debug);
+
+                if (data.green_api && data.green_api_status !== 200) {
+                    // Check logic depending on Green API format. Usually they return JSON even on error.
+                    console.error("Green API Error:", data.green_api);
+                    alert("Mensaje enviado a IA, pero falló en WhatsApp:\n" + JSON.stringify(data.green_api));
+                } else if (data.green_api) {
+                    console.log("Green API Success:", data.green_api);
+                }
+
                 // Realtime actualizará el estado si cambia
             } catch (err) {
-                alert('Error al enviar mensaje: ' + err.message);
-                console.error(err);
+                console.error("Fetch Error:", err);
+                alert('Error al enviar mensaje (Fetch): ' + err.message);
             }
         }
 
@@ -393,15 +440,24 @@
                     table: 'comm_messages',
                     filter: `conversation_id=eq.${convId}`
                 }, (payload) => {
+                    console.log("🔔 Realtime Event:", payload);
                     const msg = payload.new;
-                    // Evitar duplicados si ya lo agregamos optimisticamente (simplificado: checar ID o content, aqui confiamos en UI)
-                    // Como el optimistic UI no tiene ID real, podriamos borrar el ultimo si coincide
-                    // Por ahora, simple append
+
+                    // Simple check to avoid duplicate if optimistic UI worked
+                    // (Assuming optimistic message is the last child)
                     const area = document.getElementById('messagesArea');
+                    const lastChild = area.lastElementChild;
+                    if (lastChild && lastChild.innerText.includes(msg.content)) {
+                        console.log("Duplicate ignored (Optimistic match)");
+                        return;
+                    }
+
                     area.appendChild(createMessageBubble(msg));
                     scrollToBottom();
                 })
-                .subscribe();
+                .subscribe((status) => {
+                    console.log("📡 Subscription Status:", status);
+                });
         }
 
         // Auto Toggle Menu Mobile

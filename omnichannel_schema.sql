@@ -33,31 +33,34 @@ CREATE TABLE IF NOT EXISTS public.comm_messages (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Índices para búsqueda rápida
-CREATE INDEX idx_comm_conversations_user ON public.comm_conversations(platform_user_id);
-CREATE INDEX idx_comm_messages_conv ON public.comm_messages(conversation_id);
+-- Índices para búsqueda rápida (IF NOT EXISTS para evitar errores al re-ejecutar)
+CREATE INDEX IF NOT EXISTS idx_comm_conversations_user ON public.comm_conversations(platform_user_id);
+CREATE INDEX IF NOT EXISTS idx_comm_messages_conv ON public.comm_messages(conversation_id);
 
 -- POLÍTICAS DE SEGURIDAD (RLS)
--- Habilitar RLS
+-- Habilitar RLS (no da error si ya está habilitado)
 ALTER TABLE public.comm_channels ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.comm_conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.comm_messages ENABLE ROW LEVEL SECURITY;
 
--- Crear políticas (Permitir todo a usuarios autenticados por ahora para facilitar desarrollo)
+-- Crear políticas de forma segura (borrar si existen para recrear)
+DROP POLICY IF EXISTS "Permitir acceso total a autenticados en channels" ON public.comm_channels;
 CREATE POLICY "Permitir acceso total a autenticados en channels"
 ON public.comm_channels FOR ALL TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Permitir acceso total a autenticados en conversations" ON public.comm_conversations;
 CREATE POLICY "Permitir acceso total a autenticados en conversations"
 ON public.comm_conversations FOR ALL TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Permitir acceso total a autenticados en messages" ON public.comm_messages;
 CREATE POLICY "Permitir acceso total a autenticados en messages"
 ON public.comm_messages FOR ALL TO authenticated USING (true);
 
--- Política para permitir que las Edge Functions (Service Role) accedan
--- Supabase service role bypasses RLS by default, but good to be key aware.
-
--- Insertar canales por defecto (Ejemplo - MODIFICAR CON TUS DATOS REALES)
+-- Insertar canales por defecto
+-- Usamos una consulta para insertar solo si NO existe ese identifier, evitando duplicados
 INSERT INTO public.comm_channels (platform, name, identifier)
-VALUES 
-('whatsapp', 'WhatsApp Principal', '1008867112303622'),
-('facebook', 'Facebook Page', 'PENDING_PAGE_ID');
+SELECT 'whatsapp', 'WhatsApp Pruebas', '1008867112303622'
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.comm_channels WHERE identifier = '1008867112303622'
+);
+-- Nota: Si cambiaste de número de prueba, asegúrate de que el de arriba sea el NUEVO.

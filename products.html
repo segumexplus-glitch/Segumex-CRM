@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Productos AI - Segumex</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-dark": "#101622",
+                        "surface-dark": "#111318",
+                        "surface-card": "#1c1f27",
+                        "text-secondary": "#9da6b9",
+                    },
+                    fontFamily: { "display": ["Inter", "sans-serif"] }
+                },
+            },
+        }
+
+        // --- SEGURIDAD ---
+        async function checkSession() {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) window.location.href = 'login.html';
+        }
+        checkSession();
+    </script>
+</head>
+
+<body class="bg-[#f6f6f8] dark:bg-background-dark font-display text-white relative h-screen flex overflow-hidden">
+
+    <!-- Sidebar CRM -->
+    <aside id="sidebar" class="w-64 border-r border-[#3b4354] bg-[#111318] flex-shrink-0 flex flex-col z-20"></aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-4 md:p-8">
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-2xl font-bold mb-1">Conocimiento AI</h1>
+                <p class="text-[#9da6b9] text-sm">Gestiona los productos y servicios que la IA utiliza para responder.
+                </p>
+            </div>
+            <button onclick="abrirModal()"
+                class="bg-primary hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors">
+                <span class="material-symbols-outlined">add</span>
+                Nuevo Producto
+            </button>
+        </header>
+
+        <!-- Loading State -->
+        <div id="loading" class="flex justify-center p-12">
+            <span class="animate-spin material-symbols-outlined text-4xl text-primary">progress_activity</span>
+        </div>
+
+        <!-- Products Grid -->
+        <div id="productsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 hidden">
+            <!-- Items injected here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden flex flex-col items-center justify-center p-12 text-[#9da6b9]">
+            <span class="material-symbols-outlined text-6xl mb-4">inventory_2</span>
+            <p>No hay productos registrados.</p>
+            <p class="text-sm">Agrega uno para que la IA aprenda sobre él.</p>
+        </div>
+
+    </main>
+
+    <!-- Modal (Add/Edit) -->
+    <div id="productModal"
+        class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl w-full max-w-lg p-6 transform scale-95 transition-transform duration-300"
+            id="modalContent">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="modalTitle" class="text-xl font-bold">Nuevo Producto</h2>
+                <button onclick="cerrarModal()" class="text-[#9da6b9] hover:text-white">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <form id="productForm" onsubmit="guardarProducto(event)">
+                <input type="hidden" id="prodId">
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-[#9da6b9] mb-1">Nombre del Producto</label>
+                        <input type="text" id="prodName" required placeholder="Ej: Seguro Auto Amplio"
+                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg px-3 py-2 text-white focus:ring-1 focus:ring-primary focus:border-primary placeholder-[#3b4354]">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-[#9da6b9] mb-1">Descripción (Lo que dirá la
+                            IA)</label>
+                        <textarea id="prodDesc" required rows="3"
+                            placeholder="Cobertura amplia para daños, robo y RC..."
+                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg px-3 py-2 text-white focus:ring-1 focus:ring-primary focus:border-primary placeholder-[#3b4354] resize-none"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-[#9da6b9] mb-1">Precio / Rango</label>
+                            <input type="text" id="prodPrice" required placeholder="Ej: Desde $4,500/año"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg px-3 py-2 text-white focus:ring-1 focus:ring-primary focus:border-primary placeholder-[#3b4354]">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-[#9da6b9] mb-1">Requisitos</label>
+                            <input type="text" id="prodReq" required placeholder="Ej: Marca, Modelo, CP"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg px-3 py-2 text-white focus:ring-1 focus:ring-primary focus:border-primary placeholder-[#3b4354]">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-8">
+                    <button type="button" onclick="cerrarModal()"
+                        class="px-4 py-2 text-sm font-medium text-[#9da6b9] hover:text-white transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                        class="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold text-sm transition-colors shadow-lg shadow-blue-900/20">
+                        Guardar Información
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="menu.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', cargarProductos);
+
+        async function cargarProductos() {
+            const grid = document.getElementById('productsGrid');
+            const loader = document.getElementById('loading');
+            const empty = document.getElementById('emptyState');
+
+            loader.classList.remove('hidden');
+            grid.classList.add('hidden');
+            empty.classList.add('hidden');
+
+            const { data, error } = await window.supabaseClient
+                .from('products')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            loader.classList.add('hidden');
+
+            if (error) {
+                console.error(error);
+                alert('Error cargando productos');
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                empty.classList.remove('hidden');
+            } else {
+                grid.classList.remove('hidden');
+                grid.innerHTML = '';
+                data.forEach(prod => {
+                    grid.innerHTML += createCard(prod);
+                });
+            }
+        }
+
+        function createCard(prod) {
+            return `
+            <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-5 hover:border-primary/50 transition-colors group relative">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="font-bold text-lg text-white">${prod.name}</h3>
+                    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick='editarProducto(${JSON.stringify(prod)})' class="p-1 hover:text-blue-400 text-[#9da6b9]">
+                            <span class="material-symbols-outlined text-sm">edit</span>
+                        </button>
+                        <button onclick="borrarProducto('${prod.id}')" class="p-1 hover:text-red-400 text-[#9da6b9]">
+                            <span class="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <p class="text-sm text-[#9da6b9] mb-4 line-clamp-2 h-10">${prod.description}</p>
+                
+                <div class="flex flex-col gap-2 text-xs">
+                    <div class="flex items-center gap-2 p-2 bg-[#111318] rounded border border-[#2a303c]">
+                        <span class="material-symbols-outlined text-green-500 text-sm">payments</span>
+                        <span class="font-mono text-[#e9edef]">${prod.price}</span>
+                    </div>
+                    <div class="flex items-center gap-2 p-2 bg-[#111318] rounded border border-[#2a303c]">
+                        <span class="material-symbols-outlined text-orange-500 text-sm">assignment</span>
+                        <span class="truncate text-[#9da6b9]" title="${prod.requirements}">${prod.requirements}</span>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+
+        // --- CRUD Operations ---
+
+        function abrirModal(prod = null) {
+            const modal = document.getElementById('productModal');
+            const content = document.getElementById('modalContent');
+
+            // Populate form
+            document.getElementById('prodId').value = prod?.id || '';
+            document.getElementById('prodName').value = prod?.name || '';
+            document.getElementById('prodDesc').value = prod?.description || '';
+            document.getElementById('prodPrice').value = prod?.price || '';
+            document.getElementById('prodReq').value = prod?.requirements || '';
+
+            document.getElementById('modalTitle').innerText = prod ? 'Editar Producto' : 'Nuevo Producto';
+
+            modal.classList.remove('hidden');
+            // Small delay for CSS transition
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            }, 10);
+        }
+
+        function cerrarModal() {
+            const modal = document.getElementById('productModal');
+            const content = document.getElementById('modalContent');
+
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function editarProducto(prod) {
+            abrirModal(prod);
+        }
+
+        async function guardarProducto(e) {
+            e.preventDefault();
+            const id = document.getElementById('prodId').value;
+            const item = {
+                name: document.getElementById('prodName').value,
+                description: document.getElementById('prodDesc').value,
+                price: document.getElementById('prodPrice').value,
+                requirements: document.getElementById('prodReq').value
+            };
+
+            let error;
+            if (id) {
+                // Update
+                ({ error } = await window.supabaseClient.from('products').update(item).eq('id', id));
+            } else {
+                // Insert
+                ({ error } = await window.supabaseClient.from('products').insert(item));
+            }
+
+            if (error) {
+                console.error(error);
+                alert('Error al guardar: ' + error.message);
+            } else {
+                cerrarModal();
+                cargarProductos();
+            }
+        }
+
+        async function borrarProducto(id) {
+            if (!confirm('¿Seguro que quieres eliminar este producto? La IA dejará de saber sobre él.')) return;
+
+            const { error } = await window.supabaseClient.from('products').delete().eq('id', id);
+            if (error) {
+                alert('Error: ' + error.message);
+            } else {
+                cargarProductos();
+            }
+        }
+
+    </script>
+</body>
+
+</html>
