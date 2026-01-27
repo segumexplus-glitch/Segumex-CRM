@@ -823,16 +823,40 @@
 
                 // --- TRIGGER WELCOME MESSAGE (Solo si es NUEVA) ---
                 if (!polizaID_Unico) {
+                    btnGuardar.innerHTML = '<span class="material-symbols-outlined animate-spin">send</span> Enviando bienvenida...';
                     console.log("✨ Enviando mensaje de bienvenida...");
-                    // No usamos await para no bloquear la UI, pero mostramos un toast opcionalmente
-                    // O mejor, usamos fetch directo para evitar problemas de auth si el usuario es anonimo (pero aqui es admin)
 
-                    window.supabaseClient.functions.invoke('welcome-policy', {
-                        body: { record: dataPoliza[0] }
-                    }).then(({ data, error }) => {
-                        if (error) console.error("Error enviando bienvenida:", error);
-                        else console.log("Bienvenida enviada:", data);
-                    });
+                    try {
+                        // Use RAW fetch to avoid supabase-js "FunctionsFetchError" quirks
+                        // and get better error visibility.
+                        const functionUrl = `${window.supabaseUrl}/functions/v1/welcome-policy`;
+                        console.log("Calling:", functionUrl);
+
+                        const resp = await fetch(functionUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${window.supabaseKey}`
+                            },
+                            body: JSON.stringify({ record: dataPoliza[0] })
+                        });
+
+                        if (!resp.ok) {
+                            const errorText = await resp.text();
+                            throw new Error(`HTTP ${resp.status}: ${errorText}`);
+                        }
+
+                        const data = await resp.json();
+                        console.log("Respuesta bienvenida:", data);
+
+                        if (data.error) {
+                            alert("⚠️ Póliza guardada, pero la bienvenida reportó un error interno:\n" + data.error);
+                        }
+
+                    } catch (errWelcome) {
+                        console.error("Excepción en bienvenida:", errWelcome);
+                        alert("⚠️ Error de conexión al enviar bienvenida:\n" + errWelcome.message);
+                    }
                 }
 
                 window.location.href = (origen === 'detalle') ? `detalle_poliza.html?id=${newId}` : (clienteId ? `perfil_cliente.html?id=${clienteId}` : 'polizas.html');

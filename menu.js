@@ -82,7 +82,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         { name: 'Dashboard', icon: 'dashboard', link: 'index.html' },
         { name: 'Leads (Ventas)', icon: 'filter_alt', link: 'leads.html' },
         { name: 'Buzón AI', icon: 'chat_bubble', link: 'buzon.html' },
-        { name: 'Conocimiento AI', icon: 'auto_stories', link: 'products.html' },
+        { name: 'Conocimiento AI', icon: 'auto_stories', link: 'conocimiento.html' },
         { name: 'Clientes', icon: 'group', link: 'clientes.html' },
         { name: 'Pólizas', icon: 'description', link: 'polizas.html' },
         { name: 'Pay Tracker', icon: 'account_balance_wallet', link: 'cobranza.html' },
