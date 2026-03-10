@@ -4,38 +4,27 @@
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>Detalle Lead - Segumex</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <script>
+        (async function() {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) window.location.href = 'login.html';
+        })();
         tailwind.config = { darkMode: "class", theme: { extend: { colors: { "primary": "#135bec", "background-dark": "#101622", "surface-dark": "#111318", "surface-card": "#1c1f27", "text-secondary": "#9da6b9" }, fontFamily: { "display": ["Inter", "sans-serif"] } } } }
     </script>
 </head>
 <body class="bg-[#f6f6f8] dark:bg-background-dark font-display text-white">
 <div class="flex h-screen w-full">
-    
-    <aside class="flex w-64 flex-col border-r border-[#3b4354] bg-[#111318] flex-shrink-0">
-        <div class="flex h-full flex-col justify-between p-4">
-            <div class="flex flex-col gap-6">
-                <div class="flex items-center gap-3 px-2">
-                    <div class="bg-primary h-10 w-10 rounded-full flex items-center justify-center font-bold text-white">SX</div>
-                    <div class="flex flex-col"><h1 class="text-white text-base font-semibold leading-tight">Segumex</h1><p class="text-text-secondary text-xs font-normal">Panel Principal</p></div>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#282e39] transition-colors group" href="index.html"><span class="material-symbols-outlined text-[#9da6b9]">dashboard</span><p class="text-[#9da6b9] text-sm font-medium">Dashboard</p></a>
-                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg bg-primary/10 text-primary border border-primary/20" href="leads.html"><span class="material-symbols-outlined">filter_alt</span><p class="text-sm font-bold">Leads (Ventas)</p></a>
-                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#282e39] transition-colors group" href="clientes.html"><span class="material-symbols-outlined text-[#9da6b9]">group</span><p class="text-[#9da6b9] text-sm font-medium">Clientes</p></a>
-                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#282e39] transition-colors group" href="polizas.html"><span class="material-symbols-outlined text-[#9da6b9]">description</span><p class="text-[#9da6b9] text-sm font-medium">Pólizas</p></a>
-                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#282e39] transition-colors group" href="cobranza.html"><span class="material-symbols-outlined text-[#9da6b9]">account_balance_wallet</span><p class="text-[#9da6b9] text-sm font-medium">Pay Tracker</p></a>
-                    <a class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#282e39] transition-colors group" href="siniestros.html"><span class="material-symbols-outlined text-[#9da6b9]">medical_services</span><p class="text-[#9da6b9] text-sm font-medium">Siniestros</p></a>
-                </div>
-            </div>
-        </div>
-    </aside>
+
+    <aside id="sidebar" class="flex w-64 flex-col border-r border-[#3b4354] bg-[#111318] flex-shrink-0"></aside>
 
     <main class="flex-1 flex flex-col h-full overflow-y-auto bg-background-dark p-4 md:p-8">
         <div class="max-w-7xl mx-auto w-full pb-10">
-            
+
             <div class="flex items-center gap-2 text-sm text-[#9da6b9] mb-6">
                 <a href="leads.html" class="hover:text-white flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">arrow_back</span> Leads</a>
                 <span class="material-symbols-outlined text-[16px]">chevron_right</span>
@@ -53,17 +42,20 @@
                     </p>
                 </div>
                 <div class="flex gap-3">
+                    <button onclick="eliminarLead()" class="px-4 py-2 border border-red-500/30 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 flex items-center gap-2 font-medium text-sm">
+                        <span class="material-symbols-outlined text-[18px]">delete</span> Eliminar
+                    </button>
                     <button onclick="abrirModalEditar()" class="px-4 py-2 border border-[#3b4354] rounded-lg text-[#9da6b9] hover:text-white hover:bg-[#282e39] flex items-center gap-2 font-medium">
                         <span class="material-symbols-outlined text-[18px]">edit</span> Editar
                     </button>
-                    <button onclick="convertirGanada()" class="px-6 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg font-bold shadow-lg shadow-primary/30 flex items-center gap-2 transition-transform hover:scale-105">
+                    <button id="btnGanada" onclick="convertirGanada()" class="px-6 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg font-bold shadow-lg shadow-primary/30 flex items-center gap-2 transition-transform hover:scale-105">
                         <span class="material-symbols-outlined">emoji_events</span> ¡Ganada!
                     </button>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
+
                 <div class="space-y-6">
                     <div class="grid grid-cols-2 gap-4">
                         <div class="bg-surface-card border border-[#3b4354] rounded-xl p-4">
@@ -75,7 +67,7 @@
                             <p class="text-[#9da6b9] text-xs font-bold uppercase mb-1">Probabilidad</p>
                             <h2 class="text-2xl font-bold text-green-400" id="leadProb">0%</h2>
                             <div class="w-full bg-[#111318] h-1.5 rounded-full mt-2 overflow-hidden">
-                                <div class="bg-green-500 h-full rounded-full" style="width: 60%"></div>
+                                <div id="barraProb" class="bg-green-500 h-full rounded-full" style="width: 0%"></div>
                             </div>
                         </div>
                     </div>
@@ -86,7 +78,6 @@
                             <button onclick="contactar('wa')" class="flex flex-col items-center gap-1 text-[#9da6b9] hover:text-white transition-colors"><div class="size-10 rounded-full bg-[#111318] flex items-center justify-center border border-[#3b4354] hover:border-green-500 hover:text-green-500 transition-colors"><span class="material-symbols-outlined">chat</span></div><span class="text-[10px]">WhatsApp</span></button>
                             <button onclick="contactar('email')" class="flex flex-col items-center gap-1 text-[#9da6b9] hover:text-white transition-colors"><div class="size-10 rounded-full bg-[#111318] flex items-center justify-center border border-[#3b4354] hover:border-yellow-500 hover:text-yellow-500 transition-colors"><span class="material-symbols-outlined">mail</span></div><span class="text-[10px]">Email</span></button>
                         </div>
-                        
                         <h3 class="text-white font-bold text-xs uppercase mb-4 border-b border-[#3b4354] pb-2">Datos de Contacto</h3>
                         <div class="space-y-4">
                             <div class="flex items-center gap-3">
@@ -116,12 +107,11 @@
                             <p class="text-[#9da6b9] text-xs italic text-center py-2">Sin cotizaciones adjuntas.</p>
                         </div>
                     </div>
-
                 </div>
 
                 <div class="lg:col-span-2 space-y-6">
-                    <div class="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/30 rounded-xl p-4 flex gap-4 items-start">
-                        <div class="p-2 bg-purple-500/20 rounded-lg text-purple-400"><span class="material-symbols-outlined">auto_awesome</span></div>
+                    <div class="bg-surface-card border border-[#3b4354] rounded-xl p-4 flex gap-4 items-start">
+                        <div class="p-2 bg-purple-500/20 rounded-lg text-purple-400 flex-shrink-0"><span class="material-symbols-outlined">auto_awesome</span></div>
                         <div>
                             <h4 class="text-white font-bold text-sm mb-1">Resumen IA</h4>
                             <p class="text-[#9da6b9] text-xs leading-relaxed">El cliente mostró interés en la cobertura. Se recomienda enfatizar los beneficios de la red médica preferente en la próxima llamada.</p>
@@ -144,8 +134,7 @@
 
                     <div class="bg-surface-card border border-[#3b4354] rounded-xl p-6">
                         <h3 class="text-white font-bold text-sm mb-6">Historial de Actividad</h3>
-                        <div id="historialContainer" class="relative border-l border-[#3b4354] ml-2 pl-6 space-y-6">
-                            </div>
+                        <div id="historialContainer" class="relative border-l border-[#3b4354] ml-2 pl-6 space-y-6"></div>
                     </div>
                 </div>
 
@@ -153,7 +142,8 @@
         </div>
     </main>
 
-    <div id="modalEditarLead" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+    <!-- Modal Editar Lead -->
+    <div id="modalEditarLead" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
         <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl w-full max-w-md p-6 shadow-2xl">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-lg font-bold text-white">Editar Prospecto</h2>
@@ -199,16 +189,14 @@
                         </select>
                     </div>
                 </div>
-                <div class="border-t border-[#3b4354] pt-4">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-[#9da6b9] mb-1">Teléfono</label>
-                            <input type="tel" id="editTel" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-[#9da6b9] mb-1">Email</label>
-                            <input type="email" id="editEmail" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
-                        </div>
+                <div class="border-t border-[#3b4354] pt-4 grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-[#9da6b9] mb-1">Teléfono</label>
+                        <input type="tel" id="editTel" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-[#9da6b9] mb-1">Email</label>
+                        <input type="email" id="editEmail" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
                     </div>
                 </div>
                 <div class="pt-4 flex justify-end gap-2">
@@ -220,76 +208,92 @@
     </div>
 </div>
 
+<script src="menu.js"></script>
+
 <script>
-    // Se mantienen todas las variables y funciones originales (DOMContentLoaded, render, subirCotizacion, etc.)
     let leadActual = null;
-    let leadIndex = null;
-    let leads = [];
+    let leadId = null;
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         const urlParams = new URLSearchParams(window.location.search);
-        const id = parseInt(urlParams.get('id'));
-        leads = JSON.parse(localStorage.getItem('segumex_leads')) || [];
-        
-        leadIndex = leads.findIndex(l => l.id === id);
-        leadActual = leads[leadIndex];
-
-        if(leadActual) {
-            if(!leadActual.historial) leadActual.historial = [];
-            if(!leadActual.documentos) leadActual.documentos = [];
-            
-            if(leadActual.historial.length === 0) {
-                leadActual.historial.push({
-                    tipo: 'Registro',
-                    texto: 'Prospecto ingresado al sistema.',
-                    fecha: leadActual.fecha || new Date().toLocaleDateString('es-MX')
-                });
-            }
-
-            renderDatos();
-            renderHistorial();
-            renderDocumentos();
-        } else {
-            alert("Lead no encontrado");
-            window.location.href = 'leads.html';
-        }
+        leadId = urlParams.get('id');
+        if (!leadId) { window.location.href = 'leads.html'; return; }
+        await cargarLead();
     });
 
-    // Se mantiene renderDatos, renderHistorial, renderDocumentos, guardarSeguimiento, subirCotizacion, etc.
+    async function cargarLead() {
+        const { data, error } = await window.supabaseClient
+            .from('leads')
+            .select('*')
+            .eq('id', leadId)
+            .single();
+
+        if (error || !data) {
+            alert("Lead no encontrado.");
+            window.location.href = 'leads.html';
+            return;
+        }
+
+        leadActual = data;
+        if (!leadActual.historial) leadActual.historial = [];
+        if (!leadActual.documentos) leadActual.documentos = [];
+
+        // Registro inicial si historial vacío
+        if (leadActual.historial.length === 0) {
+            await agregarHistorial('Registro', 'Prospecto ingresado al sistema.');
+        }
+
+        renderDatos();
+        renderHistorial();
+        renderDocumentos();
+    }
+
     function renderDatos() {
         document.getElementById('leadNombre').innerText = leadActual.nombre;
         document.getElementById('infoNombre').innerText = leadActual.nombre;
-        document.getElementById('leadProducto').innerText = leadActual.producto;
-        document.getElementById('leadValor').innerText = new Intl.NumberFormat('es-MX', {style:'currency', currency:'MXN', maximumFractionDigits:0}).format(leadActual.valor);
-        document.getElementById('leadEtapa').innerText = leadActual.etapa.toUpperCase();
-        document.getElementById('leadProb').innerText = leadActual.prob === 'Alta' ? '85%' : (leadActual.prob === 'Media' ? '50%' : '20%');
+        document.getElementById('leadProducto').innerText = leadActual.producto || '---';
+        document.getElementById('leadValor').innerText = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(leadActual.valor || 0);
         document.getElementById('infoEmail').innerText = leadActual.email || '---';
         document.getElementById('infoTel').innerText = leadActual.telefono || '---';
+
+        const etapaBadge = document.getElementById('leadEtapa');
+        etapaBadge.innerText = (leadActual.etapa || '').toUpperCase();
+        if (leadActual.etapa === 'ganada') {
+            etapaBadge.className = 'text-xs px-3 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 uppercase font-bold tracking-wide';
+            document.getElementById('btnGanada').disabled = true;
+            document.getElementById('btnGanada').classList.add('opacity-50', 'cursor-not-allowed');
+        }
+
+        const probMap = { 'Alta': { txt: '85%', w: '85%' }, 'Media': { txt: '50%', w: '50%' }, 'Baja': { txt: '20%', w: '20%' } };
+        const prob = probMap[leadActual.prob] || { txt: '0%', w: '0%' };
+        document.getElementById('leadProb').innerText = prob.txt;
+        document.getElementById('barraProb').style.width = prob.w;
     }
 
     function renderHistorial() {
         const container = document.getElementById('historialContainer');
         container.innerHTML = '';
-        const historialReversed = [...leadActual.historial].reverse();
-        historialReversed.forEach(h => {
-            let colorDot = "bg-blue-500";
-            if(h.tipo === 'Seguimiento') colorDot = "bg-green-500";
-            if(h.tipo === 'Archivo') colorDot = "bg-yellow-500";
+        const reversed = [...leadActual.historial].reverse();
+        if (reversed.length === 0) {
+            container.innerHTML = '<p class="text-[#9da6b9] text-xs italic">Sin actividad registrada.</p>';
+            return;
+        }
+        reversed.forEach(h => {
+            const colorDot = h.tipo === 'Seguimiento' ? 'bg-green-500' : (h.tipo === 'Archivo' ? 'bg-yellow-500' : 'bg-blue-500');
             container.innerHTML += `
                 <div class="relative">
                     <div class="absolute -left-[31px] top-0 size-2.5 rounded-full ${colorDot} ring-4 ring-[#1c1f27]"></div>
                     <p class="text-[#9da6b9] text-[10px] mb-1">${h.fecha}</p>
                     <h4 class="text-white font-bold text-sm">${h.tipo}</h4>
                     <p class="text-[#9da6b9] text-xs mt-1 bg-[#111318] p-3 rounded-lg border border-[#3b4354]">${h.texto}</p>
-                </div>
-            `;
+                </div>`;
         });
     }
 
     function renderDocumentos() {
         const container = document.getElementById('listaDocumentos');
         container.innerHTML = '';
-        if(leadActual.documentos.length === 0) {
+        if (!leadActual.documentos || leadActual.documentos.length === 0) {
             container.innerHTML = '<p class="text-[#9da6b9] text-xs italic text-center py-2">Sin cotizaciones adjuntas.</p>';
             return;
         }
@@ -304,161 +308,171 @@
                     <button onclick="borrarDocumento(${index})" class="text-[#9da6b9] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                         <span class="material-symbols-outlined text-sm">delete</span>
                     </button>
-                </div>
-            `;
+                </div>`;
         });
     }
 
-    function guardarSeguimiento() {
-        const texto = document.getElementById('txtAccion').value;
+    async function agregarHistorial(tipo, texto) {
+        const entrada = { tipo, texto, fecha: new Date().toLocaleDateString('es-MX') };
+        leadActual.historial.push(entrada);
+        await window.supabaseClient.from('leads').update({ historial: leadActual.historial }).eq('id', leadId);
+    }
+
+    async function guardarSeguimiento() {
+        const texto = document.getElementById('txtAccion').value.trim();
         const fecha = document.getElementById('dateAccion').value;
-        if(!texto) { alert("Escribe una acción."); return; }
-        leadActual.historial.push({
-            tipo: 'Seguimiento',
-            texto: `Próxima acción programada para ${fecha}: ${texto}`,
-            fecha: new Date().toLocaleDateString('es-MX')
-        });
-        leads[leadIndex] = leadActual;
-        localStorage.setItem('segumex_leads', JSON.stringify(leads));
+        if (!texto) { alert("Escribe una acción."); return; }
+
+        await agregarHistorial('Seguimiento', `Próxima acción programada para ${fecha || 'sin fecha'}: ${texto}`);
+
         document.getElementById('txtAccion').value = '';
         document.getElementById('dateAccion').value = '';
         document.getElementById('badgeRequerido').className = "text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/30 uppercase font-bold";
         document.getElementById('badgeRequerido').innerText = "Guardado";
         renderHistorial();
-        alert("Seguimiento guardado correctamente");
     }
 
-    function subirCotizacion(input) {
+    async function subirCotizacion(input) {
         if (input.files && input.files[0]) {
             const file = input.files[0];
             const nuevoDoc = {
                 nombre: file.name,
                 fecha: new Date().toLocaleDateString('es-MX'),
-                size: (file.size / 1024).toFixed(1) + ' KB'
+                tamano: (file.size / 1024).toFixed(1) + ' KB'
             };
             leadActual.documentos.push(nuevoDoc);
-            leadActual.historial.push({
-                tipo: 'Archivo',
-                texto: `Se adjuntó cotización: ${file.name}`,
-                fecha: new Date().toLocaleDateString('es-MX')
-            });
-            leads[leadIndex] = leadActual;
-            localStorage.setItem('segumex_leads', JSON.stringify(leads));
+            await agregarHistorial('Archivo', `Se adjuntó cotización: ${file.name}`);
+            await window.supabaseClient.from('leads').update({ documentos: leadActual.documentos }).eq('id', leadId);
             renderDocumentos();
             renderHistorial();
+            input.value = '';
         }
     }
 
-    function borrarDocumento(index) {
-        if(confirm("¿Eliminar este documento?")) {
+    async function borrarDocumento(index) {
+        if (confirm("¿Eliminar este documento?")) {
             leadActual.documentos.splice(index, 1);
-            leads[leadIndex] = leadActual;
-            localStorage.setItem('segumex_leads', JSON.stringify(leads));
-            renderDocumentos();
+            const { error } = await window.supabaseClient.from('leads').update({ documentos: leadActual.documentos }).eq('id', leadId);
+            if (!error) renderDocumentos();
         }
     }
 
     function abrirModalEditar() {
+        document.getElementById('editNombre').value = leadActual.nombre || '';
+        document.getElementById('editProducto').value = leadActual.producto || '';
+        document.getElementById('editValor').value = leadActual.valor || '';
+        document.getElementById('editProb').value = leadActual.prob || 'Media';
+        document.getElementById('editEtapa').value = leadActual.etapa || 'nuevo';
+        document.getElementById('editTel').value = leadActual.telefono || '';
+        document.getElementById('editEmail').value = leadActual.email || '';
         document.getElementById('modalEditarLead').classList.remove('hidden');
-        document.getElementById('editNombre').value = leadActual.nombre;
-        document.getElementById('editProducto').value = leadActual.producto;
-        document.getElementById('editValor').value = leadActual.valor;
-        document.getElementById('editProb').value = leadActual.prob;
-        document.getElementById('editEtapa').value = leadActual.etapa;
-        document.getElementById('editTel').value = leadActual.telefono;
-        document.getElementById('editEmail').value = leadActual.email;
     }
 
     function cerrarModalEditar() {
         document.getElementById('modalEditarLead').classList.add('hidden');
     }
 
-    function guardarEdicionLead(e) {
+    async function guardarEdicionLead(e) {
         e.preventDefault();
-        leadActual.nombre = document.getElementById('editNombre').value;
-        leadActual.producto = document.getElementById('editProducto').value;
-        leadActual.valor = parseFloat(document.getElementById('editValor').value) || 0;
-        leadActual.prob = document.getElementById('editProb').value;
-        leadActual.etapa = document.getElementById('editEtapa').value;
-        leadActual.telefono = document.getElementById('editTel').value;
-        leadActual.email = document.getElementById('editEmail').value;
-        leads[leadIndex] = leadActual;
-        localStorage.setItem('segumex_leads', JSON.stringify(leads));
+        const cambios = {
+            nombre: document.getElementById('editNombre').value,
+            producto: document.getElementById('editProducto').value,
+            valor: parseFloat(document.getElementById('editValor').value) || 0,
+            prob: document.getElementById('editProb').value,
+            etapa: document.getElementById('editEtapa').value,
+            telefono: document.getElementById('editTel').value,
+            email: document.getElementById('editEmail').value,
+        };
+        const { error } = await window.supabaseClient.from('leads').update(cambios).eq('id', leadId);
+        if (error) { alert('Error al guardar: ' + error.message); return; }
+        Object.assign(leadActual, cambios);
         renderDatos();
         cerrarModalEditar();
-        alert("Lead actualizado correctamente");
     }
 
-    // CORRECCIÓN EN convertirGanada
-    function convertirGanada() {
-        if(!confirm("¿Marcar venta como GANADA? Esto creará el cliente y la póliza automáticamente.")) return;
+    async function convertirGanada() {
+        if (leadActual.etapa === 'ganada') { alert('Este lead ya fue marcado como ganado.'); return; }
+        if (!confirm("¿Marcar venta como GANADA? Esto creará el cliente y la póliza automáticamente.")) return;
 
-        let clientes = JSON.parse(localStorage.getItem('segumex_clientes')) || [];
-        const nuevoClienteId = Date.now(); // GENERAMOS EL ID ÚNICO AQUÍ
+        const btn = document.getElementById('btnGanada');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[18px]" style="animation:spin 1s linear infinite">refresh</span> Procesando...';
 
-        const partesNombre = leadActual.nombre.split(" ");
-        const nombre = partesNombre[0];
-        const apellido = partesNombre.slice(1).join(" ") || "";
+        const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+        const agenteAsignado = sesion.nombre || 'Agente Segumex';
 
-        const nuevoCliente = {
-            id: nuevoClienteId, // <--- ID FUNDAMENTAL PARA EL VÍNCULO
-            nombre: nombre,
-            apellido: apellido,
-            email: leadActual.email,
-            telefono: leadActual.telefono,
-            estatus: "Activo",
-            tipo: "Persona",
-            rfc: "XAXX010101000",
-            direccion: "Por definir",
-            imagen: null
-        };
-        clientes.push(nuevoCliente);
-        localStorage.setItem('segumex_clientes', JSON.stringify(clientes));
+        // 1. Crear Cliente en Supabase
+        const { data: clienteCreado, error: errCli } = await window.supabaseClient
+            .from('clientes')
+            .insert([{
+                nombre: leadActual.nombre,
+                tipo: 'Persona',
+                estatus: 'Activo',
+                email: leadActual.email || '',
+                telefono: leadActual.telefono || '',
+                agente: agenteAsignado,
+                restringida: false
+            }])
+            .select()
+            .single();
 
-        // USAMOS LA BASE DE DATOS UNIFICADA
-        let polizas = JSON.parse(localStorage.getItem('segumex_polizas')) || [];
-        
-        let ramo = 'vida';
-        let icono = 'favorite';
-        let color = 'text-pink-500 bg-pink-500/10';
-        
-        if(leadActual.producto.toLowerCase().includes('autos') || leadActual.producto.toLowerCase().includes('flotilla')) {
-            ramo = 'auto';
-            icono = 'directions_car';
-            color = 'text-orange-500 bg-orange-500/10';
-        } else if(leadActual.producto.toLowerCase().includes('médicos')) {
-            ramo = 'gmm';
-            icono = 'medical_services';
-            color = 'text-blue-500 bg-blue-500/10';
+        if (errCli) {
+            alert('Error creando cliente: ' + errCli.message);
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-symbols-outlined">emoji_events</span> ¡Ganada!';
+            return;
         }
 
-        const nuevaPoliza = {
-            id: Date.now() + 1,
-            cliente_id: nuevoClienteId, // <--- VÍNCULO CORRECTO AL ID DEL CLIENTE
-            numero: "PENDIENTE-" + Math.floor(Math.random()*1000),
-            aseguradora: "Por Definir",
-            ramo: ramo,
-            icono: icono,
-            estiloIcono: color,
-            estado: "vigente",
+        // 2. Crear Póliza en Supabase vinculada al cliente
+        const { error: errPol } = await window.supabaseClient.from('polizas').insert([{
+            cliente_id: clienteCreado.id,
+            ramo: leadActual.producto || 'vida',
+            aseguradora: 'Por Asignar',
+            no_poliza: 'PEND-' + Math.floor(Math.random() * 10000),
             vence: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
-            prima: leadActual.valor
-        };
-        polizas.push(nuevaPoliza);
-        localStorage.setItem('segumex_polizas', JSON.stringify(polizas));
+            estado: 'vigente',
+            prima: leadActual.valor || 0,
+            agente: agenteAsignado,
+            restringida: false,
+            icono: 'pending',
+            estiloIcono: 'text-gray-400 bg-gray-500/10'
+        }]);
+
+        if (errPol) {
+            alert('Cliente creado, pero error en póliza: ' + errPol.message);
+        }
+
+        // 3. Actualizar lead a ganada
+        await window.supabaseClient.from('leads').update({ etapa: 'ganada' }).eq('id', leadId);
+        await agregarHistorial('Ganada', `¡Venta ganada! Cliente ${clienteCreado.nombre} creado.`);
 
         leadActual.etapa = 'ganada';
-        leads[leadIndex] = leadActual;
-        localStorage.setItem('segumex_leads', JSON.stringify(leads));
+        renderDatos();
+        renderHistorial();
+        alert(`🎉 ¡Venta ganada!\nCliente: ${clienteCreado.nombre}\nAgente: ${agenteAsignado}`);
+    }
 
-        alert("🎉 ¡Felicidades! Venta registrada.\n\nCliente creado.\nPóliza creada.");
-        window.location.href = 'clientes.html';
+    async function eliminarLead() {
+        if (!confirm('¿Eliminar este lead permanentemente?')) return;
+        const { error } = await window.supabaseClient.from('leads').delete().eq('id', leadId);
+        if (!error) window.location.href = 'leads.html';
+        else alert('Error: ' + error.message);
     }
 
     function contactar(metodo) {
-        if(metodo === 'tel') window.location.href = `tel:${leadActual.telefono}`;
-        if(metodo === 'email') window.location.href = `mailto:${leadActual.email}`;
-        if(metodo === 'wa') window.open(`https://wa.me/52${leadActual.telefono.replace(/\D/g,'')}`, '_blank');
+        if (!leadActual) return;
+        if (metodo === 'tel') {
+            if (!leadActual.telefono) { alert('Sin teléfono registrado.'); return; }
+            window.location.href = `tel:${leadActual.telefono}`;
+        }
+        if (metodo === 'email') {
+            if (!leadActual.email) { alert('Sin email registrado.'); return; }
+            window.location.href = `mailto:${leadActual.email}`;
+        }
+        if (metodo === 'wa') {
+            if (!leadActual.telefono) { alert('Sin teléfono registrado.'); return; }
+            window.open(`https://wa.me/52${leadActual.telefono.replace(/\D/g, '')}`, '_blank');
+        }
     }
 </script>
 </body>
