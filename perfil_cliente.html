@@ -492,21 +492,35 @@
             contador.innerText = (susPolizas ? susPolizas.length : 0) + " Total";
 
             if (susPolizas && susPolizas.length > 0) {
+                // Cargar siniestros activos para estas pólizas
+                const polizaIds = susPolizas.map(p => p.id);
+                const { data: siniestrosRaw } = await window.supabaseClient
+                    .from('siniestros').select('poliza_id, status').in('poliza_id', polizaIds);
+                const polizasConSiniestro = new Set(
+                    (siniestrosRaw || [])
+                        .filter(s => !['Cerrado', 'Pagado', 'Rechazado'].includes(s.status))
+                        .map(s => String(s.poliza_id))
+                );
+
                 lista.innerHTML = '';
                 susPolizas.forEach((p) => {
                     let ramoTexto = p.ramo.charAt(0).toUpperCase() + p.ramo.slice(1);
                     if (p.ramo === 'gmm') ramoTexto = 'Gastos Médicos';
                     let estiloIcono = p.estiloIcono || 'text-blue-500 bg-blue-500/10';
+                    const tieneSiniestro = polizasConSiniestro.has(String(p.id));
 
                     lista.innerHTML += `
-                    <div class="p-4 hover:bg-[#282e39]/50 transition-colors flex items-center justify-between group cursor-pointer" 
+                    <div class="p-4 hover:bg-[#282e39]/50 transition-colors flex items-center justify-between group cursor-pointer"
                          onclick="window.location.href='detalle_poliza.html?id=${p.id}&origen=cliente&clienteId=${clienteID}'">
                         <div class="flex items-center gap-4">
                             <div class="size-10 rounded-lg ${estiloIcono} flex items-center justify-center">
                                 <span class="material-symbols-outlined">${p.icono || 'description'}</span>
                             </div>
                             <div>
-                                <p class="text-white font-bold">${ramoTexto} - ${p.aseguradora || 'Por definir'}</p>
+                                <div class="flex items-center gap-2">
+                                    <p class="text-white font-bold">${ramoTexto} - ${p.aseguradora || 'Por definir'}</p>
+                                    ${tieneSiniestro ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500/10 text-orange-400 border border-orange-500/20 animate-pulse">⚠ SINIESTRO</span>` : ''}
+                                </div>
                                 <p class="text-[#9da6b9] text-xs">Póliza: ${p.no_poliza || p.numero} • Vence: ${p.vence}</p>
                             </div>
                         </div>

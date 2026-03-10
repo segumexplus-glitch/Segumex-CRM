@@ -57,9 +57,10 @@
 
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                 <div>
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 flex-wrap">
                         <h1 class="text-3xl font-bold text-white" id="tituloPoliza">Póliza #---</h1>
                         <span id="badgeEstado" class="px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border">...</span>
+                        <span id="badgeSiniestro" class="hidden px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border border-orange-500/20 bg-orange-500/10 text-orange-400 animate-pulse">⚠ Siniestro Activo</span>
                         <span id="badgeDomiciliada" class="hidden px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border border-purple-500/20 bg-purple-500/10 text-purple-400">Domiciliada</span>
                     </div>
                     <p class="text-[#9da6b9] text-sm mt-1" id="subtituloPoliza">Cargando información...</p>
@@ -382,6 +383,15 @@
                 btnCancelar.innerHTML = '<span class="material-symbols-outlined text-[18px]">block</span> Cancelar';
                 btnCancelar.className = 'flex items-center gap-2 px-4 py-2 rounded-lg border border-orange-500/30 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-all text-sm font-medium';
             }
+        }
+
+        // Mostrar badge de siniestro activo si existe
+        const { data: siniestrosActivos } = await window.supabaseClient
+            .from('siniestros').select('id, status').eq('poliza_id', polizaId);
+        const tieneSiniestroActivo = (siniestrosActivos || []).some(s => !['Cerrado', 'Pagado', 'Rechazado'].includes(s.status));
+        const badgeSin = document.getElementById('badgeSiniestro');
+        if (badgeSin) {
+            tieneSiniestroActivo ? badgeSin.classList.remove('hidden') : badgeSin.classList.add('hidden');
         }
     }
 

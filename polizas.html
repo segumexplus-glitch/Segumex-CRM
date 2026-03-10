@@ -336,6 +336,14 @@
             // Obtener clientes para los nombres de los titulares
             const { data: clientes } = await window.supabaseClient.from('clientes').select('id, nombre, apellido, agente');
 
+            // Cargar siniestros activos para mostrar badge
+            const { data: siniestrosRaw } = await window.supabaseClient.from('siniestros').select('poliza_id, status');
+            const polizasConSiniestro = new Set(
+                (siniestrosRaw || [])
+                    .filter(s => !['Cerrado', 'Pagado', 'Rechazado'].includes(s.status))
+                    .map(s => String(s.poliza_id))
+            );
+
             datos.forEach((p) => {
                 const finVigenciaStr = window.SegumexDate.toDisplay(p.vence);
                 const diffDays = window.SegumexDate.diffDays(p.vence);
@@ -400,10 +408,13 @@
                         </div>
                     </td>
                     <td class="p-4">
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${estadoClase}">
-                            <span class="size-1.5 rounded-full bg-current"></span>
-                            ${estadoTexto}
-                        </span>
+                        <div class="flex flex-wrap gap-1 items-center">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${estadoClase}">
+                                <span class="size-1.5 rounded-full bg-current"></span>
+                                ${estadoTexto}
+                            </span>
+                            ${polizasConSiniestro.has(String(p.id)) ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase bg-orange-500/10 text-orange-400 border border-orange-500/20 animate-pulse">⚠ Siniestro</span>` : ''}
+                        </div>
                     </td>
                     <td class="p-4 text-right">
                         <div class="flex items-center justify-end gap-2">

@@ -576,6 +576,7 @@
             const polizaSeleccionada = polizasDisponibles[indexPoliza];
             const textoInput = document.getElementById('polizaSearchInput').value;
             const nombreTitular = textoInput.split('-')[0].trim();
+            const statusSeleccionado = document.getElementById('statusSiniestro').value;
 
             // 1. Insertar el Siniestro primero (para tener su ID real si fuera necesario, aunque aquí usaremos la respuesta)
             const nuevoSiniestro = {
@@ -586,7 +587,7 @@
                 titular: nombreTitular,
                 fecha: window.SegumexDate.toISO(document.getElementById('fechaSiniestro').value),
                 tipo: document.getElementById('tipoSiniestro').value,
-                status: statusActual,
+                status: statusSeleccionado,
                 monto: document.getElementById('montoSiniestro').value || 0,
                 descripcion: document.getElementById('descSiniestro').value,
                 documentos: [],
@@ -604,7 +605,7 @@
             if (errorSiniestro) {
                 console.error(errorSiniestro);
                 window.SegumexUI.resetLoading(btnSubmit);
-                alert("Error creando siniestro");
+                alert("Error creando siniestro: " + errorSiniestro.message);
                 return;
             }
 
@@ -612,10 +613,10 @@
 
             // 2. Crear Tarea Automática (ID autogenerado por DB también)
             const tareaSiniestro = {
-                titulo: `${statusActual === 'Urgente' ? '🆘' : '📋'} Siniestro: ${siniestroReal.titular}`,
+                titulo: `${statusSeleccionado === 'Urgente' ? '🆘' : '📋'} Siniestro: ${siniestroReal.titular}`,
                 descripcion: `Seguimiento de siniestro ${siniestroReal.tipo}. Póliza: ${siniestroReal.poliza_numero}. ID Siniestro: ${siniestroReal.id}`,
                 fecha: siniestroReal.fecha,
-                prioridad: statusActual === "Urgente" ? "Urgente" : "Media",
+                prioridad: statusSeleccionado === "Urgente" ? "Urgente" : "Media",
                 completada: false
             };
 
