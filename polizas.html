@@ -172,12 +172,32 @@
                         </div>
 
                         <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-[#3b4354]">
-                            <button
-                                class="px-3 py-1 bg-[#111318] border border-[#3b4354] text-[#9da6b9] rounded-full text-xs font-medium hover:text-white hover:border-white transition-colors flex items-center gap-1">Aseguradora
-                                <span class="material-symbols-outlined text-[14px]">expand_more</span></button>
-                            <button
-                                class="px-3 py-1 bg-[#111318] border border-[#3b4354] text-[#9da6b9] rounded-full text-xs font-medium hover:text-white hover:border-white transition-colors flex items-center gap-1">Ramo
-                                <span class="material-symbols-outlined text-[14px]">expand_more</span></button>
+                            <!-- Dropdown Aseguradora -->
+                            <div class="relative">
+                                <button id="btnFiltroAseg" onclick="toggleDropdown('dropdownAseg')"
+                                    class="px-3 py-1 bg-[#111318] border border-[#3b4354] text-[#9da6b9] rounded-full text-xs font-medium hover:text-white hover:border-white transition-colors flex items-center gap-1">
+                                    <span id="lblAseg">Aseguradora</span>
+                                    <span class="material-symbols-outlined text-[14px]">expand_more</span>
+                                </button>
+                                <div id="dropdownAseg" class="hidden absolute left-0 top-full mt-1 z-50 bg-[#1c1f27] border border-[#3b4354] rounded-lg shadow-2xl min-w-[160px] overflow-hidden">
+                                    <div id="listaAseg" class="max-h-48 overflow-y-auto"></div>
+                                </div>
+                            </div>
+                            <!-- Dropdown Ramo -->
+                            <div class="relative">
+                                <button id="btnFiltroRamo" onclick="toggleDropdown('dropdownRamo')"
+                                    class="px-3 py-1 bg-[#111318] border border-[#3b4354] text-[#9da6b9] rounded-full text-xs font-medium hover:text-white hover:border-white transition-colors flex items-center gap-1">
+                                    <span id="lblRamo">Ramo</span>
+                                    <span class="material-symbols-outlined text-[14px]">expand_more</span>
+                                </button>
+                                <div id="dropdownRamo" class="hidden absolute left-0 top-full mt-1 z-50 bg-[#1c1f27] border border-[#3b4354] rounded-lg shadow-2xl min-w-[140px] overflow-hidden">
+                                    <div id="listaRamo" class="max-h-48 overflow-y-auto"></div>
+                                </div>
+                            </div>
+                            <!-- Limpiar filtros -->
+                            <button id="btnLimpiarFiltros" onclick="limpiarFiltrosExtra()" class="hidden px-3 py-1 bg-red-500/10 border border-red-500/20 text-red-400 rounded-full text-xs font-medium hover:bg-red-500/20 transition-colors flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[14px]">close</span> Limpiar
+                            </button>
                             <div class="flex-1"></div>
                             <span id="contadorResultados" class="text-[#9da6b9] text-xs">Cargando...</span>
                         </div>
@@ -228,6 +248,10 @@
 
     <script>
         let polizasGlobales = [];
+        let filtroEstadoActivo = 'Todos';
+        let filtroAseguradora = '';
+        let filtroRamo = '';
+        let clientesMap = {}; // { cliente_id: "Nombre Apellido" }
 
         async function renderizarPolizas() {
             const tabla = document.getElementById('tabla-polizas');
@@ -287,6 +311,14 @@
             document.getElementById('kpiPorVencer').innerText = porVencer;
             document.getElementById('kpiCanceladas').innerText = canceladas;
 
+            // Construir mapa de clientes para búsqueda por nombre
+            const { data: clientesRaw } = await window.supabaseClient.from('clientes').select('id, nombre, apellido');
+            clientesMap = {};
+            (clientesRaw || []).forEach(c => {
+                clientesMap[String(c.id)] = `${c.nombre || ''} ${c.apellido || ''}`.toLowerCase().trim();
+            });
+
+            poblarDropdowns();
             await dibujarTabla(polizasGlobales);
         }
 
@@ -449,40 +481,108 @@
             }
         }
 
-        function filtrarTabla() {
+        function aplicarTodosLosFiltros() {
             const texto = document.getElementById('buscador').value.toLowerCase();
-            const filtrados = polizasGlobales.filter(p =>
-                (p.no_poliza || p.numero || "").toLowerCase().includes(texto) ||
-                (p.aseguradora || "").toLowerCase().includes(texto) ||
-                (p.ramo || "").toLowerCase().includes(texto)
-            );
+            let filtrados = polizasGlobales.filter(p => {
+                // Filtro texto (incluye nombre del titular)
+                const nombreTitular = clientesMap[String(p.cliente_id)] || '';
+                const matchTexto = (p.no_poliza || p.numero || "").toLowerCase().includes(texto) ||
+                    (p.aseguradora || "").toLowerCase().includes(texto) ||
+                    (p.ramo || "").toLowerCase().includes(texto) ||
+                    nombreTitular.includes(texto);
+                // Filtro estado
+                const diff = window.SegumexDate.diffDays(p.vence);
+                let matchEstado = true;
+                if (filtroEstadoActivo === 'Vigente') matchEstado = diff > 30 && p.estado !== 'cancelada';
+                if (filtroEstadoActivo === 'Por Vencer') matchEstado = diff >= 0 && diff <= 30 && p.estado !== 'cancelada';
+                // Filtro aseguradora
+                const matchAseg = !filtroAseguradora || (p.aseguradora || '') === filtroAseguradora;
+                // Filtro ramo
+                const matchRamo = !filtroRamo || (p.ramo || '') === filtroRamo;
+                return matchTexto && matchEstado && matchAseg && matchRamo;
+            });
             dibujarTabla(filtrados);
         }
 
+        function filtrarTabla() { aplicarTodosLosFiltros(); }
+
         function filtrarEstado(estado) {
+            filtroEstadoActivo = estado;
             document.getElementById('btnTodos').className = "px-3 py-1 text-xs font-medium text-[#9da6b9] hover:text-white transition-colors";
             document.getElementById('btnVigente').className = "px-3 py-1 text-xs font-medium text-[#9da6b9] hover:text-white transition-colors";
             document.getElementById('btnPorVencer').className = "px-3 py-1 text-xs font-medium text-[#9da6b9] hover:text-white transition-colors";
-
             if (estado === 'Todos') document.getElementById('btnTodos').className = "px-3 py-1 text-xs font-medium text-white bg-[#3b4354] rounded transition-colors";
             if (estado === 'Vigente') document.getElementById('btnVigente').className = "px-3 py-1 text-xs font-medium text-white bg-[#3b4354] rounded transition-colors";
             if (estado === 'Por Vencer') document.getElementById('btnPorVencer').className = "px-3 py-1 text-xs font-medium text-white bg-[#3b4354] rounded transition-colors";
+            aplicarTodosLosFiltros();
+        }
 
-            if (estado === 'Todos') {
-                dibujarTabla(polizasGlobales);
-                return;
-            }
+        function poblarDropdowns() {
+            const aseguradoras = [...new Set(polizasGlobales.map(p => p.aseguradora).filter(Boolean))].sort();
+            const ramos = [...new Set(polizasGlobales.map(p => p.ramo).filter(Boolean))].sort();
 
-            const filtrados = polizasGlobales.filter(p => {
-                const diff = window.SegumexDate.diffDays(p.vence);
-
-                if (estado === 'Vigente') return diff > 30 && p.estado !== 'cancelada';
-                if (estado === 'Por Vencer') return diff >= 0 && diff <= 30 && p.estado !== 'cancelada';
-                return false;
+            const listaAseg = document.getElementById('listaAseg');
+            listaAseg.innerHTML = `<div onclick="seleccionarAseg('')" class="px-3 py-2 text-xs text-[#9da6b9] hover:bg-[#282e39] cursor-pointer border-b border-[#3b4354]">Todas</div>`;
+            aseguradoras.forEach(a => {
+                listaAseg.innerHTML += `<div onclick="seleccionarAseg('${a.replace(/'/g, "\\'")}')" class="px-3 py-2 text-xs text-white hover:bg-[#282e39] cursor-pointer">${a}</div>`;
             });
 
-            dibujarTabla(filtrados);
+            const listaRamo = document.getElementById('listaRamo');
+            listaRamo.innerHTML = `<div onclick="seleccionarRamo('')" class="px-3 py-2 text-xs text-[#9da6b9] hover:bg-[#282e39] cursor-pointer border-b border-[#3b4354]">Todos</div>`;
+            ramos.forEach(r => {
+                const label = r === 'gmm' ? 'Gastos Médicos' : r.charAt(0).toUpperCase() + r.slice(1);
+                listaRamo.innerHTML += `<div onclick="seleccionarRamo('${r}')" class="px-3 py-2 text-xs text-white hover:bg-[#282e39] cursor-pointer">${label}</div>`;
+            });
         }
+
+        function toggleDropdown(id) {
+            const dd = document.getElementById(id);
+            const otroId = id === 'dropdownAseg' ? 'dropdownRamo' : 'dropdownAseg';
+            document.getElementById(otroId).classList.add('hidden');
+            dd.classList.toggle('hidden');
+        }
+
+        function seleccionarAseg(valor) {
+            filtroAseguradora = valor;
+            document.getElementById('lblAseg').innerText = valor || 'Aseguradora';
+            document.getElementById('btnFiltroAseg').className = valor
+                ? "px-3 py-1 bg-primary/20 border border-primary/40 text-primary rounded-full text-xs font-medium flex items-center gap-1"
+                : "px-3 py-1 bg-[#111318] border border-[#3b4354] text-[#9da6b9] rounded-full text-xs font-medium hover:text-white hover:border-white transition-colors flex items-center gap-1";
+            document.getElementById('dropdownAseg').classList.add('hidden');
+            actualizarBtnLimpiar();
+            aplicarTodosLosFiltros();
+        }
+
+        function seleccionarRamo(valor) {
+            filtroRamo = valor;
+            const label = valor === 'gmm' ? 'Gastos Médicos' : valor ? valor.charAt(0).toUpperCase() + valor.slice(1) : 'Ramo';
+            document.getElementById('lblRamo').innerText = label;
+            document.getElementById('btnFiltroRamo').className = valor
+                ? "px-3 py-1 bg-primary/20 border border-primary/40 text-primary rounded-full text-xs font-medium flex items-center gap-1"
+                : "px-3 py-1 bg-[#111318] border border-[#3b4354] text-[#9da6b9] rounded-full text-xs font-medium hover:text-white hover:border-white transition-colors flex items-center gap-1";
+            document.getElementById('dropdownRamo').classList.add('hidden');
+            actualizarBtnLimpiar();
+            aplicarTodosLosFiltros();
+        }
+
+        function actualizarBtnLimpiar() {
+            const btn = document.getElementById('btnLimpiarFiltros');
+            if (filtroAseguradora || filtroRamo) btn.classList.remove('hidden');
+            else btn.classList.add('hidden');
+        }
+
+        function limpiarFiltrosExtra() {
+            seleccionarAseg('');
+            seleccionarRamo('');
+        }
+
+        // Cerrar dropdowns al hacer click fuera
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#btnFiltroAseg') && !e.target.closest('#dropdownAseg'))
+                document.getElementById('dropdownAseg')?.classList.add('hidden');
+            if (!e.target.closest('#btnFiltroRamo') && !e.target.closest('#dropdownRamo'))
+                document.getElementById('dropdownRamo')?.classList.add('hidden');
+        });
     </script>
 </body>
 
