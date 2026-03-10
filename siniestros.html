@@ -352,9 +352,10 @@
                                 <h4 class="text-sm font-bold text-white flex items-center gap-2"><span
                                         class="material-symbols-outlined text-yellow-500 text-sm">folder</span>
                                     Documentos y Evidencia</h4>
-                                <button onclick="agregarDocumentoSimulado()"
+                                <button onclick="document.getElementById('fileInputSiniestro').click()"
                                     class="text-primary text-xs font-bold hover:underline flex items-center gap-1"><span
                                         class="material-symbols-outlined text-xs">upload</span> Subir Archivo</button>
+                                <input type="file" id="fileInputSiniestro" class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onchange="subirDocumentoSiniestro(this)">
                             </div>
                             <div id="listaDocumentos" class="space-y-2">
                                 <p class="text-[#94a3b8] text-xs italic">No hay documentos adjuntos.</p>
@@ -392,6 +393,7 @@
         let siniestrosGlobales = [];
         let polizasDisponibles = [];
         let siniestroActualIndex = null;
+        const STORAGE_BUCKET = 'documentos-polizas';
 
         async function cargarSiniestros() {
             // --- CONSULTA SUPABASE ---
@@ -695,25 +697,79 @@
             });
         }
 
-        async function agregarDocumentoSimulado() {
-            const nombre = prompt("Nombre del archivo:", "Evidencia.pdf");
-            if (nombre) {
-                const s = siniestrosGlobales[siniestroActualIndex];
-                const nuevosDocumentos = [...(s.documentos || []), { nombre, fecha: new Date().toLocaleDateString(), tipo: 'PDF' }];
+        async function subirDocumentoSiniestro(input) {
+            const file = input.files[0];
+            if (!file) return;
+            input.value = '';
 
-                await window.supabaseClient.from('siniestros')
-                    .update({ documentos: nuevosDocumentos })
-                    .eq('id', s.id);
+            const s = siniestrosGlobales[siniestroActualIndex];
+            const cont = document.getElementById('listaDocumentos');
 
-                await cargarSiniestros();
-                renderDocumentos(siniestrosGlobales[siniestroActualIndex].documentos);
+            // Mostrar loader
+            const loaderId = `loader_${Date.now()}`;
+            cont.innerHTML += `<div id="${loaderId}" class="flex items-center gap-3 p-2 bg-[#1c1f27] border border-[#3b4354] rounded-lg opacity-60">
+                <span class="material-symbols-outlined text-blue-400 text-lg animate-spin">sync</span>
+                <p class="text-white text-xs truncate">Subiendo ${file.name}...</p>
+            </div>`;
+
+            const filePath = `siniestros/${s.id}_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+            const { data, error } = await window.supabaseClient.storage
+                .from(STORAGE_BUCKET).upload(filePath, file);
+
+            if (error) {
+                document.getElementById(loaderId)?.remove();
+                alert('Error al subir archivo: ' + error.message);
+                return;
             }
+
+            const tamano = file.size > 1024 * 1024
+                ? (file.size / (1024 * 1024)).toFixed(1) + ' MB'
+                : Math.round(file.size / 1024) + ' KB';
+
+            const nuevosDocumentos = [...(s.documentos || []), {
+                nombre: file.name,
+                tamano,
+                path: data.path,
+                fecha: new Date().toLocaleDateString()
+            }];
+
+            await window.supabaseClient.from('siniestros')
+                .update({ documentos: nuevosDocumentos })
+                .eq('id', s.id);
+
+            await cargarSiniestros();
+            renderDocumentos(siniestrosGlobales[siniestroActualIndex].documentos);
+        }
+
+        async function abrirDocumentoSiniestro(path) {
+            const { data, error } = await window.supabaseClient.storage
+                .from(STORAGE_BUCKET).createSignedUrl(path, 300);
+            if (error) { alert('No se pudo obtener el archivo: ' + error.message); return; }
+            window.open(data.signedUrl, '_blank');
         }
 
         function renderDocumentos(docs) {
             const cont = document.getElementById('listaDocumentos');
-            cont.innerHTML = (docs && docs.length) ? '' : '<p class="text-[#94a3b8] text-xs italic">No hay documentos.</p>';
-            (docs || []).forEach(d => { cont.innerHTML += `<div class="flex items-center gap-3 p-2 bg-[#1c1f27] border border-[#3b4354] rounded-lg"><span class="material-symbols-outlined text-red-400 text-lg">picture_as_pdf</span><div class="flex-1 overflow-hidden"><p class="text-white text-xs font-bold truncate">${d.nombre}</p></div></div>`; });
+            if (!docs || docs.length === 0) {
+                cont.innerHTML = '<p class="text-[#94a3b8] text-xs italic">No hay documentos adjuntos.</p>';
+                return;
+            }
+            cont.innerHTML = '';
+            docs.forEach(d => {
+                const safePath = d.path ? d.path.replace(/'/g, "\\'") : '';
+                const accionBtn = d.path
+                    ? `<button onclick="abrirDocumentoSiniestro('${safePath}')" class="text-[#94a3b8] hover:text-white transition-colors" title="Ver / Descargar"><span class="material-symbols-outlined text-[18px]">download</span></button>`
+                    : `<span class="text-[#94a3b8] text-[10px] italic">Sin archivo</span>`;
+                cont.innerHTML += `
+                    <div class="flex items-center gap-3 p-2 bg-[#1c1f27] border border-[#3b4354] rounded-lg">
+                        <span class="material-symbols-outlined text-red-400 text-lg">picture_as_pdf</span>
+                        <div class="flex-1 overflow-hidden">
+                            <p class="text-white text-xs font-bold truncate">${d.nombre}</p>
+                            <p class="text-[#94a3b8] text-[10px]">${d.tamano || d.fecha || ''}</p>
+                        </div>
+                        ${accionBtn}
+                    </div>`;
+            });
         }
 
         async function borrarSiniestro(index) {
