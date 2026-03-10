@@ -352,6 +352,7 @@
         let pagosGuardados = [];
         let pagosFechasGuardadas = [];
         let documentosGuardados = [];
+        const STORAGE_BUCKET = 'documentos-polizas';
         // Nueva estructura para guardar detalles por renglón
         let detallesPagos = [];
 
@@ -534,15 +535,21 @@
             }
         }
 
-        function previsualizarArchivos(input) {
-            if (input.files) {
-                for (let i = 0; i < input.files.length; i++) {
-                    const file = input.files[i];
-                    documentosGuardados.push({
-                        nombre: file.name,
-                        tamano: (file.size / 1024).toFixed(1) + ' KB',
-                        fecha: new Date().toLocaleDateString()
-                    });
+        async function previsualizarArchivos(input) {
+            if (!input.files || input.files.length === 0) return;
+            const files = Array.from(input.files);
+            input.value = '';
+            for (const file of files) {
+                const idx = documentosGuardados.length;
+                documentosGuardados.push({ nombre: file.name, tamano: (file.size / 1024).toFixed(1) + ' KB', subiendo: true });
+                renderizarDocumentos();
+                const filePath = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+                const { data, error } = await window.supabaseClient.storage.from(STORAGE_BUCKET).upload(filePath, file);
+                if (error) {
+                    documentosGuardados.splice(idx, 1);
+                    alert('Error al subir ' + file.name + ':\n' + error.message);
+                } else {
+                    documentosGuardados[idx] = { nombre: file.name, tamano: (file.size / 1024).toFixed(1) + ' KB', path: data.path };
                 }
                 renderizarDocumentos();
             }
@@ -552,22 +559,29 @@
             const contenedor = document.getElementById('listaArchivos');
             contenedor.innerHTML = '';
             documentosGuardados.forEach((doc, index) => {
+                const icono = doc.subiendo
+                    ? `<span class="material-symbols-outlined text-yellow-400" style="animation:spin 1s linear infinite">refresh</span>`
+                    : `<span class="material-symbols-outlined text-red-400">picture_as_pdf</span>`;
+                const estado = doc.subiendo ? 'Subiendo...' : (doc.tamano || 'PDF');
+                const deleteBtn = doc.subiendo ? '' : `<button type="button" onclick="eliminarDocumento(${index})" class="text-[#9da6b9] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><span class="material-symbols-outlined">delete</span></button>`;
                 contenedor.innerHTML += `
                 <div class="flex items-center gap-3 p-3 bg-[#111318] border border-[#3b4354] rounded-lg group">
-                    <span class="material-symbols-outlined text-red-400">picture_as_pdf</span>
+                    ${icono}
                     <div class="flex-1 overflow-hidden">
                         <p class="text-white text-sm truncate font-medium">${doc.nombre}</p>
-                        <p class="text-[#9da6b9] text-xs">${doc.tamano || 'PDF'}</p>
+                        <p class="text-[#9da6b9] text-xs">${estado}</p>
                     </div>
-                    <button type="button" onclick="eliminarDocumento(${index})" class="text-[#9da6b9] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
-                        <span class="material-symbols-outlined">delete</span>
-                    </button>
+                    ${deleteBtn}
                 </div>`;
             });
         }
 
-        function eliminarDocumento(index) {
+        async function eliminarDocumento(index) {
             if (confirm('¿Eliminar este documento?')) {
+                const doc = documentosGuardados[index];
+                if (doc.path) {
+                    await window.supabaseClient.storage.from(STORAGE_BUCKET).remove([doc.path]);
+                }
                 documentosGuardados.splice(index, 1);
                 renderizarDocumentos();
             }
@@ -760,6 +774,14 @@
                 const agenteSelect = document.getElementById('agenteSelect');
                 const agenteValue = agenteSelect.value === 'Otro' ? document.getElementById('otroAgenteInput').value : agenteSelect.value;
                 const restringidaCheck = document.getElementById('polizaRestringidaInput');
+
+                // VALIDACIÓN: Impedir guardar mientras hay archivos subiendo
+                if (documentosGuardados.some(d => d.subiendo)) {
+                    alert('Espera a que terminen de subir todos los archivos.');
+                    btnGuardar.disabled = false;
+                    btnGuardar.innerHTML = originalText;
+                    return;
+                }
 
                 // VALIDACIÓN CRÍTICA: Impedir guardar sin cliente
                 if (!clienteId) {

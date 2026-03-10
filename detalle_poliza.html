@@ -68,6 +68,9 @@
                     <button onclick="borrarPolizaActual()" class="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all text-sm font-medium">
                         <span class="material-symbols-outlined text-[18px]">delete</span> Eliminar
                     </button>
+                    <button id="btnCancelarPoliza" onclick="cancelarPolizaActual()" class="flex items-center gap-2 px-4 py-2 rounded-lg border border-orange-500/30 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-all text-sm font-medium">
+                        <span class="material-symbols-outlined text-[18px]">block</span> Cancelar
+                    </button>
                     <button onclick="irAEditar()" class="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-blue-600 text-white font-bold rounded-lg shadow-lg shadow-primary/30 transition-all">
                         <span class="material-symbols-outlined text-[20px]">edit</span> Editar Póliza
                     </button>
@@ -191,6 +194,7 @@
     let polizaData = null;
     let origen = 'lista';
     let clienteIdRef = null;
+    const STORAGE_BUCKET = 'documentos-polizas';
 
     document.addEventListener('DOMContentLoaded', async () => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -291,6 +295,11 @@
         if(polizaData.documentos && polizaData.documentos.length > 0) {
             docsDiv.innerHTML = '';
             polizaData.documentos.forEach(doc => {
+                const safePath = doc.path ? doc.path.replace(/'/g, "\\'") : '';
+                const safeNombre = (doc.nombre || '').replace(/'/g, "\\'");
+                const accionBtn = doc.path
+                    ? `<button onclick="abrirDocumento('${safePath}', '${safeNombre}')" class="text-[#9da6b9] hover:text-white transition-colors" title="Ver / Descargar"><span class="material-symbols-outlined">download</span></button>`
+                    : `<span class="text-[#9da6b9] text-xs italic">Sin archivo</span>`;
                 docsDiv.innerHTML += `
                     <div class="flex items-center gap-3 p-3 bg-[#111318] border border-[#3b4354] rounded-lg">
                         <span class="material-symbols-outlined text-red-400">picture_as_pdf</span>
@@ -298,7 +307,7 @@
                             <p class="text-white text-sm truncate font-medium">${doc.nombre}</p>
                             <p class="text-[#9da6b9] text-xs">${doc.tamano || 'PDF'}</p>
                         </div>
-                        <button class="text-[#9da6b9] hover:text-white"><span class="material-symbols-outlined">download</span></button>
+                        ${accionBtn}
                     </div>
                 `;
             });
@@ -362,6 +371,18 @@
             }
             document.getElementById('lblProgresoPagos').innerText = `${pagadosCount}/${numPagos} Pagados`;
         }
+
+        // Actualizar botón de cancelar/reactivar
+        const btnCancelar = document.getElementById('btnCancelarPoliza');
+        if (btnCancelar) {
+            if (polizaData.estado === 'cancelada') {
+                btnCancelar.innerHTML = '<span class="material-symbols-outlined text-[18px]">history</span> Reactivar';
+                btnCancelar.className = 'flex items-center gap-2 px-4 py-2 rounded-lg border border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-all text-sm font-medium';
+            } else {
+                btnCancelar.innerHTML = '<span class="material-symbols-outlined text-[18px]">block</span> Cancelar';
+                btnCancelar.className = 'flex items-center gap-2 px-4 py-2 rounded-lg border border-orange-500/30 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-all text-sm font-medium';
+            }
+        }
     }
 
     function irAEditar() {
@@ -378,6 +399,35 @@
                 window.location.href = origen === 'cliente' ? `perfil_cliente.html?id=${clienteIdRef}` : 'polizas.html';
             }
         }
+    }
+
+    async function abrirDocumento(path, nombre) {
+        const { data, error } = await window.supabaseClient.storage
+            .from(STORAGE_BUCKET)
+            .createSignedUrl(path, 300);
+        if (error) {
+            alert('No se pudo obtener el archivo: ' + error.message);
+            return;
+        }
+        window.open(data.signedUrl, '_blank');
+    }
+
+    async function cancelarPolizaActual() {
+        const esCancelada = polizaData.estado === 'cancelada';
+        if (esCancelada) {
+            if (!confirm('¿Reactivar esta póliza?')) return;
+            const { error } = await window.supabaseClient.from('polizas').update({ estado: 'vigente' }).eq('id', polizaId);
+            if (error) { alert('Error: ' + error.message); return; }
+        } else {
+            const motivo = prompt('Motivo de cancelación (opcional):');
+            if (motivo === null) return;
+            if (!confirm('¿Confirmar cancelación de esta póliza?')) return;
+            const updateData = { estado: 'cancelada' };
+            if (motivo.trim()) updateData.motivo_cancelacion = motivo.trim();
+            const { error } = await window.supabaseClient.from('polizas').update(updateData).eq('id', polizaId);
+            if (error) { alert('Error: ' + error.message); return; }
+        }
+        await renderDetalle();
     }
 
     async function contactarCliente() {
