@@ -117,16 +117,17 @@
                         </div>
                     </div>
 
-                    <div class="px-6 py-2 flex items-center gap-2 border-b border-[#2d3442] bg-[#0f111a] shrink-0">
-                        <button class="px-4 py-1.5 rounded-lg bg-white text-black text-xs font-bold">Todos</button>
-                        <button
-                            class="px-4 py-1.5 rounded-lg bg-[#1f242e] text-[#94a3b8] text-xs font-bold border border-[#2d3442] hover:text-white transition-colors flex items-center gap-2"><span
+                    <div class="px-6 py-2 flex items-center gap-2 border-b border-[#2d3442] bg-[#0f111a] shrink-0 overflow-x-auto">
+                        <button data-filtro="todos" onclick="filtrarTareas('todos')"
+                            class="btn-filtro-tarea px-4 py-1.5 rounded-lg bg-white text-black text-xs font-bold whitespace-nowrap">Todos</button>
+                        <button data-filtro="llamadas" onclick="filtrarTareas('llamadas')"
+                            class="btn-filtro-tarea px-4 py-1.5 rounded-lg bg-[#1f242e] text-[#94a3b8] text-xs font-bold border border-[#2d3442] hover:text-white transition-colors flex items-center gap-2 whitespace-nowrap"><span
                                 class="material-symbols-outlined text-sm">call</span> Llamadas</button>
-                        <button
-                            class="px-4 py-1.5 rounded-lg bg-[#1f242e] text-[#94a3b8] text-xs font-bold border border-[#2d3442] hover:text-white transition-colors flex items-center gap-2"><span
+                        <button data-filtro="whatsapp" onclick="filtrarTareas('whatsapp')"
+                            class="btn-filtro-tarea px-4 py-1.5 rounded-lg bg-[#1f242e] text-[#94a3b8] text-xs font-bold border border-[#2d3442] hover:text-white transition-colors flex items-center gap-2 whitespace-nowrap"><span
                                 class="material-symbols-outlined text-sm">chat</span> WhatsApp</button>
-                        <button
-                            class="px-4 py-1.5 rounded-lg bg-[#1f242e] text-[#94a3b8] text-xs font-bold border border-[#2d3442] hover:text-white transition-colors flex items-center gap-2"><span
+                        <button data-filtro="renovaciones" onclick="filtrarTareas('renovaciones')"
+                            class="btn-filtro-tarea px-4 py-1.5 rounded-lg bg-[#1f242e] text-[#94a3b8] text-xs font-bold border border-[#2d3442] hover:text-white transition-colors flex items-center gap-2 whitespace-nowrap"><span
                                 class="material-symbols-outlined text-sm">sync</span> Renovaciones</button>
                     </div>
 
@@ -163,7 +164,7 @@
                     <input type="text" id="tTitle"
                         class="w-full bg-[#161b22] border-[#2d3442] rounded-lg text-white mt-1 focus:border-primary outline-none">
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-3 gap-4">
                     <div>
                         <label class="text-xs text-[#94a3b8] font-bold uppercase">Fecha</label>
                         <input type="date" id="tDate"
@@ -177,6 +178,16 @@
                             <option value="Media">Media</option>
                             <option value="Alta">Alta</option>
                             <option value="Urgente">Urgente</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-[#94a3b8] font-bold uppercase">Tipo</label>
+                        <select id="tTipo"
+                            class="w-full bg-[#161b22] border-[#2d3442] rounded-lg text-white mt-1 focus:border-primary outline-none">
+                            <option value="">General</option>
+                            <option value="llamadas">Llamada</option>
+                            <option value="whatsapp">WhatsApp</option>
+                            <option value="renovaciones">Renovación</option>
                         </select>
                     </div>
                 </div>
@@ -204,15 +215,35 @@
 
     <script>
         let tareas = [];
+        let _filtroTareas = 'todos';
 
         async function initApp() {
-            // --- CONSULTA SUPABASE ---
             const { data } = await window.supabaseClient.from('tareas').select('*');
             tareas = data || [];
 
             await actualizarKPIs();
             renderTasks();
             renderCalendar();
+        }
+
+        function filtrarTareas(tipo) {
+            _filtroTareas = tipo;
+
+            document.querySelectorAll('.btn-filtro-tarea').forEach(b => {
+                const activo = b.dataset.filtro === tipo;
+                if (activo) {
+                    b.className = 'btn-filtro-tarea px-4 py-1.5 rounded-lg bg-white text-black text-xs font-bold whitespace-nowrap';
+                } else {
+                    b.className = 'btn-filtro-tarea px-4 py-1.5 rounded-lg bg-[#1f242e] text-[#94a3b8] text-xs font-bold border border-[#2d3442] hover:text-white transition-colors flex items-center gap-2 whitespace-nowrap';
+                    // Restore icon
+                    const iconos = { llamadas: 'call', whatsapp: 'chat', renovaciones: 'sync' };
+                    if (iconos[b.dataset.filtro]) {
+                        b.innerHTML = `<span class="material-symbols-outlined text-sm">${iconos[b.dataset.filtro]}</span> ${b.dataset.filtro.charAt(0).toUpperCase() + b.dataset.filtro.slice(1)}`;
+                    }
+                }
+            });
+
+            renderTasks();
         }
 
         async function actualizarKPIs() {
@@ -225,16 +256,30 @@
             document.getElementById('kpiSiniestrosUrgentes').innerText = (siniestros || []).filter(s => s.status === 'Urgente').length;
         }
 
+        function _tipoTarea(t) {
+            const s = (t.tipo || '') + ' ' + (t.titulo || '').toLowerCase();
+            if (s.includes('llamad') || s.includes('llamar') || s.includes('call') || s.includes('teléfono') || s.includes('telefono')) return 'llamadas';
+            if (s.includes('whatsapp') || s.includes('wsp') || s.includes('chat') || s.includes('mensaje')) return 'whatsapp';
+            if (s.includes('renov') || s.includes('vence') || s.includes('vencim')) return 'renovaciones';
+            return '';
+        }
+
         function renderTasks() {
             const list = document.getElementById('taskList');
             list.innerHTML = '';
 
-            if (tareas.length === 0) {
-                list.innerHTML = '<div class="text-center py-20 text-[#475569]"><span class="material-symbols-outlined text-5xl mb-2 opacity-20">assignment</span><p>No hay tareas en el Inbox.</p></div>';
+            let lista = [...tareas];
+            if (_filtroTareas !== 'todos') {
+                lista = lista.filter(t => _tipoTarea(t) === _filtroTareas);
+            }
+
+            if (lista.length === 0) {
+                const msg = _filtroTareas === 'todos' ? 'No hay tareas en el Inbox.' : `No hay tareas de tipo "${_filtroTareas}".`;
+                list.innerHTML = `<div class="text-center py-20 text-[#475569]"><span class="material-symbols-outlined text-5xl mb-2 opacity-20">assignment</span><p>${msg}</p></div>`;
                 return;
             }
 
-            tareas.sort((a, b) => window.SegumexDate.parse(a.fecha) - window.SegumexDate.parse(b.fecha)).forEach(t => {
+            lista.sort((a, b) => window.SegumexDate.parse(a.fecha) - window.SegumexDate.parse(b.fecha)).forEach(t => {
                 const style = {
                     "Baja": "text-blue-400 border-blue-500/20 bg-blue-500/5",
                     "Media": "text-yellow-500 border-yellow-500/20 bg-yellow-500/5",
@@ -307,6 +352,7 @@
                 document.getElementById('tTitle').value = t.titulo;
                 document.getElementById('tDate').value = t.fecha;
                 document.getElementById('tPriority').value = t.prioridad;
+                document.getElementById('tTipo').value = t.tipo || '';
                 document.getElementById('tDesc').value = t.descripcion;
                 document.getElementById('btnDelete').classList.remove('hidden');
             } else {
@@ -315,6 +361,7 @@
                 document.getElementById('tTitle').value = '';
                 document.getElementById('tDate').value = window.SegumexDate.toISO(new Date());
                 document.getElementById('tPriority').value = 'Media';
+                document.getElementById('tTipo').value = '';
                 document.getElementById('tDesc').value = '';
                 document.getElementById('btnDelete').classList.add('hidden');
             }
@@ -323,10 +370,10 @@
         async function saveTask() {
             const id = document.getElementById('taskId').value;
             const n = {
-                // id: id || undefined, // Supabase genera ID si es nuevo
                 titulo: document.getElementById('tTitle').value,
                 fecha: window.SegumexDate.toISO(document.getElementById('tDate').value),
                 prioridad: document.getElementById('tPriority').value,
+                tipo: document.getElementById('tTipo').value,
                 descripcion: document.getElementById('tDesc').value,
                 completada: false
             };

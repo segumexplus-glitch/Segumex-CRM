@@ -91,7 +91,7 @@
             <div class="p-2 border-b border-[#3b4354] bg-[#111318]">
                 <div class="relative">
                     <span class="material-symbols-outlined absolute left-3 top-2.5 text-[#9da6b9]">search</span>
-                    <input type="text" placeholder="Buscar conversación..."
+                    <input type="text" id="buscadorBuzon" placeholder="Buscar conversación..." oninput="buscarConversacion(this.value)"
                         class="w-full bg-[#202c33] border-none rounded-lg py-2 pl-10 text-sm text-white focus:ring-1 focus:ring-primary">
                 </div>
             </div>
@@ -168,6 +168,7 @@
         let currentConversationId = null;
         let currentSubscription = null;
         let listSubscription = null;
+        let _conversacionesAll = [];
 
         // --- 1. Inicialización ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -179,44 +180,45 @@
         async function cargarConversaciones() {
             const listContainer = document.getElementById('conversationsList');
 
-            // Traer leads para mapear nombres si existen
-            // Idealmente esto sería un join, pero Supabase Join sintaxis:
             const { data, error } = await window.supabaseClient
                 .from('comm_conversations')
-                .select(`
-                    *,
-                    leads (nombre, telefono)
-                `)
+                .select(`*, leads (nombre, telefono)`)
                 .order('last_message_at', { ascending: false });
 
             if (error) {
                 console.error('Error cargando chats:', error);
-                listContainer.innerHTML = `<div class="p-4 text-red-400 text-xs">
-                    <strong>Error:</strong> ${error.message}<br>
-                    <span class="text-[10px] opacity-75">${error.details || error.hint || ''}</span>
-                </div>`;
+                listContainer.innerHTML = `<div class="p-4 text-red-400 text-xs"><strong>Error:</strong> ${error.message}</div>`;
                 return;
             }
 
-            if (!data || data.length === 0) {
-                listContainer.innerHTML = '<div class="p-8 text-center text-[#9da6b9] text-sm">No hay conversaciones activas.</div>';
+            _conversacionesAll = data || [];
+
+            // Preservar texto del buscador al recargar
+            const textoBusqueda = document.getElementById('buscadorBuzon')?.value || '';
+            renderLista(textoBusqueda ? _conversacionesAll.filter(c => {
+                const nombre = (c.leads ? c.leads.nombre : c.platform_user_id) || '';
+                return nombre.toLowerCase().includes(textoBusqueda.toLowerCase());
+            }) : _conversacionesAll);
+        }
+
+        function renderLista(convs) {
+            const listContainer = document.getElementById('conversationsList');
+
+            if (!convs || convs.length === 0) {
+                listContainer.innerHTML = '<div class="p-8 text-center text-[#9da6b9] text-sm">No se encontraron conversaciones.</div>';
                 return;
             }
 
             listContainer.innerHTML = '';
-            data.forEach(conv => {
+            convs.forEach(conv => {
                 const name = conv.leads ? conv.leads.nombre : conv.platform_user_id;
                 const time = conv.last_message_at ? new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
                 const activeClass = (currentConversationId === conv.id) ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]';
 
-                // Icono según plataforma
-                // TO-DO: detect from channel_id query
-                const icon = 'chat';
-
                 listContainer.innerHTML += `
                     <div onclick="abrirChat('${conv.id}', '${name}', '${conv.status}')" class="cursor-pointer p-3 border-b border-[#2a3942] flex items-center gap-3 transition-colors ${activeClass} group">
                         <div class="size-12 rounded-full bg-[#111b21] flex items-center justify-center relative">
-                            <span class="material-symbols-outlined text-[#8696a0]">${icon}</span>
+                            <span class="material-symbols-outlined text-[#8696a0]">chat</span>
                             ${conv.leads ? '<span class="absolute bottom-0 right-0 size-3 bg-blue-500 rounded-full border border-[#111318]"></span>' : ''}
                         </div>
                         <div class="flex-1 overflow-hidden">
@@ -233,6 +235,18 @@
                     </div>
                 `;
             });
+        }
+
+        function buscarConversacion(texto) {
+            if (!texto.trim()) {
+                renderLista(_conversacionesAll);
+                return;
+            }
+            const filtradas = _conversacionesAll.filter(c => {
+                const nombre = (c.leads ? c.leads.nombre : c.platform_user_id) || '';
+                return nombre.toLowerCase().includes(texto.toLowerCase());
+            });
+            renderLista(filtradas);
         }
 
         // --- 3. Abrir Chat ---

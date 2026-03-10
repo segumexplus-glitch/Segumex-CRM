@@ -76,9 +76,9 @@
                         </div>
 
                         <div class="flex bg-[#1f242e] border border-[#2d3442] rounded-lg p-1">
-                            <button
-                                class="px-4 py-1.5 rounded-md bg-[#2d3442] text-white text-xs font-bold shadow-sm">2026</button>
-                            <button
+                            <button id="btnPeriodo2026" onclick="cambiarPeriodo('2026')"
+                                class="px-4 py-1.5 rounded-md bg-[#2d3442] text-white text-xs font-bold shadow-sm transition-colors">2026</button>
+                            <button id="btnPeriodoHistorico" onclick="cambiarPeriodo('historico')"
                                 class="px-4 py-1.5 rounded-md text-[#94a3b8] hover:text-white text-xs font-medium transition-colors">Histórico</button>
                         </div>
                     </div>
@@ -190,35 +190,54 @@
 
     <script>
         let chartAseg = null, chartRam = null, chartMen = null, chartAge = null;
+        let _polizasAll = [], _siniestrosAll = [], _clientesAll = [];
+        let _periodoReporte = '2026';
 
         Chart.defaults.color = '#94a3b8';
         Chart.defaults.borderColor = '#2d3442';
 
         async function cargarReportes() {
-            // --- CONSULTA SUPABASE ---
             const { data: polizas } = await window.supabaseClient.from('polizas').select('*');
             const { data: siniestros } = await window.supabaseClient.from('siniestros').select('*');
             const { data: clientesRaw } = await window.supabaseClient.from('clientes').select('*');
+            _polizasAll = polizas || [];
+            _siniestrosAll = siniestros || [];
+            _clientesAll = clientesRaw || [];
+            renderReportes();
+        }
 
-            let totalNeta = 0;
-            let totalBruta = 0;
-            let totalComision = 0;
-            let countPolizas = 0;
+        function cambiarPeriodo(periodo) {
+            _periodoReporte = periodo;
+            const activo = 'px-4 py-1.5 rounded-md bg-[#2d3442] text-white text-xs font-bold shadow-sm transition-colors';
+            const inactivo = 'px-4 py-1.5 rounded-md text-[#94a3b8] hover:text-white text-xs font-medium transition-colors';
+            document.getElementById('btnPeriodo2026').className = periodo === '2026' ? activo : inactivo;
+            document.getElementById('btnPeriodoHistorico').className = periodo === 'historico' ? activo : inactivo;
+            renderReportes();
+        }
 
-            let aseguradorasMap = {}; // Para conteo
-            let ramosMap = {};
-            let agentesMap = {};
-            let clientesMap = {}; // Para top clientes
-            let ventasMensuales = new Array(12).fill(0);
-
-            // --- FILTRO DE SEGURIDAD ---
+        function renderReportes() {
             const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
             const esAdmin = sesion.rol === 'admin';
+            const anioActual = new Date().getFullYear();
 
-            (polizas || []).forEach(p => {
-                if (p.estado === 'cancelada') return;
-                if (!esAdmin && p.restringida === true) return; // OCULTAR RESTRINGIDAS A AGENTES
+            let polizasFiltradas = _polizasAll.filter(p => {
+                if (p.estado === 'cancelada') return false;
+                if (!esAdmin && p.restringida === true) return false;
+                if (_periodoReporte !== 'historico') {
+                    const fechaStr = p.finanzas?.inicio || p.vence;
+                    if (!fechaStr) return false;
+                    const anio = new Date(fechaStr).getFullYear();
+                    if (anio !== parseInt(_periodoReporte)) return false;
+                }
+                return true;
+            });
 
+            let totalNeta = 0, totalBruta = 0, totalComision = 0, countPolizas = 0;
+            let aseguradorasMap = {}, ramosMap = {}, agentesMap = {}, clientesMap = {};
+            let ventasMensuales = new Array(12).fill(0);
+            let ventasAnuales = {};
+
+            polizasFiltradas.forEach(p => {
                 const neta = parseFloat(p.finanzas?.primaNeta) || 0;
                 const bruta = parseFloat(p.prima) || parseFloat(p.finanzas?.primaTotal) || 0;
                 const comisionPct = parseFloat(p.finanzas?.comisionPct) || 10;
@@ -228,19 +247,15 @@
                 totalComision += (neta * (comisionPct / 100));
                 countPolizas++;
 
-                // Mapeo Agentes
                 const agente = p.agente || "Sin Asignar";
                 agentesMap[agente] = (agentesMap[agente] || 0) + 1;
 
-                // Mapeo Aseguradoras (Conteo)
                 const aseg = p.aseguradora || "Otra";
                 aseguradorasMap[aseg] = (aseguradorasMap[aseg] || 0) + 1;
 
-                // Mapeo Ramos
                 const ramo = p.ramo || "Otro";
                 ramosMap[ramo] = (ramosMap[ramo] || 0) + 1;
 
-                // Mapeo Clientes para el Top
                 const cId = p.cliente_id;
                 if (!clientesMap[cId]) clientesMap[cId] = { count: 0, valor: 0 };
                 clientesMap[cId].count += 1;
@@ -249,41 +264,38 @@
                 const fechaStr = p.finanzas?.inicio || p.vence;
                 const fecha = new Date(fechaStr);
                 if (!isNaN(fecha)) {
-                    ventasMensuales[fecha.getMonth()] += neta;
+                    if (_periodoReporte === 'historico') {
+                        const yr = fecha.getFullYear().toString();
+                        ventasAnuales[yr] = (ventasAnuales[yr] || 0) + neta;
+                    } else {
+                        ventasMensuales[fecha.getMonth()] += neta;
+                    }
                 }
             });
 
-            // ACTUALIZAR KPIs
             const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
             document.getElementById('kpiVentasNeta').innerText = fmt.format(totalNeta);
             document.getElementById('kpiVentasTotal').innerText = fmt.format(totalBruta);
             document.getElementById('kpiComisiones').innerText = fmt.format(totalComision);
             document.getElementById('kpiCount').innerText = countPolizas;
-            document.getElementById('kpiSiniestralidad').innerText = (countPolizas > 0 ? ((siniestros || []).length / countPolizas) * 100 : 0).toFixed(1) + "%";
+            document.getElementById('kpiSiniestralidad').innerText = (countPolizas > 0 ? (_siniestrosAll.length / countPolizas) * 100 : 0).toFixed(1) + "%";
 
-            // TOP CLIENTES TABLE
+            // TOP CLIENTES
             const topClientesSorted = Object.keys(clientesMap)
                 .map(id => {
-                    const c = (clientesRaw || []).find(cli => cli.id == id);
-                    return {
-                        nombre: c ? `${c.nombre} ${c.apellido || ''}` : 'Cliente Desconocido',
-                        pols: clientesMap[id].count,
-                        valor: clientesMap[id].valor
-                    }
+                    const c = _clientesAll.find(cli => cli.id == id);
+                    return { nombre: c ? `${c.nombre} ${c.apellido || ''}` : 'Desconocido', pols: clientesMap[id].count, valor: clientesMap[id].valor };
                 })
-                .sort((a, b) => b.pols - a.pols)
-                .slice(0, 5);
+                .sort((a, b) => b.pols - a.pols).slice(0, 5);
 
             const tableBody = document.getElementById('tableTopClientes');
             tableBody.innerHTML = '';
             topClientesSorted.forEach(item => {
-                tableBody.innerHTML += `
-                <tr class="hover:bg-[#161b22] transition-colors">
+                tableBody.innerHTML += `<tr class="hover:bg-[#161b22] transition-colors">
                     <td class="py-3 text-white font-medium">${item.nombre}</td>
                     <td class="py-3 text-center text-primary font-bold">${item.pols}</td>
                     <td class="py-3 text-right text-[#94a3b8]">${fmt.format(item.valor)}</td>
-                </tr>
-            `;
+                </tr>`;
             });
 
             // GRÁFICAS
@@ -292,47 +304,42 @@
             if (chartMen) chartMen.destroy();
             if (chartAge) chartAge.destroy();
 
-            // Chart Agentes
             chartAge = new Chart(document.getElementById('chartAgentes'), {
                 type: 'bar',
-                data: {
-                    labels: Object.keys(agentesMap),
-                    datasets: [{ label: 'Pólizas Asignadas', data: Object.values(agentesMap), backgroundColor: '#8b5cf6', borderRadius: 4 }]
-                },
+                data: { labels: Object.keys(agentesMap), datasets: [{ label: 'Pólizas Asignadas', data: Object.values(agentesMap), backgroundColor: '#8b5cf6', borderRadius: 4 }] },
                 options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
 
-            // Chart Aseguradoras (Conteo)
             chartAseg = new Chart(document.getElementById('chartAseguradoras'), {
                 type: 'bar',
-                data: {
-                    labels: Object.keys(aseguradorasMap),
-                    datasets: [{ label: 'Número de Pólizas', data: Object.values(aseguradorasMap), backgroundColor: '#3b82f6', borderRadius: 4 }]
-                },
+                data: { labels: Object.keys(aseguradorasMap), datasets: [{ label: 'Número de Pólizas', data: Object.values(aseguradorasMap), backgroundColor: '#3b82f6', borderRadius: 4 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
 
-            // Chart Ramos
             chartRam = new Chart(document.getElementById('chartRamos'), {
                 type: 'doughnut',
-                data: {
-                    labels: Object.keys(ramosMap).map(r => r.toUpperCase()),
-                    datasets: [{ data: Object.values(ramosMap), backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6'], borderWidth: 0 }]
-                },
+                data: { labels: Object.keys(ramosMap).map(r => r.toUpperCase()), datasets: [{ data: Object.values(ramosMap), backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6'], borderWidth: 0 }] },
                 options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } } }
             });
 
-            // Chart Mensual
             const ctxMes = document.getElementById('chartMensual').getContext('2d');
             const gradient = ctxMes.createLinearGradient(0, 0, 0, 400);
             gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
             gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
 
+            const esHistorico = _periodoReporte === 'historico';
+            const labelsChart = esHistorico
+                ? Object.keys(ventasAnuales).sort()
+                : ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            const dataChart = esHistorico
+                ? labelsChart.map(y => ventasAnuales[y])
+                : ventasMensuales;
+
             chartMen = new Chart(ctxMes, {
                 type: 'line',
                 data: {
-                    labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
-                    datasets: [{ label: 'Producción Neta 2026', data: ventasMensuales, borderColor: '#3b82f6', backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 4 }]
+                    labels: labelsChart,
+                    datasets: [{ label: esHistorico ? 'Producción Histórica' : `Producción Neta ${_periodoReporte}`, data: dataChart, borderColor: '#3b82f6', backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 4 }]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,

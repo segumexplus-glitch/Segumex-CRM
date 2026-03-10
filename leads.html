@@ -58,16 +58,16 @@
                 </button>
             </div>
 
-            <div class="px-6 py-3 border-b border-[#3b4354] flex gap-3 overflow-x-auto">
-                <span class="text-xs font-bold text-[#9da6b9] uppercase tracking-wider self-center">Filtros:</span>
-                <button
-                    class="px-3 py-1 rounded-full bg-[#282e39] border border-[#3b4354] text-xs text-white hover:border-primary transition-colors">Esta
+            <div class="px-6 py-3 border-b border-[#3b4354] flex gap-3 overflow-x-auto items-center">
+                <span class="text-xs font-bold text-[#9da6b9] uppercase tracking-wider self-center whitespace-nowrap">Filtros:</span>
+                <button data-filtro="semana" onclick="aplicarFiltroLeads('semana')"
+                    class="btn-filtro-lead px-3 py-1 rounded-full bg-[#282e39] border border-[#3b4354] text-xs text-white hover:border-primary transition-colors whitespace-nowrap">Esta
                     Semana</button>
-                <button
-                    class="px-3 py-1 rounded-full bg-[#282e39] border border-[#3b4354] text-xs text-white hover:border-primary transition-colors">Seguros
+                <button data-filtro="vida" onclick="aplicarFiltroLeads('vida')"
+                    class="btn-filtro-lead px-3 py-1 rounded-full bg-[#282e39] border border-[#3b4354] text-xs text-white hover:border-primary transition-colors whitespace-nowrap">Seguros
                     de Vida</button>
-                <button
-                    class="px-3 py-1 rounded-full bg-primary/20 border border-primary/50 text-xs text-primary font-bold">Alta
+                <button data-filtro="alta" onclick="aplicarFiltroLeads('alta')"
+                    class="btn-filtro-lead px-3 py-1 rounded-full bg-[#282e39] border border-[#3b4354] text-xs text-white hover:border-primary transition-colors whitespace-nowrap">Alta
                     Probabilidad (IA)</button>
             </div>
 
@@ -194,12 +194,17 @@
     <script src="menu.js"></script>
 
     <script>
+        let _leadsData = [];
+        let _filtroActivoLeads = null;
+
         async function cargarLeads() {
-            // --- CONSULTA SUPABASE ---
             const { data: leads, error } = await window.supabaseClient.from('leads').select('*');
             if (error) return;
+            _leadsData = (leads || []).filter(l => l.etapa !== 'ganada');
+            renderizarLeads(_leadsData);
+        }
 
-            // Limpiar columnas
+        function renderizarLeads(leads) {
             ['nuevo', 'calificado', 'cotizacion', 'cierre'].forEach(c => {
                 document.getElementById(`col-${c}`).innerHTML = '';
                 document.getElementById(`count-${c}`).innerText = '0';
@@ -208,8 +213,6 @@
             const contadores = { nuevo: 0, calificado: 0, cotizacion: 0, cierre: 0 };
 
             leads.forEach(l => {
-                if (l.etapa === 'ganada') return;
-
                 const col = document.getElementById(`col-${l.etapa}`);
                 if (col) {
                     contadores[l.etapa]++;
@@ -223,12 +226,10 @@
 
                     const card = `
                     <div onclick="window.location.href='detalle_lead.html?id=${l.id}'" class="bg-surface-card border border-[#3b4354] rounded-xl p-4 cursor-pointer hover:border-primary transition-all group shadow-sm hover:shadow-md hover:shadow-black/40 relative">
-                        
-                         <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <div class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                             <button onclick="procesarGanada(event, ${l.id})" class="p-1 bg-green-500/20 text-green-500 hover:bg-green-500 hover:text-white rounded shadow-lg backdrop-blur-sm" title="Venta Ganada"><span class="material-symbols-outlined text-[18px]">check_circle</span></button>
                             <button onclick="borrarLead(event, ${l.id})" class="p-1 bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white rounded shadow-lg backdrop-blur-sm"><span class="material-symbols-outlined text-[18px]">delete</span></button>
                         </div>
-                        
                         <div class="flex justify-between items-start mb-2 pr-6">
                             <div class="flex items-center gap-2">
                                 <div class="size-8 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center font-bold text-xs border border-white/10">${l.nombre.charAt(0)}</div>
@@ -236,12 +237,10 @@
                             </div>
                         </div>
                         <span class="text-[#9da6b9] text-[10px] block mb-2">${l.fecha}</span>
-                        
                         <div class="flex items-center gap-2 mb-3 flex-wrap">
                             <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${tagColor}">${l.producto}</span>
                             ${probBadge}
                         </div>
-
                         <div class="flex justify-between items-end mt-2 pt-2 border-t border-[#3b4354]">
                             <div>
                                 <p class="text-[#9da6b9] text-[10px] uppercase">Valor Est.</p>
@@ -257,10 +256,38 @@
                 }
             });
 
-            // Actualizar contadores
             Object.keys(contadores).forEach(key => {
                 document.getElementById(`count-${key}`).innerText = contadores[key];
             });
+        }
+
+        function aplicarFiltroLeads(tipo) {
+            if (_filtroActivoLeads === tipo) {
+                _filtroActivoLeads = null;
+            } else {
+                _filtroActivoLeads = tipo;
+            }
+
+            document.querySelectorAll('.btn-filtro-lead').forEach(b => {
+                const activo = b.dataset.filtro === _filtroActivoLeads;
+                b.className = activo
+                    ? 'btn-filtro-lead px-3 py-1 rounded-full border text-xs font-bold bg-primary/20 border-primary/50 text-primary transition-colors whitespace-nowrap'
+                    : 'btn-filtro-lead px-3 py-1 rounded-full bg-[#282e39] border border-[#3b4354] text-xs text-white hover:border-primary transition-colors whitespace-nowrap';
+            });
+
+            let filtrado = [..._leadsData];
+
+            if (_filtroActivoLeads === 'semana') {
+                const hace7dias = new Date();
+                hace7dias.setDate(hace7dias.getDate() - 7);
+                filtrado = filtrado.filter(l => l.created_at && new Date(l.created_at) >= hace7dias);
+            } else if (_filtroActivoLeads === 'vida') {
+                filtrado = filtrado.filter(l => l.producto === 'Seguro de Vida');
+            } else if (_filtroActivoLeads === 'alta') {
+                filtrado = filtrado.filter(l => l.prob === 'Alta');
+            }
+
+            renderizarLeads(filtrado);
         }
 
         async function procesarGanada(e, idLead) {
