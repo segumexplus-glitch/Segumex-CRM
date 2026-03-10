@@ -81,7 +81,7 @@
                                 cobranza en tiempo real.</p>
                         </div>
                         <div class="flex gap-3">
-                            <button
+                            <button onclick="exportarReporte()"
                                 class="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1c1f27] border border-[#3b4354] text-[#9da6b9] hover:text-white hover:border-white transition-colors text-sm font-medium">
                                 <span class="material-symbols-outlined text-[18px]">download</span> Exportar Reporte
                             </button>
@@ -358,6 +358,8 @@
         let imagenBase64 = null;
         let fileSeleccionado = null;
         const sesionLocal = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+        let _clientesData = [];
+        let _polizasData = [];
 
         async function cargarClientes() {
             const tabla = document.getElementById('tabla-clientes');
@@ -377,6 +379,8 @@
                 return;
             }
 
+            _polizasData = polizasGlobales || [];
+
             // --- FILTRO DE VISIBILIDAD ---
             const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
             let clientes = [];
@@ -395,6 +399,8 @@
                     return true;
                 });
             }
+
+            _clientesData = clientes;
 
             // --- DIBUJAR TABLA ---
             tabla.innerHTML = '';
@@ -634,6 +640,50 @@
 
         function cerrarModal() {
             document.getElementById('modalCliente').classList.add('hidden');
+        }
+
+        function exportarReporte() {
+            if (!_clientesData.length) {
+                alert('No hay clientes para exportar.');
+                return;
+            }
+
+            const hoy = new Date();
+            const headers = ['Nombre', 'Apellido', 'RFC', 'Tipo', 'Email', 'Teléfono', 'Estatus', 'Pólizas', 'Próx. Renovación', 'Asesor'];
+
+            const filas = _clientesData.map(c => {
+                const misPolizas = _polizasData.filter(p => p.cliente_id == c.id);
+                const polizasActivas = misPolizas.filter(p => {
+                    if (!p.vence) return false;
+                    return new Date(p.vence) >= hoy;
+                });
+                const proximaRenovacion = polizasActivas.length
+                    ? polizasActivas.sort((a, b) => new Date(a.vence) - new Date(b.vence))[0].vence
+                    : (misPolizas.length ? misPolizas[0].vence || 'N/A' : 'Sin pólizas');
+
+                return [
+                    c.nombre || '',
+                    c.apellido || '',
+                    c.rfc || '',
+                    c.tipo || '',
+                    c.email || '',
+                    c.telefono || '',
+                    c.estatus || 'Activo',
+                    misPolizas.length,
+                    proximaRenovacion,
+                    c.agente || 'Agente Segumex'
+                ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+            });
+
+            const csv = [headers.join(','), ...filas].join('\r\n');
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const fecha = hoy.toISOString().slice(0, 10);
+            a.href = url;
+            a.download = `reporte_clientes_${fecha}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
         function buscarCliente() {
