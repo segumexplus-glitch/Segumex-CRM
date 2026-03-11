@@ -1341,7 +1341,7 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                 if (error || !data?.success) throw new Error(data?.error || error?.message || 'Error desconocido');
                 const quien = _polizaCobranza ? escapeHtml(_polizaCobranza.clientes?.nombre || '') : 'datos de ejemplo';
                 resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-green-500/10 border-green-500/30 text-green-300';
-                resultado.innerHTML = `✅ Aceptado por Green API · chatId: <strong>${data.chatId}</strong> · idMessage: <code class="bg-black/20 px-1 rounded text-xs">${data.wa_response?.idMessage || 'null'}</code><br><span class="text-xs opacity-75">datos de: <strong>${quien}</strong></span>`;
+                resultado.innerHTML = `✅ Aceptado por Green API · chatId: <strong>${data.chatId}</strong> · idMessage: <code class="bg-black/20 px-1 rounded text-xs">${data.wa_response?.idMessage || 'null'}</code><br><span class="text-xs opacity-75">método: <strong>${data.send_method || 'sendMessage'}</strong> · datos de: <strong>${quien}</strong></span>`;
             } catch (err) {
                 resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-300';
                 resultado.textContent = '❌ Error al enviar: ' + err.message;
@@ -1392,7 +1392,7 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                 if (error || !data?.success) throw new Error(data?.error || error?.message || 'Error desconocido');
                 const quien = _polizaBienvenida ? escapeHtml(_polizaBienvenida.clientes?.nombre || '') : 'datos de ejemplo';
                 resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-green-500/10 border-green-500/30 text-green-300';
-                resultado.innerHTML = `✅ Aceptado por Green API · chatId: <strong>${data.chatId}</strong> · idMessage: <code class="bg-black/20 px-1 rounded text-xs">${data.wa_response?.idMessage || 'null'}</code><br><span class="text-xs opacity-75">datos de: <strong>${quien}</strong></span>`;
+                resultado.innerHTML = `✅ Aceptado por Green API · chatId: <strong>${data.chatId}</strong> · idMessage: <code class="bg-black/20 px-1 rounded text-xs">${data.wa_response?.idMessage || 'null'}</code><br><span class="text-xs opacity-75">método: <strong>${data.send_method || 'sendMessage'}</strong> · datos de: <strong>${quien}</strong></span>`;
             } catch (err) {
                 resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-300';
                 resultado.textContent = '❌ Error al enviar: ' + err.message;

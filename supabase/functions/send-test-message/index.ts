@@ -104,13 +104,29 @@ Deno.serve(async (req) => {
         // Enviar por WhatsApp
         let waRes: Response;
         let waResponse: any;
+        let sendMethod = 'sendMessage';
         if (imagenUrl) {
-            const url = `${greenBaseUrl()}/sendFileByUrl/${GREEN_API_TOKEN}`;
-            waRes = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chatId, urlFile: imagenUrl, fileName: 'prueba.jpg', caption: mensaje })
-            });
+            sendMethod = 'sendFileByUrl';
+            console.log(`📸 Enviando con imagen: ${imagenUrl}`);
+            // Verificar que la URL de imagen sea accesible antes de enviar
+            const imgCheck = await fetch(imagenUrl, { method: 'HEAD' }).catch(() => null);
+            if (!imgCheck || !imgCheck.ok) {
+                console.warn(`⚠️ Imagen inaccesible (${imgCheck?.status}), enviando solo texto`);
+                sendMethod = 'sendMessage (imagen inaccesible, fallback)';
+                const url = `${greenBaseUrl()}/sendMessage/${GREEN_API_TOKEN}`;
+                waRes = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chatId, message: mensaje })
+                });
+            } else {
+                const url = `${greenBaseUrl()}/sendFileByUrl/${GREEN_API_TOKEN}`;
+                waRes = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chatId, urlFile: imagenUrl, fileName: 'prueba.jpg', caption: mensaje })
+                });
+            }
         } else {
             const url = `${greenBaseUrl()}/sendMessage/${GREEN_API_TOKEN}`;
             waRes = await fetch(url, {
@@ -119,6 +135,7 @@ Deno.serve(async (req) => {
                 body: JSON.stringify({ chatId, message: mensaje })
             });
         }
+        console.log(`📤 Método usado: ${sendMethod}`);
 
         waResponse = await waRes.json();
         console.log(`Green API response [${waRes.status}]:`, JSON.stringify(waResponse));
@@ -138,6 +155,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({
             success: true,
             chatId,
+            send_method: sendMethod,
             tipo: config.titulo,
             mensaje_preview: mensaje.substring(0, 100) + '...',
             wa_response: waResponse
