@@ -78,6 +78,10 @@
                 class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-[#9da6b9] hover:text-white whitespace-nowrap transition-colors">
                 Imagen de Cobranza
             </button>
+            <button onclick="switchTab('control')" id="tab-control"
+                class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-[#9da6b9] hover:text-white whitespace-nowrap transition-colors">
+                Control y Pruebas
+            </button>
             <button onclick="switchTab('log')" id="tab-log"
                 class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-[#9da6b9] hover:text-white whitespace-nowrap transition-colors">
                 Historial de Envíos
@@ -174,6 +178,89 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
             </div>
         </div>
 
+        <!-- ========== TAB: CONTROL Y PRUEBAS ========== -->
+        <div id="view-control" class="hidden max-w-3xl flex flex-col gap-6">
+
+            <!-- Toggle ON/OFF -->
+            <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-6">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <h3 class="font-semibold text-white text-base mb-1">Envíos Automáticos de Cobranza</h3>
+                        <p class="text-[#9da6b9] text-sm">Activa o desactiva el sistema de envío automático de mensajes WhatsApp de cobranza.</p>
+                        <p id="toggleStatusText" class="text-xs mt-2 font-medium text-[#9da6b9]">Cargando estado...</p>
+                    </div>
+                    <!-- Toggle switch -->
+                    <button id="btnToggleCobranza" onclick="toggleEnviosAutomaticos()"
+                        class="relative inline-flex h-8 w-16 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none bg-[#3b4354]"
+                        role="switch" aria-checked="false">
+                        <span id="toggleCircle"
+                            class="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition duration-200 translate-x-0.5 mt-0.5"></span>
+                    </button>
+                </div>
+                <div id="toggleInfoBox" class="mt-4 hidden p-3 rounded-lg text-sm border"></div>
+            </div>
+
+            <!-- Panel de prueba -->
+            <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-6">
+                <div class="flex items-center gap-3 mb-5">
+                    <span class="material-symbols-outlined text-yellow-400">science</span>
+                    <div>
+                        <h3 class="font-semibold text-white text-base">Enviar Mensaje de Prueba</h3>
+                        <p class="text-[#9da6b9] text-sm">Prueba cómo llegará el mensaje antes de activar los envíos automáticos.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">Plantilla a probar</label>
+                        <select id="testTipoMensaje" onchange="actualizarPreviewPrueba()"
+                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white text-sm">
+                            <option value="cobranza_7_dias_antes">7 días antes del vencimiento</option>
+                            <option value="cobranza_1_dia_antes">1 día antes del vencimiento</option>
+                            <option value="cobranza_2_dias_despues">2 días después del vencimiento</option>
+                            <option value="cobranza_5_dias_despues">5 días después del vencimiento</option>
+                            <option value="cobranza_8_dias_despues">8 días después (urgente)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">Teléfono de prueba</label>
+                        <input type="tel" id="testTelefono" maxlength="10"
+                            placeholder="10 dígitos (ej. 3312345678)"
+                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white text-sm placeholder-[#475569]">
+                    </div>
+                </div>
+
+                <!-- Preview WhatsApp -->
+                <div class="mb-5">
+                    <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-2">Vista previa del mensaje</label>
+                    <div class="bg-[#0d1117] rounded-xl p-4 border border-[#2d3442]">
+                        <div class="flex items-center gap-2 mb-3 pb-3 border-b border-[#2d3442]">
+                            <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">SX</div>
+                            <div>
+                                <p class="text-white text-xs font-semibold">Segumex</p>
+                                <p class="text-[#9da6b9] text-[10px]">en línea</p>
+                            </div>
+                        </div>
+                        <div class="bg-[#1c1f27] rounded-xl rounded-tl-none px-3 py-2 max-w-xs">
+                            <div id="testPreviewMsg" class="text-[#e9edef] text-sm whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto scrollbar-hide">
+                                <span class="text-[#475569] italic">Selecciona una plantilla para ver el preview...</span>
+                            </div>
+                            <p class="text-[#475569] text-xs mt-1 text-right">10:30 ✓✓</p>
+                        </div>
+                        <p class="text-[#475569] text-xs mt-3">* Los datos mostrados son de ejemplo: <strong class="text-white">María García</strong>, póliza <strong class="text-white">TEST-001</strong>, prima <strong class="text-white">$1,500.00</strong></p>
+                    </div>
+                </div>
+
+                <div id="testResultado" class="hidden mb-4 p-3 rounded-lg text-sm border"></div>
+
+                <button onclick="enviarPrueba()" id="btnEnviarPrueba"
+                    class="w-full md:w-auto px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-sm rounded-lg flex items-center gap-2 transition-colors">
+                    <span class="material-symbols-outlined text-sm">send</span>
+                    Enviar mensaje de prueba por WhatsApp
+                </button>
+            </div>
+        </div>
+
         <!-- ========== TAB: HISTORIAL ========== -->
         <div id="view-log" class="hidden">
             <!-- Resumen stats -->
@@ -250,7 +337,7 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
         // TABS
         // ============================================================
         function switchTab(tab) {
-            ['mensajes', 'imagen', 'log'].forEach(t => {
+            ['mensajes', 'imagen', 'control', 'log'].forEach(t => {
                 document.getElementById(`view-${t}`).classList.toggle('hidden', t !== tab);
                 const btn = document.getElementById(`tab-${t}`);
                 if (t === tab) {
@@ -262,6 +349,7 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                 }
             });
             if (tab === 'log') cargarLog();
+            if (tab === 'control') { cargarToggle(); actualizarPreviewPrueba(); }
         }
 
         // ============================================================
@@ -623,6 +711,133 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                     <td class="px-4 py-3">${statusBadge}</td>
                 </tr>`;
             }).join('');
+        }
+
+        // ============================================================
+        // TOGGLE ON/OFF ENVÍOS AUTOMÁTICOS
+        // ============================================================
+        let _cobranzaActiva = false;
+
+        async function cargarToggle() {
+            const { data } = await window.supabaseClient
+                .from('configuracion_mensajes')
+                .select('contenido')
+                .eq('clave', 'cobranza_activa')
+                .maybeSingle();
+
+            _cobranzaActiva = data?.contenido === 'true';
+            renderToggle();
+        }
+
+        function renderToggle() {
+            const btn = document.getElementById('btnToggleCobranza');
+            const circle = document.getElementById('toggleCircle');
+            const statusText = document.getElementById('toggleStatusText');
+            const infoBox = document.getElementById('toggleInfoBox');
+
+            if (_cobranzaActiva) {
+                btn.classList.remove('bg-[#3b4354]');
+                btn.classList.add('bg-green-500');
+                circle.classList.remove('translate-x-0.5');
+                circle.classList.add('translate-x-8');
+                statusText.innerHTML = '<span class="text-green-400">● Activo</span> — El sistema envía mensajes automáticamente cada día.';
+                infoBox.className = 'mt-4 p-3 rounded-lg text-sm border bg-green-500/10 border-green-500/30 text-green-300';
+                infoBox.innerHTML = '✅ Los mensajes de cobranza se envían automáticamente a las 8:00 AM cada día según las reglas configuradas.';
+                infoBox.classList.remove('hidden');
+            } else {
+                btn.classList.add('bg-[#3b4354]');
+                btn.classList.remove('bg-green-500');
+                circle.classList.add('translate-x-0.5');
+                circle.classList.remove('translate-x-8');
+                statusText.innerHTML = '<span class="text-[#9da6b9]">● Inactivo</span> — Los envíos automáticos están pausados.';
+                infoBox.className = 'mt-4 p-3 rounded-lg text-sm border bg-yellow-500/10 border-yellow-500/30 text-yellow-300';
+                infoBox.innerHTML = '⏸️ Los envíos automáticos están desactivados. Actívalos cuando estés listo para comenzar la cobranza automática.';
+                infoBox.classList.remove('hidden');
+            }
+        }
+
+        async function toggleEnviosAutomaticos() {
+            _cobranzaActiva = !_cobranzaActiva;
+            renderToggle();
+
+            const { error } = await window.supabaseClient
+                .from('configuracion_mensajes')
+                .upsert({ clave: 'cobranza_activa', titulo: 'Envíos automáticos activos', contenido: _cobranzaActiva ? 'true' : 'false', updated_at: new Date().toISOString() }, { onConflict: 'clave' });
+
+            if (error) {
+                alert('Error al guardar el estado: ' + error.message);
+                _cobranzaActiva = !_cobranzaActiva; // revertir
+                renderToggle();
+            } else {
+                mostrarSaveStatus();
+            }
+        }
+
+        // ============================================================
+        // PANEL DE PRUEBA
+        // ============================================================
+        const TEST_DATA = {
+            nombre: 'María García',
+            numero_poliza: 'TEST-001',
+            fecha_vencimiento: new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }),
+            prima: '1,500.00',
+            aseguradora: 'GNP'
+        };
+
+        function actualizarPreviewPrueba() {
+            const clave = document.getElementById('testTipoMensaje')?.value;
+            if (!clave) return;
+            const template = _configData[clave]?.contenido || '';
+            const preview = document.getElementById('testPreviewMsg');
+            if (!preview) return;
+
+            if (!template) {
+                preview.innerHTML = '<span class="text-[#475569] italic">Plantilla vacía. Guarda contenido en la pestaña Mensajes de Cobranza.</span>';
+                return;
+            }
+
+            // Reemplazar variables con datos de prueba
+            let msg = template;
+            for (const [k, v] of Object.entries(TEST_DATA)) {
+                msg = msg.replaceAll(`{${k}}`, v);
+            }
+            preview.innerHTML = renderWhatsappPreview(msg);
+        }
+
+        async function enviarPrueba() {
+            const tipo = document.getElementById('testTipoMensaje').value;
+            const telefono = document.getElementById('testTelefono').value.replace(/\D/g, '');
+            const resultado = document.getElementById('testResultado');
+            const btn = document.getElementById('btnEnviarPrueba');
+
+            if (!telefono || telefono.length !== 10) {
+                resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-300';
+                resultado.textContent = '⚠️ Ingresa un número de teléfono válido de 10 dígitos.';
+                resultado.classList.remove('hidden');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Enviando...';
+            resultado.classList.add('hidden');
+
+            try {
+                const { data, error } = await window.supabaseClient.functions.invoke('send-test-message', {
+                    body: { tipo_mensaje: tipo, telefono }
+                });
+
+                if (error || !data?.success) throw new Error(data?.error || error?.message || 'Error desconocido');
+
+                resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-green-500/10 border-green-500/30 text-green-300';
+                resultado.innerHTML = `✅ Mensaje de prueba enviado correctamente al <strong>+52${telefono}</strong>. Revisa tu WhatsApp.`;
+            } catch (err) {
+                resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-300';
+                resultado.textContent = '❌ Error al enviar: ' + err.message;
+            } finally {
+                resultado.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = '<span class="material-symbols-outlined text-sm">send</span> Enviar mensaje de prueba por WhatsApp';
+            }
         }
 
         // ============================================================

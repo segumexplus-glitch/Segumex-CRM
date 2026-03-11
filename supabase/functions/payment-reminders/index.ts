@@ -134,6 +134,25 @@ Deno.serve(async (req) => {
         }
 
         // --------------------------------------------------------
+        // 0. Verificar si los envíos automáticos están activados
+        // --------------------------------------------------------
+        const { data: activoConfig } = await supabase
+            .from('configuracion_mensajes')
+            .select('contenido')
+            .eq('clave', 'cobranza_activa')
+            .maybeSingle();
+
+        if (activoConfig?.contenido !== 'true') {
+            console.log('⏸️ Envíos automáticos desactivados.');
+            return new Response(JSON.stringify({
+                success: true,
+                message: 'Envíos automáticos desactivados. Actívalos en Configuración → Control y Pruebas.',
+                enviados: 0,
+                errores: 0
+            }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
+        // --------------------------------------------------------
         // 1. Cargar plantillas de mensajes desde configuracion_mensajes
         // --------------------------------------------------------
         const { data: configs } = await supabase
