@@ -115,10 +115,10 @@ Deno.serve(async (req) => {
         if (!phone) throw new Error("El cliente no tiene teléfono registrado.");
 
         if (phone.length === 10) {
-            phone = '52' + phone;  // Green API México: 52XXXXXXXXXX (sin el 1)
+            phone = '521' + phone;  // Green API México: 521XXXXXXXXXX (móviles)
+        } else if (phone.length === 12 && phone.startsWith('52') && !phone.startsWith('521')) {
+            phone = '521' + phone.substring(2); // agregar el 1 faltante
         } else if (phone.length === 13 && phone.startsWith('521')) {
-            phone = '52' + phone.substring(3); // normalizar quitando el 1
-        } else if (phone.length === 12 && phone.startsWith('52')) {
             // ya correcto
         } else {
             console.warn("Formato de teléfono inusual:", phone);

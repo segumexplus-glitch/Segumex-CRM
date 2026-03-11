@@ -98,8 +98,8 @@ Deno.serve(async (req) => {
         // Usar data_real si se provee (datos de póliza real), de lo contrario usar datos de ejemplo
         const testData = data_real || (esBienvenida ? TEST_DATA_BIENVENIDA : TEST_DATA_COBRANZA);
         const mensaje = aplicarPlantilla(config.contenido, testData);
-        // Green API México usa 52XXXXXXXXXX (confirmado por chatId del webhook entrante)
-        const chatId = `52${digits}@c.us`;
+        // Green API México usa 521XXXXXXXXXX para móviles (confirmado por chatId del webhook entrante)
+        const chatId = `521${digits}@c.us`;
 
         // Enviar por WhatsApp
         let waRes: Response;
