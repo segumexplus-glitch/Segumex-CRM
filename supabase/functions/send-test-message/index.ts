@@ -98,29 +98,42 @@ Deno.serve(async (req) => {
         // Usar data_real si se provee (datos de póliza real), de lo contrario usar datos de ejemplo
         const testData = data_real || (esBienvenida ? TEST_DATA_BIENVENIDA : TEST_DATA_COBRANZA);
         const mensaje = aplicarPlantilla(config.contenido, testData);
-        const chatId = `52${digits}@c.us`;
+        // México requiere 521XXXXXXXXXX (13 dígitos), no 52XXXXXXXXXX (12)
+        const chatId = `521${digits}@c.us`;
 
         // Enviar por WhatsApp
+        let waRes: Response;
         let waResponse: any;
         if (imagenUrl) {
             const url = `${greenBaseUrl()}/sendFileByUrl/${GREEN_API_TOKEN}`;
-            const res = await fetch(url, {
+            waRes = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chatId, urlFile: imagenUrl, fileName: 'prueba_cobranza.jpg', caption: mensaje })
+                body: JSON.stringify({ chatId, urlFile: imagenUrl, fileName: 'prueba.jpg', caption: mensaje })
             });
-            waResponse = await res.json();
         } else {
             const url = `${greenBaseUrl()}/sendMessage/${GREEN_API_TOKEN}`;
-            const res = await fetch(url, {
+            waRes = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ chatId, message: mensaje })
             });
-            waResponse = await res.json();
         }
 
-        console.log(`✅ Prueba enviada a ${chatId} (${config.titulo})`);
+        waResponse = await waRes.json();
+        console.log(`Green API response [${waRes.status}]:`, JSON.stringify(waResponse));
+
+        if (!waRes.ok) {
+            throw new Error(`Green API HTTP ${waRes.status}: ${JSON.stringify(waResponse)}`);
+        }
+        if (waResponse?.errorMessage || waResponse?.error) {
+            throw new Error(`Green API error: ${waResponse.errorMessage || waResponse.error}`);
+        }
+        if (!waResponse?.idMessage) {
+            throw new Error(`Green API no devolvió idMessage. Respuesta: ${JSON.stringify(waResponse)}`);
+        }
+
+        console.log(`✅ Prueba enviada a ${chatId} (${config.titulo}), idMessage: ${waResponse.idMessage}`);
 
         return new Response(JSON.stringify({
             success: true,
