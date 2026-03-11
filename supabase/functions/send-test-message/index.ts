@@ -98,8 +98,8 @@ Deno.serve(async (req) => {
         // Usar data_real si se provee (datos de póliza real), de lo contrario usar datos de ejemplo
         const testData = data_real || (esBienvenida ? TEST_DATA_BIENVENIDA : TEST_DATA_COBRANZA);
         const mensaje = aplicarPlantilla(config.contenido, testData);
-        // Green API normaliza México a 52XXXXXXXXXX en los chats
-        const chatId = `52${digits}@c.us`;
+        // México: WhatsApp requiere 521XXXXXXXXXX (con el 1 después del 52)
+        const chatId = `521${digits}@c.us`;
 
         // Enviar por WhatsApp
         let waRes: Response;
