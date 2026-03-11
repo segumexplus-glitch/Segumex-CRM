@@ -16,23 +16,25 @@ const corsHeaders = {
 
 // ============================================================
 // Extrae 10 dígitos locales del platform_user_id de Green API
-// Formato recibido: "521234567890@c.us" → "1234567890"
+// Formatos: "524494296226@c.us" (12 díg) o "5214494296226@c.us" (13 díg)
 // ============================================================
 function extraerTelefono10(platformUserId: string): string {
     let tel = platformUserId.replace('@c.us', '').replace(/\D/g, '');
-    if (tel.length === 12 && tel.startsWith('52')) tel = tel.slice(2);
-    return tel;
+    if (tel.length === 13 && tel.startsWith('521')) tel = tel.slice(3); // quitar 521
+    else if (tel.length === 12 && tel.startsWith('52')) tel = tel.slice(2); // quitar 52
+    return tel; // retorna 10 dígitos
 }
 
 // ============================================================
-// Busca cliente en tabla clientes por teléfono
+// Busca cliente en tabla clientes por teléfono (cualquier formato)
 // ============================================================
 async function buscarClientePorTelefono(tel10: string) {
-    const { data } = await supabase
+    const { data, error } = await supabase
         .from('clientes')
         .select('id, nombre, apellido, rfc, email, telefono')
-        .or(`telefono.eq.${tel10},telefono.ilike.%${tel10}`)
+        .or(`telefono.eq.${tel10},telefono.ilike.%${tel10}%`)
         .maybeSingle();
+    if (error) console.error('buscarClientePorTelefono error:', error.message);
     return data || null;
 }
 
