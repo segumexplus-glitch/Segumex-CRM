@@ -78,6 +78,10 @@
                 class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-[#9da6b9] hover:text-white whitespace-nowrap transition-colors">
                 Imagen de Cobranza
             </button>
+            <button onclick="switchTab('bienvenida')" id="tab-bienvenida"
+                class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-[#9da6b9] hover:text-white whitespace-nowrap transition-colors">
+                Bienvenida
+            </button>
             <button onclick="switchTab('control')" id="tab-control"
                 class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-[#9da6b9] hover:text-white whitespace-nowrap transition-colors">
                 Control y Pruebas
@@ -178,6 +182,76 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
             </div>
         </div>
 
+        <!-- ========== TAB: BIENVENIDA ========== -->
+        <div id="view-bienvenida" class="hidden flex flex-col gap-6">
+
+            <!-- Info variables -->
+            <div class="bg-[#1c2030] border border-[#2d3442] rounded-xl p-4 flex gap-3 items-start">
+                <span class="material-symbols-outlined text-green-400 mt-0.5 flex-shrink-0">info</span>
+                <div class="text-sm text-[#9da6b9]">
+                    <p class="font-semibold text-white mb-1">Variables disponibles para personalización:</p>
+                    <div class="flex flex-wrap gap-2 mt-2">
+                        <code class="bg-[#111318] px-2 py-0.5 rounded text-green-300 text-xs">{nombre}</code>
+                        <code class="bg-[#111318] px-2 py-0.5 rounded text-green-300 text-xs">{no_poliza}</code>
+                        <code class="bg-[#111318] px-2 py-0.5 rounded text-green-300 text-xs">{ramo}</code>
+                        <code class="bg-[#111318] px-2 py-0.5 rounded text-green-300 text-xs">{aseguradora}</code>
+                        <code class="bg-[#111318] px-2 py-0.5 rounded text-green-300 text-xs">{vigencia}</code>
+                        <code class="bg-[#111318] px-2 py-0.5 rounded text-green-300 text-xs">{pagos}</code>
+                    </div>
+                    <p class="mt-2 text-xs">Este mensaje se envía automáticamente por WhatsApp al guardar una nueva póliza.</p>
+                </div>
+            </div>
+
+            <!-- Mensajes editables -->
+            <div id="bienvenidaContainer" class="flex flex-col gap-4">
+                <div class="text-center py-12 text-[#9da6b9]">
+                    <span class="material-symbols-outlined text-4xl mb-2 block animate-pulse">sync</span>
+                    Cargando plantillas...
+                </div>
+            </div>
+
+            <!-- Imagen de Bienvenida -->
+            <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-6">
+                <h3 class="font-semibold text-white mb-1 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-green-400">image</span>
+                    Imagen de Bienvenida
+                </h3>
+                <p class="text-[#9da6b9] text-sm mb-5">
+                    Esta imagen se envía junto con el mensaje de bienvenida a los clientes nuevos. (JPG o PNG, máx. 2MB)
+                </p>
+
+                <div id="bienvenidaImgPreviewContainer" class="mb-5 hidden">
+                    <p class="text-xs text-[#9da6b9] uppercase font-bold tracking-wider mb-2">Imagen actual</p>
+                    <div class="relative inline-block">
+                        <img id="bienvenidaImgPreview" src="" alt="Imagen bienvenida" class="max-w-xs rounded-xl border border-[#3b4354] shadow-lg" />
+                        <button onclick="eliminarImagenBienvenida()"
+                            class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white rounded-full w-7 h-7 flex items-center justify-center transition-colors shadow">
+                            <span class="material-symbols-outlined text-sm">close</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="bienvenidaUploadZone"
+                    class="border-2 border-dashed border-[#3b4354] hover:border-green-500 rounded-xl p-8 text-center cursor-pointer transition-colors"
+                    onclick="document.getElementById('inputImagenBienvenida').click()"
+                    ondragover="event.preventDefault(); this.classList.add('border-green-500','bg-green-500/5')"
+                    ondragleave="this.classList.remove('border-green-500','bg-green-500/5')"
+                    ondrop="handleDropBienvenida(event)">
+                    <span class="material-symbols-outlined text-4xl text-[#475569] mb-3 block">add_photo_alternate</span>
+                    <p class="text-white font-medium mb-1">Haz clic o arrastra una imagen aquí</p>
+                    <p class="text-[#9da6b9] text-sm">JPG, PNG o WEBP · Máximo 2MB</p>
+                    <input type="file" id="inputImagenBienvenida" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="handleImagenBienvenidaUpload(event)" />
+                </div>
+
+                <div id="bienvenidaUploadProgress" class="hidden mt-4">
+                    <div class="flex items-center gap-3 text-sm text-[#9da6b9]">
+                        <span class="material-symbols-outlined animate-spin text-green-500">sync</span>
+                        Subiendo imagen...
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ========== TAB: CONTROL Y PRUEBAS ========== -->
         <div id="view-control" class="hidden max-w-3xl flex flex-col gap-6">
 
@@ -259,6 +333,60 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                     Enviar mensaje de prueba por WhatsApp
                 </button>
             </div>
+
+            <!-- Panel de prueba: Bienvenida -->
+            <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-6">
+                <div class="flex items-center gap-3 mb-5">
+                    <span class="material-symbols-outlined text-green-400">waving_hand</span>
+                    <div>
+                        <h3 class="font-semibold text-white text-base">Probar Mensaje de Bienvenida</h3>
+                        <p class="text-[#9da6b9] text-sm">Envía un mensaje de bienvenida de prueba para verificar cómo llega al cliente.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">Tipo de cliente</label>
+                        <select id="testBienvenidaTipo" onchange="actualizarPreviewBienvenida()"
+                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white text-sm">
+                            <option value="bienvenida_cliente_nuevo">Cliente Nuevo</option>
+                            <option value="bienvenida_cliente_existente">Cliente Existente</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">Teléfono de prueba</label>
+                        <input type="tel" id="testBienvenidaTelefono" maxlength="10"
+                            placeholder="10 dígitos (ej. 3312345678)"
+                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white text-sm placeholder-[#475569]">
+                    </div>
+                </div>
+
+                <!-- Preview -->
+                <div class="mb-5">
+                    <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-2">Vista previa</label>
+                    <div class="bg-[#0d1117] rounded-xl p-4 border border-[#2d3442]">
+                        <div class="flex items-center gap-2 mb-3 pb-3 border-b border-[#2d3442]">
+                            <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-xs font-bold text-green-400">SX</div>
+                            <div><p class="text-white text-xs font-semibold">Segumex</p><p class="text-[#9da6b9] text-[10px]">en línea</p></div>
+                        </div>
+                        <div class="bg-[#1c1f27] rounded-xl rounded-tl-none px-3 py-2 max-w-xs">
+                            <div id="testBienvenidaPreviewMsg" class="text-[#e9edef] text-sm whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto scrollbar-hide">
+                                <span class="text-[#475569] italic">Cargando preview...</span>
+                            </div>
+                            <p class="text-[#475569] text-xs mt-1 text-right">10:30 ✓✓</p>
+                        </div>
+                        <p class="text-[#475569] text-xs mt-3">* Datos de ejemplo: <strong class="text-white">María García</strong>, póliza <strong class="text-white">TEST-001</strong>, Auto con GNP</p>
+                    </div>
+                </div>
+
+                <div id="testBienvenidaResultado" class="hidden mb-4 p-3 rounded-lg text-sm border"></div>
+
+                <button onclick="enviarPruebaBienvenida()" id="btnEnviarPruebaBienvenida"
+                    class="w-full md:w-auto px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold text-sm rounded-lg flex items-center gap-2 transition-colors">
+                    <span class="material-symbols-outlined text-sm">waving_hand</span>
+                    Enviar bienvenida de prueba por WhatsApp
+                </button>
+            </div>
         </div>
 
         <!-- ========== TAB: HISTORIAL ========== -->
@@ -330,6 +458,11 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
             'cobranza_8_dias_despues'
         ];
 
+        const CLAVES_BIENVENIDA = [
+            'bienvenida_cliente_nuevo',
+            'bienvenida_cliente_existente'
+        ];
+
         let _configData = {};  // { clave: contenido }
         let _imagenActualUrl = '';
 
@@ -337,7 +470,7 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
         // TABS
         // ============================================================
         function switchTab(tab) {
-            ['mensajes', 'imagen', 'control', 'log'].forEach(t => {
+            ['mensajes', 'bienvenida', 'imagen', 'control', 'log'].forEach(t => {
                 document.getElementById(`view-${t}`).classList.toggle('hidden', t !== tab);
                 const btn = document.getElementById(`tab-${t}`);
                 if (t === tab) {
@@ -349,7 +482,8 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                 }
             });
             if (tab === 'log') cargarLog();
-            if (tab === 'control') { cargarToggle(); actualizarPreviewPrueba(); }
+            if (tab === 'control') { cargarToggle(); actualizarPreviewPrueba(); actualizarPreviewBienvenida(); }
+            if (tab === 'bienvenida') renderBienvenidaMensajes();
         }
 
         // ============================================================
@@ -375,10 +509,15 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                 _configData[row.clave] = { titulo: row.titulo, contenido: row.contenido || '' };
             });
 
-            // Imagen actual
+            // Imagen cobranza actual
             if (_configData['cobranza_imagen_url']?.contenido) {
                 _imagenActualUrl = _configData['cobranza_imagen_url'].contenido;
                 mostrarImagenActual(_imagenActualUrl);
+            }
+
+            // Imagen bienvenida actual
+            if (_configData['bienvenida_imagen_url']?.contenido) {
+                mostrarImagenBienvenidaActual(_configData['bienvenida_imagen_url'].contenido);
             }
 
             renderMensajes();
@@ -714,6 +853,183 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
         }
 
         // ============================================================
+        // TAB BIENVENIDA
+        // ============================================================
+        const BIENVENIDA_META = {
+            bienvenida_cliente_nuevo:    { icon: 'waving_hand', color: 'text-green-400', badge: 'Cliente Nuevo', badgeColor: 'bg-green-500/20 text-green-300', titulo: 'Mensaje de Bienvenida — Cliente Nuevo' },
+            bienvenida_cliente_existente: { icon: 'favorite', color: 'text-pink-400', badge: 'Cliente Existente', badgeColor: 'bg-pink-500/20 text-pink-300', titulo: 'Mensaje de Bienvenida — Cliente Existente' },
+        };
+
+        const DEFAULTS_BIENVENIDA = {
+            bienvenida_cliente_nuevo: `¡Hola *{nombre}*! 👋\n\n🌟 *¡Bienvenido a la familia Segumex!* 🌟\n\nGracias por confiar en nosotros para proteger lo que más valoras. Tu póliza de *{ramo}* ya está activa. ✅\n\n📄 *No. de Póliza*: {no_poliza}\n🏥 *Aseguradora*: {aseguradora}\n🗓️ *Vigencia*: {vigencia}\n\n📅 *Tu Plan de Pagos:*{pagos}\n\nCualquier duda, aquí estamos para apoyarte 24/7. 🤝`,
+            bienvenida_cliente_existente: `¡Qué gusto saludarte de nuevo, *{nombre}*! 🤩\n\nGracias por seguir construyendo tu seguridad con nosotros. Tu nueva póliza de *{ramo}* ({no_poliza}) ha sido registrada exitosamente. ✅\n\n🗓️ *Vigencia*: {vigencia}\n\n📅 *Fechas de pago para esta póliza:*{pagos}\n\n¡Seguimos a la orden! 🛡️`,
+        };
+
+        function renderBienvenidaMensajes() {
+            // Si ya cargaron en _configData, renderizar
+            let html = '';
+            CLAVES_BIENVENIDA.forEach(clave => {
+                const cfg = _configData[clave] || { titulo: BIENVENIDA_META[clave].titulo, contenido: DEFAULTS_BIENVENIDA[clave] || '' };
+                const meta = BIENVENIDA_META[clave];
+                html += `
+                <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl overflow-hidden">
+                    <div class="flex items-center justify-between px-5 py-4 border-b border-[#3b4354] cursor-pointer hover:bg-[#1f242e] transition-colors"
+                         onclick="toggleMensaje('bv-${clave}')">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined ${meta.color}">${meta.icon}</span>
+                            <div>
+                                <p class="font-semibold text-white text-sm">${meta.titulo}</p>
+                                <span class="text-xs px-2 py-0.5 rounded-full ${meta.badgeColor} font-medium">${meta.badge}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span id="estado-bv-${clave}" class="text-xs text-[#9da6b9]">Sin cambios</span>
+                            <span id="chevron-bv-${clave}" class="material-symbols-outlined text-[#9da6b9] transition-transform">expand_more</span>
+                        </div>
+                    </div>
+                    <div id="body-bv-${clave}" class="hidden px-5 py-4">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs text-[#9da6b9] uppercase font-bold tracking-wider block mb-2">Mensaje</label>
+                                <textarea id="textarea-bv-${clave}" rows="10"
+                                    oninput="onBienvenidaChange('${clave}')"
+                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-green-500 resize-y font-mono leading-relaxed"
+                                >${escapeHtml(cfg.contenido)}</textarea>
+                                <p class="text-xs text-[#475569] mt-1"><span id="chars-bv-${clave}">${(cfg.contenido||'').length}</span> caracteres</p>
+                            </div>
+                            <div>
+                                <label class="text-xs text-[#9da6b9] uppercase font-bold tracking-wider block mb-2">Vista previa WhatsApp</label>
+                                <div class="bg-[#0d1117] rounded-xl p-4 border border-[#2d3442]">
+                                    <div class="flex items-center gap-2 mb-3 pb-3 border-b border-[#2d3442]">
+                                        <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-xs font-bold text-green-400">SX</div>
+                                        <div><p class="text-white text-xs font-semibold">Segumex</p><p class="text-[#9da6b9] text-[10px]">en línea</p></div>
+                                    </div>
+                                    <div id="preview-bv-${clave}" class="text-[#e9edef] text-sm whitespace-pre-wrap leading-relaxed max-h-52 overflow-y-auto scrollbar-hide">
+                                        ${renderWhatsappPreview(cfg.contenido)}
+                                    </div>
+                                    <p class="text-[#475569] text-xs mt-2 text-right">10:30 ✓✓</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-[#3b4354]">
+                            <button onclick="restaurarBienvenida('${clave}')"
+                                class="px-4 py-2 text-sm text-[#9da6b9] hover:text-white border border-[#3b4354] rounded-lg transition-colors">
+                                Restaurar original
+                            </button>
+                            <button onclick="guardarBienvenida('${clave}')"
+                                class="px-5 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2">
+                                <span class="material-symbols-outlined text-sm">save</span>
+                                Guardar mensaje
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            // Imagen bienvenida actual
+            if (_configData['bienvenida_imagen_url']?.contenido) {
+                mostrarImagenBienvenidaActual(_configData['bienvenida_imagen_url'].contenido);
+            }
+
+            document.getElementById('bienvenidaContainer').innerHTML = html;
+        }
+
+        function onBienvenidaChange(clave) {
+            const ta = document.getElementById(`textarea-bv-${clave}`);
+            const preview = document.getElementById(`preview-bv-${clave}`);
+            const chars = document.getElementById(`chars-bv-${clave}`);
+            const estado = document.getElementById(`estado-bv-${clave}`);
+            if (preview) preview.innerHTML = renderWhatsappPreview(ta.value);
+            if (chars) chars.textContent = ta.value.length;
+            if (estado) { estado.textContent = '● Cambios sin guardar'; estado.className = 'text-xs text-yellow-400'; }
+        }
+
+        async function guardarBienvenida(clave) {
+            const ta = document.getElementById(`textarea-bv-${clave}`);
+            const estado = document.getElementById(`estado-bv-${clave}`);
+            const contenido = ta.value;
+            const titulo = BIENVENIDA_META[clave].titulo;
+
+            const { error } = await window.supabaseClient
+                .from('configuracion_mensajes')
+                .upsert({ clave, titulo, contenido, updated_at: new Date().toISOString() }, { onConflict: 'clave' });
+
+            if (error) { alert('Error al guardar: ' + error.message); return; }
+            _configData[clave] = { titulo, contenido };
+            if (estado) { estado.textContent = '✓ Guardado'; estado.className = 'text-xs text-green-400'; }
+            mostrarSaveStatus();
+        }
+
+        function restaurarBienvenida(clave) {
+            if (!confirm('¿Restaurar el mensaje original? Los cambios sin guardar se perderán.')) return;
+            const ta = document.getElementById(`textarea-bv-${clave}`);
+            if (ta && DEFAULTS_BIENVENIDA[clave]) { ta.value = DEFAULTS_BIENVENIDA[clave]; onBienvenidaChange(clave); }
+        }
+
+        // ---- Imagen Bienvenida ----
+        function handleDropBienvenida(event) {
+            event.preventDefault();
+            document.getElementById('bienvenidaUploadZone').classList.remove('border-green-500', 'bg-green-500/5');
+            const file = event.dataTransfer.files[0];
+            if (file) subirImagenBienvenida(file);
+        }
+
+        function handleImagenBienvenidaUpload(event) {
+            const file = event.target.files[0];
+            if (file) subirImagenBienvenida(file);
+        }
+
+        async function subirImagenBienvenida(file) {
+            if (!file.type.startsWith('image/')) { alert('Solo se aceptan archivos de imagen.'); return; }
+            if (file.size > 2 * 1024 * 1024) { alert('La imagen no debe superar 2MB.'); return; }
+            document.getElementById('bienvenidaUploadProgress').classList.remove('hidden');
+
+            const ext = file.name.split('.').pop();
+            const path = `bienvenida/imagen_bienvenida.${ext}`;
+
+            await window.supabaseClient.storage.from('configuracion').remove([path]);
+            const { error: uploadError } = await window.supabaseClient.storage
+                .from('configuracion').upload(path, file, { upsert: true, contentType: file.type });
+
+            document.getElementById('bienvenidaUploadProgress').classList.add('hidden');
+
+            let publicUrl = '';
+            if (!uploadError) {
+                const { data: urlData } = window.supabaseClient.storage.from('configuracion').getPublicUrl(path);
+                publicUrl = urlData.publicUrl;
+            } else {
+                // fallback a documentos-polizas
+                const { error: e2 } = await window.supabaseClient.storage
+                    .from('documentos-polizas').upload(path, file, { upsert: true, contentType: file.type });
+                if (e2) { alert('Error al subir imagen: ' + e2.message); return; }
+                const { data: urlData } = window.supabaseClient.storage.from('documentos-polizas').getPublicUrl(path);
+                publicUrl = urlData.publicUrl;
+            }
+
+            await window.supabaseClient.from('configuracion_mensajes')
+                .upsert({ clave: 'bienvenida_imagen_url', titulo: 'URL imagen de bienvenida', contenido: publicUrl, updated_at: new Date().toISOString() }, { onConflict: 'clave' });
+            _configData['bienvenida_imagen_url'] = { titulo: 'URL imagen de bienvenida', contenido: publicUrl };
+            mostrarImagenBienvenidaActual(publicUrl);
+            mostrarSaveStatus();
+        }
+
+        function mostrarImagenBienvenidaActual(url) {
+            if (!url) return;
+            document.getElementById('bienvenidaImgPreview').src = url;
+            document.getElementById('bienvenidaImgPreviewContainer').classList.remove('hidden');
+        }
+
+        async function eliminarImagenBienvenida() {
+            if (!confirm('¿Eliminar la imagen de bienvenida?')) return;
+            await window.supabaseClient.from('configuracion_mensajes')
+                .upsert({ clave: 'bienvenida_imagen_url', titulo: 'URL imagen de bienvenida', contenido: '', updated_at: new Date().toISOString() }, { onConflict: 'clave' });
+            _configData['bienvenida_imagen_url'] = { titulo: 'URL imagen de bienvenida', contenido: '' };
+            document.getElementById('bienvenidaImgPreviewContainer').classList.add('hidden');
+            document.getElementById('bienvenidaImgPreview').src = '';
+            mostrarSaveStatus();
+        }
+
+        // ============================================================
         // TOGGLE ON/OFF ENVÍOS AUTOMÁTICOS
         // ============================================================
         let _cobranzaActiva = false;
@@ -776,6 +1092,58 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
         // ============================================================
         // PANEL DE PRUEBA
         // ============================================================
+        const TEST_DATA_BIENVENIDA = {
+            nombre: 'María García',
+            no_poliza: 'TEST-001',
+            ramo: 'Auto',
+            aseguradora: 'GNP',
+            vigencia: '01/01/2026 al 01/01/2027',
+            pagos: '\n- Pago 1: $1,500.00 (01/01/2026)\n- Pago 2: $1,500.00 (01/04/2026)'
+        };
+
+        function actualizarPreviewBienvenida() {
+            const clave = document.getElementById('testBienvenidaTipo')?.value;
+            const preview = document.getElementById('testBienvenidaPreviewMsg');
+            if (!clave || !preview) return;
+            const template = _configData[clave]?.contenido || DEFAULTS_BIENVENIDA[clave] || '';
+            if (!template) { preview.innerHTML = '<span class="text-[#475569] italic">Plantilla vacía.</span>'; return; }
+            let msg = template;
+            for (const [k, v] of Object.entries(TEST_DATA_BIENVENIDA)) msg = msg.replaceAll(`{${k}}`, v);
+            preview.innerHTML = renderWhatsappPreview(msg);
+        }
+
+        async function enviarPruebaBienvenida() {
+            const tipo = document.getElementById('testBienvenidaTipo').value;
+            const telefono = document.getElementById('testBienvenidaTelefono').value.replace(/\D/g, '');
+            const resultado = document.getElementById('testBienvenidaResultado');
+            const btn = document.getElementById('btnEnviarPruebaBienvenida');
+
+            if (!telefono || telefono.length !== 10) {
+                resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-300';
+                resultado.textContent = '⚠️ Ingresa un número de teléfono válido de 10 dígitos.';
+                resultado.classList.remove('hidden');
+                return;
+            }
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Enviando...';
+            resultado.classList.add('hidden');
+            try {
+                const { data, error } = await window.supabaseClient.functions.invoke('send-test-message', {
+                    body: { tipo_mensaje: tipo, telefono }
+                });
+                if (error || !data?.success) throw new Error(data?.error || error?.message || 'Error desconocido');
+                resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-green-500/10 border-green-500/30 text-green-300';
+                resultado.innerHTML = `✅ Mensaje de bienvenida de prueba enviado al <strong>+52${telefono}</strong>. Revisa tu WhatsApp.`;
+            } catch (err) {
+                resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-300';
+                resultado.textContent = '❌ Error al enviar: ' + err.message;
+            } finally {
+                resultado.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = '<span class="material-symbols-outlined text-sm">waving_hand</span> Enviar bienvenida de prueba por WhatsApp';
+            }
+        }
+
         const TEST_DATA = {
             nombre: 'María García',
             numero_poliza: 'TEST-001',
