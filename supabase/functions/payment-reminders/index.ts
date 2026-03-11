@@ -162,7 +162,15 @@ Deno.serve(async (req) => {
         const plantillas: Record<string, string> = {};
         (configs || []).forEach((c: any) => { plantillas[c.clave] = c.contenido || ''; });
 
-        const imagenUrl = plantillas['cobranza_imagen_url'] || '';
+        let imagenUrl = plantillas['cobranza_imagen_url'] || '';
+
+        // Si no hay URL guardada, generar URL firmada directo desde el bucket
+        if (!imagenUrl) {
+            const { data: signedData } = await supabase.storage
+                .from('documentos-polizas')
+                .createSignedUrl('cobranza/imagen_cobranza.png', 3600);
+            if (signedData?.signedUrl) imagenUrl = signedData.signedUrl;
+        }
 
         // --------------------------------------------------------
         // 2. Calcular fechas objetivo
