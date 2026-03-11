@@ -284,6 +284,28 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                     </div>
                 </div>
 
+                <!-- Selector de póliza real -->
+                <div class="mb-4">
+                    <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">
+                        Póliza de referencia <span class="normal-case text-[#475569] font-normal">(opcional — usa datos reales del cliente)</span>
+                    </label>
+                    <div class="relative">
+                        <input type="text" id="testBuscarPolizaCobranza"
+                            placeholder="Buscar por número de póliza o nombre del cliente..."
+                            oninput="debounceBuscarCobranza(this.value)"
+                            autocomplete="off"
+                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white text-sm placeholder-[#475569] focus:outline-none focus:border-primary">
+                        <div id="dropdownCobranza" class="absolute top-full left-0 right-0 bg-[#1c1f27] border border-[#3b4354] rounded-lg mt-1 max-h-52 overflow-y-auto z-20 hidden shadow-2xl"></div>
+                    </div>
+                    <div id="polizaCobranzaTag" class="hidden mt-2 flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/20 rounded-lg text-xs">
+                        <span class="material-symbols-outlined text-primary text-sm">description</span>
+                        <span id="polizaCobranzaTagText" class="text-primary flex-1 truncate"></span>
+                        <button onclick="limpiarPolizaCobranza()" class="text-[#9da6b9] hover:text-white transition-colors flex-shrink-0">
+                            <span class="material-symbols-outlined text-sm">close</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
                     <div>
                         <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">Plantilla a probar</label>
@@ -297,7 +319,7 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">Teléfono de prueba</label>
+                        <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">Teléfono destino</label>
                         <input type="tel" id="testTelefono" maxlength="10"
                             placeholder="10 dígitos (ej. 3312345678)"
                             class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white text-sm placeholder-[#475569]">
@@ -321,7 +343,7 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                             </div>
                             <p class="text-[#475569] text-xs mt-1 text-right">10:30 ✓✓</p>
                         </div>
-                        <p class="text-[#475569] text-xs mt-3">* Los datos mostrados son de ejemplo: <strong class="text-white">María García</strong>, póliza <strong class="text-white">TEST-001</strong>, prima <strong class="text-white">$1,500.00</strong></p>
+                        <p id="notaCobranza" class="text-[#475569] text-xs mt-3">* Selecciona una póliza arriba para usar datos reales. Sin selección se usan datos de ejemplo.</p>
                     </div>
                 </div>
 
@@ -344,6 +366,28 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                     </div>
                 </div>
 
+                <!-- Selector de póliza real -->
+                <div class="mb-4">
+                    <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">
+                        Póliza de referencia <span class="normal-case text-[#475569] font-normal">(opcional — usa datos reales del cliente)</span>
+                    </label>
+                    <div class="relative">
+                        <input type="text" id="testBuscarPolizaBienvenida"
+                            placeholder="Buscar por número de póliza o nombre del cliente..."
+                            oninput="debounceBuscarBienvenida(this.value)"
+                            autocomplete="off"
+                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white text-sm placeholder-[#475569] focus:outline-none focus:border-green-500">
+                        <div id="dropdownBienvenida" class="absolute top-full left-0 right-0 bg-[#1c1f27] border border-[#3b4354] rounded-lg mt-1 max-h-52 overflow-y-auto z-20 hidden shadow-2xl"></div>
+                    </div>
+                    <div id="polizaBienvenidaTag" class="hidden mt-2 flex items-center gap-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg text-xs">
+                        <span class="material-symbols-outlined text-green-400 text-sm">description</span>
+                        <span id="polizaBienvenidaTagText" class="text-green-400 flex-1 truncate"></span>
+                        <button onclick="limpiarPolizaBienvenida()" class="text-[#9da6b9] hover:text-white transition-colors flex-shrink-0">
+                            <span class="material-symbols-outlined text-sm">close</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
                     <div>
                         <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">Tipo de cliente</label>
@@ -354,7 +398,7 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">Teléfono de prueba</label>
+                        <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">Teléfono destino</label>
                         <input type="tel" id="testBienvenidaTelefono" maxlength="10"
                             placeholder="10 dígitos (ej. 3312345678)"
                             class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white text-sm placeholder-[#475569]">
@@ -375,7 +419,7 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                             </div>
                             <p class="text-[#475569] text-xs mt-1 text-right">10:30 ✓✓</p>
                         </div>
-                        <p class="text-[#475569] text-xs mt-3">* Datos de ejemplo: <strong class="text-white">María García</strong>, póliza <strong class="text-white">TEST-001</strong>, Auto con GNP</p>
+                        <p id="notaBienvenida" class="text-[#475569] text-xs mt-3">* Selecciona una póliza arriba para usar datos reales. Sin selección se usan datos de ejemplo.</p>
                     </div>
                 </div>
 
@@ -1090,9 +1134,24 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
         }
 
         // ============================================================
-        // PANEL DE PRUEBA
+        // PANEL DE PRUEBA — Póliza Real
         // ============================================================
-        const TEST_DATA_BIENVENIDA = {
+        let _polizaCobranza = null;
+        let _polizaBienvenida = null;
+        let _resultadosCobranza = [];
+        let _resultadosBienvenida = [];
+        let _timerCobranza = null;
+        let _timerBienvenida = null;
+
+        // Datos de ejemplo (fallback cuando no hay póliza seleccionada)
+        const TEST_DATA_COB_DEFAULT = {
+            nombre: 'María García',
+            numero_poliza: 'TEST-001',
+            fecha_vencimiento: new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }),
+            prima: '1,500.00',
+            aseguradora: 'GNP'
+        };
+        const TEST_DATA_BIENVENIDA_DEFAULT = {
             nombre: 'María García',
             no_poliza: 'TEST-001',
             ramo: 'Auto',
@@ -1101,75 +1160,164 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
             pagos: '\n- Pago 1: $1,500.00 (01/01/2026)\n- Pago 2: $1,500.00 (01/04/2026)'
         };
 
-        function actualizarPreviewBienvenida() {
-            const clave = document.getElementById('testBienvenidaTipo')?.value;
-            const preview = document.getElementById('testBienvenidaPreviewMsg');
-            if (!clave || !preview) return;
-            const template = _configData[clave]?.contenido || DEFAULTS_BIENVENIDA[clave] || '';
-            if (!template) { preview.innerHTML = '<span class="text-[#475569] italic">Plantilla vacía.</span>'; return; }
-            let msg = template;
-            for (const [k, v] of Object.entries(TEST_DATA_BIENVENIDA)) msg = msg.replaceAll(`{${k}}`, v);
-            preview.innerHTML = renderWhatsappPreview(msg);
+        // --- Búsqueda de pólizas ---
+        async function buscarPolizas(query) {
+            if (!query || query.length < 2) return [];
+            const [r1, r2] = await Promise.all([
+                window.supabaseClient.from('polizas')
+                    .select('id, no_poliza, ramo, aseguradora, vence, prima, pagos_fechas, finanzas, clientes(nombre, telefono)')
+                    .ilike('no_poliza', `%${query}%`).limit(5),
+                window.supabaseClient.from('polizas')
+                    .select('id, no_poliza, ramo, aseguradora, vence, prima, pagos_fechas, finanzas, clientes!inner(nombre, telefono)')
+                    .ilike('clientes.nombre', `%${query}%`).limit(5)
+            ]);
+            const all = [...(r1.data || []), ...(r2.data || [])];
+            const seen = new Set();
+            return all.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
         }
 
-        async function enviarPruebaBienvenida() {
-            const tipo = document.getElementById('testBienvenidaTipo').value;
-            const telefono = document.getElementById('testBienvenidaTelefono').value.replace(/\D/g, '');
-            const resultado = document.getElementById('testBienvenidaResultado');
-            const btn = document.getElementById('btnEnviarPruebaBienvenida');
+        function debounceBuscarCobranza(val) {
+            clearTimeout(_timerCobranza);
+            const dd = document.getElementById('dropdownCobranza');
+            if (!val || val.length < 2) { dd.classList.add('hidden'); return; }
+            dd.innerHTML = '<div class="px-4 py-3 text-[#9da6b9] text-xs flex items-center gap-2"><span class="material-symbols-outlined text-sm animate-spin">sync</span> Buscando...</div>';
+            dd.classList.remove('hidden');
+            _timerCobranza = setTimeout(async () => {
+                _resultadosCobranza = await buscarPolizas(val);
+                mostrarDropdown('dropdownCobranza', _resultadosCobranza, 'cobranza');
+            }, 350);
+        }
 
-            if (!telefono || telefono.length !== 10) {
-                resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-300';
-                resultado.textContent = '⚠️ Ingresa un número de teléfono válido de 10 dígitos.';
-                resultado.classList.remove('hidden');
+        function debounceBuscarBienvenida(val) {
+            clearTimeout(_timerBienvenida);
+            const dd = document.getElementById('dropdownBienvenida');
+            if (!val || val.length < 2) { dd.classList.add('hidden'); return; }
+            dd.innerHTML = '<div class="px-4 py-3 text-[#9da6b9] text-xs flex items-center gap-2"><span class="material-symbols-outlined text-sm animate-spin">sync</span> Buscando...</div>';
+            dd.classList.remove('hidden');
+            _timerBienvenida = setTimeout(async () => {
+                _resultadosBienvenida = await buscarPolizas(val);
+                mostrarDropdown('dropdownBienvenida', _resultadosBienvenida, 'bienvenida');
+            }, 350);
+        }
+
+        function mostrarDropdown(ddId, results, tipo) {
+            const dd = document.getElementById(ddId);
+            if (!results.length) {
+                dd.innerHTML = '<div class="px-4 py-3 text-[#9da6b9] text-xs">No se encontraron pólizas.</div>';
                 return;
             }
-            btn.disabled = true;
-            btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Enviando...';
-            resultado.classList.add('hidden');
-            try {
-                const { data, error } = await window.supabaseClient.functions.invoke('send-test-message', {
-                    body: { tipo_mensaje: tipo, telefono }
-                });
-                if (error || !data?.success) throw new Error(data?.error || error?.message || 'Error desconocido');
-                resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-green-500/10 border-green-500/30 text-green-300';
-                resultado.innerHTML = `✅ Mensaje de bienvenida de prueba enviado al <strong>+52${telefono}</strong>. Revisa tu WhatsApp.`;
-            } catch (err) {
-                resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-300';
-                resultado.textContent = '❌ Error al enviar: ' + err.message;
-            } finally {
-                resultado.classList.remove('hidden');
-                btn.disabled = false;
-                btn.innerHTML = '<span class="material-symbols-outlined text-sm">waving_hand</span> Enviar bienvenida de prueba por WhatsApp';
+            dd.innerHTML = results.map((p, idx) => `
+                <button onclick="seleccionarPoliza(${idx}, '${tipo}')"
+                    class="w-full text-left px-4 py-3 hover:bg-[#111318] transition-colors border-b border-[#2d3442] last:border-0">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="overflow-hidden">
+                            <p class="text-white text-sm font-medium truncate">${escapeHtml(p.clientes?.nombre || '—')}</p>
+                            <p class="text-[#9da6b9] text-xs truncate">${escapeHtml(p.no_poliza || '')} · ${escapeHtml(p.ramo || '')} · ${escapeHtml(p.aseguradora || '')}</p>
+                        </div>
+                        <span class="material-symbols-outlined text-[#9da6b9] text-sm flex-shrink-0">chevron_right</span>
+                    </div>
+                </button>
+            `).join('');
+        }
+
+        function seleccionarPoliza(idx, tipo) {
+            const poliza = tipo === 'cobranza' ? _resultadosCobranza[idx] : _resultadosBienvenida[idx];
+            if (!poliza) return;
+            const label = `${poliza.clientes?.nombre || '—'} · ${poliza.no_poliza} · ${poliza.ramo} · ${poliza.aseguradora}`;
+            if (tipo === 'cobranza') {
+                _polizaCobranza = poliza;
+                document.getElementById('testBuscarPolizaCobranza').value = `${poliza.clientes?.nombre || ''} — ${poliza.no_poliza}`;
+                document.getElementById('dropdownCobranza').classList.add('hidden');
+                document.getElementById('polizaCobranzaTagText').textContent = label;
+                document.getElementById('polizaCobranzaTag').classList.remove('hidden');
+                actualizarPreviewPrueba();
+            } else {
+                _polizaBienvenida = poliza;
+                document.getElementById('testBuscarPolizaBienvenida').value = `${poliza.clientes?.nombre || ''} — ${poliza.no_poliza}`;
+                document.getElementById('dropdownBienvenida').classList.add('hidden');
+                document.getElementById('polizaBienvenidaTagText').textContent = label;
+                document.getElementById('polizaBienvenidaTag').classList.remove('hidden');
+                actualizarPreviewBienvenida();
             }
         }
 
-        const TEST_DATA = {
-            nombre: 'María García',
-            numero_poliza: 'TEST-001',
-            fecha_vencimiento: new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }),
-            prima: '1,500.00',
-            aseguradora: 'GNP'
-        };
+        function limpiarPolizaCobranza() {
+            _polizaCobranza = null;
+            document.getElementById('testBuscarPolizaCobranza').value = '';
+            document.getElementById('dropdownCobranza').classList.add('hidden');
+            document.getElementById('polizaCobranzaTag').classList.add('hidden');
+            actualizarPreviewPrueba();
+        }
 
+        function limpiarPolizaBienvenida() {
+            _polizaBienvenida = null;
+            document.getElementById('testBuscarPolizaBienvenida').value = '';
+            document.getElementById('dropdownBienvenida').classList.add('hidden');
+            document.getElementById('polizaBienvenidaTag').classList.add('hidden');
+            actualizarPreviewBienvenida();
+        }
+
+        // --- Convertir póliza a variables de plantilla ---
+        function polizaToCobranzaData(p) {
+            const fechaVenc = p.vence
+                ? new Date(p.vence + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
+                : 'N/A';
+            const prima = p.prima ? Number(p.prima).toLocaleString('es-MX', { minimumFractionDigits: 2 }) : '0.00';
+            return {
+                nombre: p.clientes?.nombre || '',
+                numero_poliza: p.no_poliza || '',
+                fecha_vencimiento: fechaVenc,
+                prima,
+                aseguradora: p.aseguradora || ''
+            };
+        }
+
+        function polizaToBienvenidaData(p) {
+            const pagos = p.pagos_fechas || [];
+            const montoNum = p.prima ? Number(p.prima) / (pagos.length || 1) : 0;
+            let pagosTexto = '';
+            pagos.slice(0, 3).forEach((fecha, idx) => {
+                const f = new Date(fecha + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                pagosTexto += `\n- Pago ${idx + 1}: $${montoNum.toLocaleString('es-MX', { minimumFractionDigits: 2 })} (${f})`;
+            });
+            if (pagos.length > 3) pagosTexto += `\n... y ${pagos.length - 3} pagos más.`;
+            const inicio = p.finanzas?.inicio
+                ? new Date(p.finanzas.inicio + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                : 'N/A';
+            const fin = p.vence
+                ? new Date(p.vence + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                : 'N/A';
+            return {
+                nombre: p.clientes?.nombre || '',
+                no_poliza: p.no_poliza || '',
+                ramo: p.ramo || '',
+                aseguradora: p.aseguradora || '',
+                vigencia: `${inicio} al ${fin}`,
+                pagos: pagosTexto
+            };
+        }
+
+        // --- Preview y envío: Cobranza ---
         function actualizarPreviewPrueba() {
             const clave = document.getElementById('testTipoMensaje')?.value;
             if (!clave) return;
             const template = _configData[clave]?.contenido || '';
             const preview = document.getElementById('testPreviewMsg');
+            const nota = document.getElementById('notaCobranza');
             if (!preview) return;
-
             if (!template) {
                 preview.innerHTML = '<span class="text-[#475569] italic">Plantilla vacía. Guarda contenido en la pestaña Mensajes de Cobranza.</span>';
                 return;
             }
-
-            // Reemplazar variables con datos de prueba
+            const data = _polizaCobranza ? polizaToCobranzaData(_polizaCobranza) : TEST_DATA_COB_DEFAULT;
             let msg = template;
-            for (const [k, v] of Object.entries(TEST_DATA)) {
-                msg = msg.replaceAll(`{${k}}`, v);
-            }
+            for (const [k, v] of Object.entries(data)) msg = msg.replaceAll(`{${k}}`, v);
             preview.innerHTML = renderWhatsappPreview(msg);
+            if (nota) {
+                nota.innerHTML = _polizaCobranza
+                    ? `* Datos reales: <strong class="text-white">${escapeHtml(_polizaCobranza.clientes?.nombre || '')}</strong> — póliza <strong class="text-white">${escapeHtml(_polizaCobranza.no_poliza || '')}</strong>`
+                    : '* Selecciona una póliza arriba para usar datos reales. Sin selección se usan datos de ejemplo.';
+            }
         }
 
         async function enviarPrueba() {
@@ -1177,27 +1325,23 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
             const telefono = document.getElementById('testTelefono').value.replace(/\D/g, '');
             const resultado = document.getElementById('testResultado');
             const btn = document.getElementById('btnEnviarPrueba');
-
             if (!telefono || telefono.length !== 10) {
                 resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-300';
                 resultado.textContent = '⚠️ Ingresa un número de teléfono válido de 10 dígitos.';
                 resultado.classList.remove('hidden');
                 return;
             }
-
             btn.disabled = true;
             btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Enviando...';
             resultado.classList.add('hidden');
-
             try {
-                const { data, error } = await window.supabaseClient.functions.invoke('send-test-message', {
-                    body: { tipo_mensaje: tipo, telefono }
-                });
-
+                const body = { tipo_mensaje: tipo, telefono };
+                if (_polizaCobranza) body.data_real = polizaToCobranzaData(_polizaCobranza);
+                const { data, error } = await window.supabaseClient.functions.invoke('send-test-message', { body });
                 if (error || !data?.success) throw new Error(data?.error || error?.message || 'Error desconocido');
-
+                const quien = _polizaCobranza ? escapeHtml(_polizaCobranza.clientes?.nombre || '') : 'datos de ejemplo';
                 resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-green-500/10 border-green-500/30 text-green-300';
-                resultado.innerHTML = `✅ Mensaje de prueba enviado correctamente al <strong>+52${telefono}</strong>. Revisa tu WhatsApp.`;
+                resultado.innerHTML = `✅ Mensaje enviado al <strong>+52${telefono}</strong> con datos de <strong>${quien}</strong>. Revisa tu WhatsApp.`;
             } catch (err) {
                 resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-300';
                 resultado.textContent = '❌ Error al enviar: ' + err.message;
@@ -1208,10 +1352,70 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
             }
         }
 
+        // --- Preview y envío: Bienvenida ---
+        function actualizarPreviewBienvenida() {
+            const clave = document.getElementById('testBienvenidaTipo')?.value;
+            const preview = document.getElementById('testBienvenidaPreviewMsg');
+            const nota = document.getElementById('notaBienvenida');
+            if (!clave || !preview) return;
+            const template = _configData[clave]?.contenido || DEFAULTS_BIENVENIDA[clave] || '';
+            if (!template) { preview.innerHTML = '<span class="text-[#475569] italic">Plantilla vacía.</span>'; return; }
+            const data = _polizaBienvenida ? polizaToBienvenidaData(_polizaBienvenida) : TEST_DATA_BIENVENIDA_DEFAULT;
+            let msg = template;
+            for (const [k, v] of Object.entries(data)) msg = msg.replaceAll(`{${k}}`, v);
+            preview.innerHTML = renderWhatsappPreview(msg);
+            if (nota) {
+                nota.innerHTML = _polizaBienvenida
+                    ? `* Datos reales: <strong class="text-white">${escapeHtml(_polizaBienvenida.clientes?.nombre || '')}</strong> — póliza <strong class="text-white">${escapeHtml(_polizaBienvenida.no_poliza || '')}</strong>`
+                    : '* Selecciona una póliza arriba para usar datos reales. Sin selección se usan datos de ejemplo.';
+            }
+        }
+
+        async function enviarPruebaBienvenida() {
+            const tipo = document.getElementById('testBienvenidaTipo').value;
+            const telefono = document.getElementById('testBienvenidaTelefono').value.replace(/\D/g, '');
+            const resultado = document.getElementById('testBienvenidaResultado');
+            const btn = document.getElementById('btnEnviarPruebaBienvenida');
+            if (!telefono || telefono.length !== 10) {
+                resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-300';
+                resultado.textContent = '⚠️ Ingresa un número de teléfono válido de 10 dígitos.';
+                resultado.classList.remove('hidden');
+                return;
+            }
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Enviando...';
+            resultado.classList.add('hidden');
+            try {
+                const body = { tipo_mensaje: tipo, telefono };
+                if (_polizaBienvenida) body.data_real = polizaToBienvenidaData(_polizaBienvenida);
+                const { data, error } = await window.supabaseClient.functions.invoke('send-test-message', { body });
+                if (error || !data?.success) throw new Error(data?.error || error?.message || 'Error desconocido');
+                const quien = _polizaBienvenida ? escapeHtml(_polizaBienvenida.clientes?.nombre || '') : 'datos de ejemplo';
+                resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-green-500/10 border-green-500/30 text-green-300';
+                resultado.innerHTML = `✅ Mensaje de bienvenida enviado al <strong>+52${telefono}</strong> con datos de <strong>${quien}</strong>. Revisa tu WhatsApp.`;
+            } catch (err) {
+                resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-300';
+                resultado.textContent = '❌ Error al enviar: ' + err.message;
+            } finally {
+                resultado.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = '<span class="material-symbols-outlined text-sm">waving_hand</span> Enviar bienvenida de prueba por WhatsApp';
+            }
+        }
+
         // ============================================================
         // INIT
         // ============================================================
-        document.addEventListener('DOMContentLoaded', cargarMensajes);
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarMensajes();
+            // Cerrar dropdowns al hacer click fuera
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#testBuscarPolizaCobranza') && !e.target.closest('#dropdownCobranza'))
+                    document.getElementById('dropdownCobranza')?.classList.add('hidden');
+                if (!e.target.closest('#testBuscarPolizaBienvenida') && !e.target.closest('#dropdownBienvenida'))
+                    document.getElementById('dropdownBienvenida')?.classList.add('hidden');
+            });
+        });
     </script>
 </body>
 </html>

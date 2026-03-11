@@ -15,14 +15,27 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Datos de ejemplo para reemplazar variables en el mensaje de prueba
-const TEST_DATA: Record<string, string> = {
+// Datos de ejemplo para mensajes de cobranza
+const TEST_DATA_COBRANZA: Record<string, string> = {
     nombre: 'María García',
     numero_poliza: 'TEST-001',
     fecha_vencimiento: new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }),
     prima: '1,500.00',
     aseguradora: 'GNP'
 };
+
+// Datos de ejemplo para mensajes de bienvenida
+const TEST_DATA_BIENVENIDA: Record<string, string> = {
+    nombre: 'María García',
+    no_poliza: 'TEST-001',
+    ramo: 'Auto',
+    aseguradora: 'GNP',
+    vigencia: '01/01/2026 al 01/01/2027',
+    pagos: '\n- Pago 1: $1,500.00 (01/01/2026)\n- Pago 2: $1,500.00 (01/04/2026)'
+};
+
+const ES_BIENVENIDA = (tipo: string) =>
+    tipo === 'bienvenida_cliente_nuevo' || tipo === 'bienvenida_cliente_existente';
 
 function greenBaseUrl(): string {
     if (GREEN_INSTANCE_ID.startsWith('7107')) {
@@ -49,7 +62,7 @@ Deno.serve(async (req) => {
             throw new Error('Faltan credenciales de Green API (GREEN_INSTANCE_ID, GREEN_API_TOKEN)');
         }
 
-        const { tipo_mensaje, telefono } = await req.json();
+        const { tipo_mensaje, telefono, data_real } = await req.json();
 
         if (!tipo_mensaje || !telefono) {
             throw new Error('Se requieren tipo_mensaje y telefono');
@@ -71,17 +84,20 @@ Deno.serve(async (req) => {
             throw new Error(`Plantilla "${tipo_mensaje}" no encontrada o vacía`);
         }
 
-        // Cargar imagen de cobranza (si existe)
+        // Cargar imagen según el tipo de mensaje
+        const esBienvenida = ES_BIENVENIDA(tipo_mensaje);
+        const imgClave = esBienvenida ? 'bienvenida_imagen_url' : 'cobranza_imagen_url';
         const { data: imgConfig } = await supabase
             .from('configuracion_mensajes')
             .select('contenido')
-            .eq('clave', 'cobranza_imagen_url')
+            .eq('clave', imgClave)
             .maybeSingle();
 
         const imagenUrl = imgConfig?.contenido || '';
 
-        // Reemplazar variables con datos de prueba
-        const mensaje = aplicarPlantilla(config.contenido, TEST_DATA);
+        // Usar data_real si se provee (datos de póliza real), de lo contrario usar datos de ejemplo
+        const testData = data_real || (esBienvenida ? TEST_DATA_BIENVENIDA : TEST_DATA_COBRANZA);
+        const mensaje = aplicarPlantilla(config.contenido, testData);
         const chatId = `52${digits}@c.us`;
 
         // Enviar por WhatsApp
