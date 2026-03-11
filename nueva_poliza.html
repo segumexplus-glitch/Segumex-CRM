@@ -934,6 +934,19 @@
         let _scanClienteId = null;    // ID del cliente encontrado o creado
         let _scanClienteNuevo = false; // true si hay que crear el cliente
 
+        // ============================================================
+        // Extrae fecha de nacimiento del RFC (formato AAAA-YYMMDD-HHH)
+        // ============================================================
+        function extraerFechaNacimientoDeRFC(rfc) {
+            if (!rfc || rfc.length < 10) return null;
+            const match = rfc.replace(/[\s-]/g, '').match(/^[A-ZÑ&]{3,4}(\d{2})(\d{2})(\d{2})/i);
+            if (!match) return null;
+            const [, yy, mm, dd] = match;
+            const currentYY = new Date().getFullYear() % 100;
+            const year = parseInt(yy) <= currentYY ? `20${yy}` : `19${yy}`;
+            return `${year}-${mm}-${dd}`;
+        }
+
         function abrirScannerPDF() {
             _scanData = null;
             _scanClienteId = null;
@@ -1159,47 +1172,92 @@
 
         async function usarDatosEscaner() {
             const btn = document.getElementById('btnUsarDatos');
+
+            // Si es cliente nuevo → abrir modal de registro pre-llenado
+            if (_scanClienteNuevo && _scanData?.cliente) {
+                cerrarScannerPDF();
+                abrirModalNuevoClienteEscaner(_scanData.cliente);
+                return;
+            }
+
+            if (!_scanClienteId) {
+                alert('No se pudo determinar el cliente. Por favor asígnalo manualmente.');
+                cerrarScannerPDF();
+                return;
+            }
+
+            // Cliente existente → llenar formulario directamente
             btn.disabled = true;
             btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Aplicando...';
+            llenarFormularioDesdeEscaner(_scanData, _scanClienteId);
+            cerrarScannerPDF();
+        }
 
+        // ============================================================
+        // Modal Nuevo Cliente desde Escáner
+        // ============================================================
+        function abrirModalNuevoClienteEscaner(c) {
+            const modal = document.getElementById('modalNuevoClienteEscaner');
+            // Pre-llenar campos con datos del PDF
+            document.getElementById('ncesNombre').value = c.nombre || '';
+            document.getElementById('ncesApellido').value = c.apellido || '';
+            document.getElementById('ncesRfc').value = c.rfc || '';
+            document.getElementById('ncesEmail').value = c.email || '';
+            document.getElementById('ncesTelefono').value = c.telefono || '';
+            document.getElementById('ncesDireccion').value = c.calle_numero_colonia || '';
+            document.getElementById('ncesCp').value = c.cp || '';
+            document.getElementById('ncesMunicipio').value = c.municipio || '';
+            document.getElementById('ncesEstado').value = c.estado || '';
+            // Fecha de nacimiento desde RFC
+            const fechaNac = extraerFechaNacimientoDeRFC(c.rfc);
+            document.getElementById('ncesNacimiento').value = fechaNac || '';
+            document.getElementById('ncesError').classList.add('hidden');
+            modal.classList.remove('hidden');
+        }
+
+        function cerrarModalNuevoClienteEscaner() {
+            document.getElementById('modalNuevoClienteEscaner').classList.add('hidden');
+        }
+
+        async function guardarNuevoClienteEscaner(event) {
+            event.preventDefault();
+            const btn = document.getElementById('ncesSubmitBtn');
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+            const errEl = document.getElementById('ncesError');
+            errEl.classList.add('hidden');
             try {
-                // Si es cliente nuevo, crear primero
-                if (_scanClienteNuevo && _scanData?.cliente) {
-                    const c = _scanData.cliente;
-                    const { data: newCliente, error } = await window.supabaseClient
-                        .from('clientes')
-                        .insert({
-                            nombre: c.nombre || 'Sin nombre',
-                            apellido: c.apellido || '',
-                            rfc: c.rfc || null,
-                            telefono: c.telefono || null,
-                            email: c.email || null,
-                            direccion: c.direccion || null,
-                            tipo: 'persona_fisica',
-                            estatus: 'activo'
-                        })
-                        .select('id, nombre, apellido')
-                        .single();
+                const sesionLocal = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+                const { data: newCliente, error } = await window.supabaseClient
+                    .from('clientes')
+                    .insert({
+                        tipo: document.getElementById('ncesTipo').value,
+                        nombre: document.getElementById('ncesNombre').value,
+                        apellido: document.getElementById('ncesApellido').value,
+                        rfc: document.getElementById('ncesRfc').value || null,
+                        nacimiento: document.getElementById('ncesNacimiento').value || null,
+                        estatus: document.getElementById('ncesEstatus').value,
+                        email: document.getElementById('ncesEmail').value || null,
+                        telefono: document.getElementById('ncesTelefono').value || null,
+                        direccion: document.getElementById('ncesDireccion').value || null,
+                        cp: document.getElementById('ncesCp').value || null,
+                        municipio: document.getElementById('ncesMunicipio').value || null,
+                        estado_geo: document.getElementById('ncesEstado').value || null,
+                        agente: sesionLocal.nombre || 'Agente Segumex'
+                    })
+                    .select('id, nombre, apellido')
+                    .single();
 
-                    if (error) throw new Error('Error creando cliente: ' + error.message);
-                    _scanClienteId = newCliente.id;
-                    console.log('✅ Cliente creado:', newCliente);
-                }
-
-                if (!_scanClienteId) {
-                    alert('No se pudo determinar el cliente. Por favor asígnalo manualmente.');
-                    cerrarScannerPDF();
-                    return;
-                }
-
-                // Llenar el formulario
+                if (error) throw new Error(error.message);
+                _scanClienteId = newCliente.id;
+                console.log('✅ Cliente creado desde escáner:', newCliente);
+                cerrarModalNuevoClienteEscaner();
                 llenarFormularioDesdeEscaner(_scanData, _scanClienteId);
-                cerrarScannerPDF();
-
             } catch (err) {
-                alert('Error al aplicar datos: ' + err.message);
+                errEl.textContent = 'Error: ' + err.message;
+                errEl.classList.remove('hidden');
                 btn.disabled = false;
-                btn.innerHTML = '<span class="material-symbols-outlined text-sm">auto_fix_high</span> Usar estos datos';
+                btn.textContent = 'Guardar Cliente';
             }
         }
 
@@ -1272,6 +1330,90 @@
 
     </script>
     <script src="menu.js"></script>
+
+    <!-- ============================================================ -->
+    <!-- MODAL: NUEVO CLIENTE DESDE ESCÁNER                          -->
+    <!-- ============================================================ -->
+    <div id="modalNuevoClienteEscaner" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl w-full max-w-2xl p-6 shadow-2xl my-8">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-xl font-bold text-white mb-1">Nuevo Cliente</h2>
+                    <p class="text-[#9da6b9] text-sm">Verifica los datos extraídos del PDF antes de guardar.</p>
+                </div>
+                <button onclick="cerrarModalNuevoClienteEscaner()" class="text-[#9da6b9] hover:text-white">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form id="formNuevoClienteEscaner" onsubmit="guardarNuevoClienteEscaner(event)" class="space-y-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] mb-1">Tipo</label>
+                        <select id="ncesTipo" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                            <option value="Persona">Persona Física</option>
+                            <option value="Empresa">Persona Moral</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] mb-1">RFC</label>
+                        <input type="text" id="ncesRfc" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white uppercase" placeholder="XAXX010101000">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] mb-1">Nombre</label>
+                        <input type="text" id="ncesNombre" required class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] mb-1">Apellido</label>
+                        <input type="text" id="ncesApellido" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] mb-1">Fecha de Nacimiento</label>
+                        <input type="date" id="ncesNacimiento" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] mb-1">Estatus</label>
+                        <select id="ncesEstatus" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                            <option value="Activo">Activo</option>
+                            <option value="Inactivo">Inactivo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="border-t border-[#3b4354] pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] mb-1">Email</label>
+                        <input type="email" id="ncesEmail" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] mb-1">Teléfono</label>
+                        <input type="tel" id="ncesTelefono" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                    </div>
+                </div>
+                <div class="border-t border-[#3b4354] pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-medium text-[#9da6b9] mb-1">Dirección (calle, número y colonia)</label>
+                        <input type="text" id="ncesDireccion" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] mb-1">CP</label>
+                        <input type="text" id="ncesCp" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] mb-1">Municipio</label>
+                        <input type="text" id="ncesMunicipio" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] mb-1">Estado</label>
+                        <input type="text" id="ncesEstado" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white">
+                    </div>
+                </div>
+                <div id="ncesError" class="hidden p-3 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg"></div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-[#3b4354]">
+                    <button type="button" onclick="cerrarModalNuevoClienteEscaner()" class="px-4 py-2 text-sm font-medium text-[#9da6b9] hover:text-white">Cancelar</button>
+                    <button type="submit" id="ncesSubmitBtn" class="px-4 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-bold rounded-lg shadow-lg shadow-primary/30">Guardar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- ============================================================ -->
     <!-- MODAL: ESCÁNER DE PÓLIZA PDF CON IA                         -->

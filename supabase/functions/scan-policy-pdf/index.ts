@@ -33,7 +33,10 @@ Estructura JSON requerida:
     "rfc": "RFC si aparece",
     "telefono": "solo dígitos, 10 dígitos si es mexicano",
     "email": "email si aparece",
-    "direccion": "dirección completa si aparece"
+    "calle_numero_colonia": "calle, número exterior/interior y colonia (sin CP, municipio ni estado)",
+    "cp": "código postal, solo 5 dígitos numéricos",
+    "municipio": "ciudad o municipio",
+    "estado": "estado de la república"
   },
   "poliza": {
     "numero_poliza": "número o clave de la póliza",
