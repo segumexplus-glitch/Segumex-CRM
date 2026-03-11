@@ -996,6 +996,7 @@
                 }
 
                 _scanData = fnData.data;
+                if (Array.isArray(_scanData)) _scanData = _scanData[0];
                 console.log('✅ Datos extraídos por Gemini:', _scanData);
 
                 // Buscar cliente en CRM
