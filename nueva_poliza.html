@@ -69,9 +69,18 @@
                             </h1>
                         </div>
                     </div>
-                    <button type="button" id="btnCancelarPoliza" onclick="toggleEstadoPoliza()"
-                        class="px-4 py-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/20 font-bold text-sm flex items-center gap-2 transition-all"><span
-                            class="material-symbols-outlined text-[18px]">block</span> Cancelar Póliza</button>
+                    <div class="flex items-center gap-3">
+                        <button type="button" onclick="abrirScannerPDF()"
+                            class="px-4 py-2 rounded-lg border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-bold text-sm flex items-center gap-2 transition-all">
+                            <span class="material-symbols-outlined text-[18px]">document_scanner</span>
+                            <span class="hidden sm:inline">Escanear PDF</span>
+                        </button>
+                        <button type="button" id="btnCancelarPoliza" onclick="toggleEstadoPoliza()"
+                            class="px-4 py-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/20 font-bold text-sm flex items-center gap-2 transition-all">
+                            <span class="material-symbols-outlined text-[18px]">block</span>
+                            <span class="hidden sm:inline">Cancelar Póliza</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- SELECTOR DE CLIENTE (Visible solo si no hay clienteId) -->
@@ -917,8 +926,464 @@
 
         function actualizarTodasLasComisiones() { calcularPagos(); }
         function cancelarEdicion() { window.location.href = (origen === 'detalle') ? `detalle_poliza.html?id=${polizaID_Unico}` : (clienteId ? `perfil_cliente.html?id=${clienteId}` : 'polizas.html'); }
+
+        // ============================================================
+        // ESCÁNER PDF CON IA (GEMINI)
+        // ============================================================
+        let _scanData = null;         // Datos extraídos por Gemini
+        let _scanClienteId = null;    // ID del cliente encontrado o creado
+        let _scanClienteNuevo = false; // true si hay que crear el cliente
+
+        function abrirScannerPDF() {
+            _scanData = null;
+            _scanClienteId = null;
+            _scanClienteNuevo = false;
+            document.getElementById('scanStep1').classList.remove('hidden');
+            document.getElementById('scanStep2').classList.add('hidden');
+            document.getElementById('scanStep3').classList.add('hidden');
+            document.getElementById('btnUsarDatos').classList.add('hidden');
+            document.getElementById('scanModalTitle').textContent = 'Escanear Póliza con IA';
+            document.getElementById('scanModalSubtitle').textContent = 'Sube el PDF y Gemini extraerá los datos automáticamente';
+            document.getElementById('scanPdfInput').value = '';
+            document.getElementById('modalScanner').classList.remove('hidden');
+        }
+
+        function cerrarScannerPDF() {
+            document.getElementById('modalScanner').classList.add('hidden');
+        }
+
+        function handleScanDrop(event) {
+            event.preventDefault();
+            const zone = document.getElementById('scanDropZone');
+            zone.classList.remove('border-primary', 'bg-primary/5');
+            const file = event.dataTransfer.files[0];
+            if (file) procesarPDFScan(file);
+        }
+
+        function handleScanFile(event) {
+            const file = event.target.files[0];
+            if (file) procesarPDFScan(file);
+        }
+
+        async function procesarPDFScan(file) {
+            if (file.type !== 'application/pdf') {
+                alert('Por favor sube un archivo PDF.');
+                return;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                alert('El archivo supera el límite de 10MB.');
+                return;
+            }
+
+            // Mostrar loading
+            document.getElementById('scanStep1').classList.add('hidden');
+            document.getElementById('scanStep2').classList.remove('hidden');
+            document.getElementById('scanModalTitle').textContent = 'Analizando documento...';
+            document.getElementById('scanModalSubtitle').textContent = 'Gemini está procesando la póliza';
+
+            try {
+                // Convertir PDF a base64
+                const base64 = await fileToBase64(file);
+                const pdf_base64 = base64.split(',')[1]; // quitar el prefijo data:application/pdf;base64,
+
+                // Llamar edge function
+                const { data: fnData, error: fnError } = await window.supabaseClient.functions.invoke('scan-policy-pdf', {
+                    body: { pdf_base64, filename: file.name }
+                });
+
+                if (fnError || !fnData?.success) {
+                    throw new Error(fnData?.error || fnError?.message || 'Error al procesar el PDF');
+                }
+
+                _scanData = fnData.data;
+                console.log('✅ Datos extraídos por Gemini:', _scanData);
+
+                // Buscar cliente en CRM
+                const clienteEncontrado = await buscarClienteParaScan(_scanData.cliente);
+
+                // Mostrar preview
+                mostrarPreviewEscaner(_scanData, clienteEncontrado);
+
+            } catch (err) {
+                console.error('Error escaneando PDF:', err);
+                document.getElementById('scanStep2').classList.add('hidden');
+                document.getElementById('scanStep1').classList.remove('hidden');
+                document.getElementById('scanModalTitle').textContent = 'Escanear Póliza con IA';
+                document.getElementById('scanModalSubtitle').textContent = 'Sube el PDF y Gemini extraerá los datos automáticamente';
+                alert('Error al analizar el PDF: ' + err.message + '\n\nVerifica que la función edge esté desplegada.');
+            }
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function buscarClienteParaScan(clienteData) {
+            if (!clienteData) return null;
+
+            // Buscar por RFC primero
+            if (clienteData.rfc && clienteData.rfc.length >= 12) {
+                const { data } = await window.supabaseClient
+                    .from('clientes')
+                    .select('id, nombre, apellido, telefono, email')
+                    .ilike('rfc', clienteData.rfc.trim())
+                    .maybeSingle();
+                if (data) return data;
+            }
+
+            // Buscar por teléfono
+            if (clienteData.telefono && clienteData.telefono.length >= 10) {
+                const tel = clienteData.telefono.replace(/\D/g, '').slice(-10);
+                const { data } = await window.supabaseClient
+                    .from('clientes')
+                    .select('id, nombre, apellido, telefono, email')
+                    .ilike('telefono', `%${tel}%`)
+                    .maybeSingle();
+                if (data) return data;
+            }
+
+            // Buscar por nombre completo
+            if (clienteData.nombre) {
+                const { data } = await window.supabaseClient
+                    .from('clientes')
+                    .select('id, nombre, apellido, telefono, email')
+                    .ilike('nombre', `%${clienteData.nombre}%`)
+                    .limit(1)
+                    .maybeSingle();
+                if (data) return data;
+            }
+
+            return null;
+        }
+
+        function mostrarPreviewEscaner(datos, clienteEncontrado) {
+            document.getElementById('scanStep2').classList.add('hidden');
+            document.getElementById('scanStep3').classList.remove('hidden');
+            document.getElementById('btnUsarDatos').classList.remove('hidden');
+            document.getElementById('scanModalTitle').textContent = 'Datos extraídos ✓';
+            document.getElementById('scanModalSubtitle').textContent = 'Revisa la información antes de aplicar al formulario';
+
+            const c = datos.cliente || {};
+            const p = datos.poliza || {};
+            const v = datos.vehiculo || {};
+
+            // --- Banner cliente ---
+            const banner = document.getElementById('scanClienteBanner');
+            if (clienteEncontrado) {
+                _scanClienteId = clienteEncontrado.id;
+                _scanClienteNuevo = false;
+                banner.className = 'rounded-xl p-4 mb-5 flex items-center gap-3 border bg-green-500/10 border-green-500/30';
+                banner.innerHTML = `
+                    <span class="material-symbols-outlined text-green-400 text-2xl">verified_user</span>
+                    <div>
+                        <p class="text-green-300 font-semibold text-sm">Cliente encontrado en CRM</p>
+                        <p class="text-[#9da6b9] text-xs">${clienteEncontrado.nombre} ${clienteEncontrado.apellido || ''} — ID #${clienteEncontrado.id}</p>
+                    </div>`;
+            } else {
+                _scanClienteNuevo = true;
+                _scanClienteId = null;
+                banner.className = 'rounded-xl p-4 mb-5 flex items-center gap-3 border bg-yellow-500/10 border-yellow-500/30';
+                banner.innerHTML = `
+                    <span class="material-symbols-outlined text-yellow-400 text-2xl">person_add</span>
+                    <div>
+                        <p class="text-yellow-300 font-semibold text-sm">Cliente nuevo — se registrará automáticamente</p>
+                        <p class="text-[#9da6b9] text-xs">Se creará un nuevo cliente con los datos extraídos del PDF</p>
+                    </div>`;
+            }
+
+            // --- Card cliente ---
+            const scanClienteData = document.getElementById('scanClienteData');
+            scanClienteData.innerHTML = [
+                ['Nombre', [c.nombre, c.apellido].filter(Boolean).join(' ')],
+                ['RFC', c.rfc],
+                ['Teléfono', c.telefono],
+                ['Email', c.email],
+                ['Dirección', c.direccion],
+            ].filter(([, v]) => v).map(([k, val]) => `
+                <div class="flex justify-between gap-2">
+                    <span class="text-[#9da6b9]">${k}:</span>
+                    <span class="text-white font-medium text-right">${val}</span>
+                </div>`).join('') || '<p class="text-[#475569] text-xs">Sin datos de cliente</p>';
+
+            // --- Card póliza ---
+            const FORMA_PAGO_LABELS = { 1: 'Anual', 2: 'Semestral', 4: 'Trimestral', 12: 'Mensual' };
+            const scanPolizaData = document.getElementById('scanPolizaData');
+            scanPolizaData.innerHTML = [
+                ['Número', p.numero_poliza],
+                ['Aseguradora', p.aseguradora],
+                ['Tipo', p.tipo_seguro ? p.tipo_seguro.charAt(0).toUpperCase() + p.tipo_seguro.slice(1) : null],
+                ['Inicio', p.fecha_inicio ? formatFecha(p.fecha_inicio) : null],
+                ['Fin', p.fecha_fin ? formatFecha(p.fecha_fin) : null],
+                ['Prima neta', p.prima_neta ? '$' + Number(p.prima_neta).toLocaleString('es-MX') : null],
+                ['Prima total', p.prima_total ? '$' + Number(p.prima_total).toLocaleString('es-MX') : null],
+                ['Forma de pago', FORMA_PAGO_LABELS[p.forma_pago]],
+            ].filter(([, v]) => v).map(([k, val]) => `
+                <div class="flex justify-between gap-2">
+                    <span class="text-[#9da6b9]">${k}:</span>
+                    <span class="text-white font-medium text-right">${val}</span>
+                </div>`).join('') || '<p class="text-[#475569] text-xs">Sin datos de póliza</p>';
+
+            // --- Card vehículo (solo para auto) ---
+            const esAuto = p.tipo_seguro === 'auto';
+            const vCard = document.getElementById('scanVehiculoCard');
+            if (esAuto && (v.marca || v.modelo || v.serie)) {
+                vCard.classList.remove('hidden');
+                document.getElementById('scanVehiculoData').innerHTML = [
+                    ['Marca', v.marca],
+                    ['Modelo', v.modelo],
+                    ['Año', v.anio],
+                    ['Versión', v.version],
+                    ['Serie', v.serie],
+                    ['Placas', v.placas],
+                ].filter(([, val]) => val).map(([k, val]) => `
+                    <div>
+                        <p class="text-[#9da6b9] text-xs">${k}</p>
+                        <p class="text-white font-medium">${val}</p>
+                    </div>`).join('');
+            } else {
+                vCard.classList.add('hidden');
+            }
+        }
+
+        function formatFecha(iso) {
+            if (!iso) return '';
+            const [y, m, d] = iso.split('-');
+            return `${d}/${m}/${y}`;
+        }
+
+        async function usarDatosEscaner() {
+            const btn = document.getElementById('btnUsarDatos');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Aplicando...';
+
+            try {
+                // Si es cliente nuevo, crear primero
+                if (_scanClienteNuevo && _scanData?.cliente) {
+                    const c = _scanData.cliente;
+                    const { data: newCliente, error } = await window.supabaseClient
+                        .from('clientes')
+                        .insert({
+                            nombre: c.nombre || 'Sin nombre',
+                            apellido: c.apellido || '',
+                            rfc: c.rfc || null,
+                            telefono: c.telefono || null,
+                            email: c.email || null,
+                            direccion: c.direccion || null,
+                            tipo: 'persona_fisica',
+                            estatus: 'activo'
+                        })
+                        .select('id, nombre, apellido')
+                        .single();
+
+                    if (error) throw new Error('Error creando cliente: ' + error.message);
+                    _scanClienteId = newCliente.id;
+                    console.log('✅ Cliente creado:', newCliente);
+                }
+
+                if (!_scanClienteId) {
+                    alert('No se pudo determinar el cliente. Por favor asígnalo manualmente.');
+                    cerrarScannerPDF();
+                    return;
+                }
+
+                // Llenar el formulario
+                llenarFormularioDesdeEscaner(_scanData, _scanClienteId);
+                cerrarScannerPDF();
+
+            } catch (err) {
+                alert('Error al aplicar datos: ' + err.message);
+                btn.disabled = false;
+                btn.innerHTML = '<span class="material-symbols-outlined text-sm">auto_fix_high</span> Usar estos datos';
+            }
+        }
+
+        function llenarFormularioDesdeEscaner(datos, cId) {
+            const p = datos.poliza || {};
+            const v = datos.vehiculo || {};
+
+            // 1. Seleccionar cliente
+            const clienteParaSelector = { id: cId, nombre: datos.cliente?.nombre || 'Cliente', apellido: datos.cliente?.apellido || '' };
+            seleccionarCliente(clienteParaSelector);
+
+            // 2. Aseguradora
+            const ASEGURADORAS_VALIDAS = ['GNP', 'AXA', 'HDI', 'Qualitas', 'Mapfre', 'Afirme', 'Banorte', 'CHUBB'];
+            const asegSelect = document.getElementById('aseguradoraSelect');
+            if (p.aseguradora) {
+                const matchA = ASEGURADORAS_VALIDAS.find(a => p.aseguradora.toUpperCase().includes(a.toUpperCase()));
+                if (matchA) {
+                    asegSelect.value = matchA;
+                } else {
+                    asegSelect.value = 'Otro';
+                    document.getElementById('otraAseguradoraInput').value = p.aseguradora;
+                    document.getElementById('otraAseguradoraInput').classList.remove('hidden');
+                }
+            }
+
+            // 3. Ramo / tipo
+            const RAMOS_VALIDOS = ['vida', 'gmm', 'auto', 'hogar', 'empresarial', 'danos', 'mascotas'];
+            const ramoSel = document.getElementById('ramoSelect');
+            if (p.tipo_seguro && RAMOS_VALIDOS.includes(p.tipo_seguro.toLowerCase())) {
+                ramoSel.value = p.tipo_seguro.toLowerCase();
+                verificarLogicaNegocio(); // Mostrar/ocultar sección vehículo
+            }
+
+            // 4. Número de póliza
+            if (p.numero_poliza) document.getElementById('numPoliza').value = p.numero_poliza;
+
+            // 5. Fechas
+            if (p.fecha_inicio) document.getElementById('fechaInicio').value = p.fecha_inicio;
+            if (p.fecha_fin) document.getElementById('fechaFin').value = p.fecha_fin;
+
+            // 6. Primas
+            if (p.prima_neta) document.getElementById('primaNeta').value = p.prima_neta;
+            if (p.prima_total) document.getElementById('primaTotal').value = p.prima_total;
+
+            // 7. Forma de pago
+            if (p.forma_pago) {
+                const fp = document.getElementById('formaPago');
+                fp.value = String(p.forma_pago);
+            }
+
+            // 8. Vehículo (solo auto)
+            if (p.tipo_seguro === 'auto' && v) {
+                if (v.marca) document.getElementById('vehMarca').value = v.marca;
+                if (v.modelo) document.getElementById('vehModelo').value = v.modelo;
+                if (v.anio) document.getElementById('vehAnio').value = v.anio;
+                if (v.version) document.getElementById('vehVersion').value = v.version;
+                if (v.serie) document.getElementById('vehSerie').value = v.serie;
+                if (v.placas) document.getElementById('vehPlacas').value = v.placas;
+            }
+
+            // 9. Recalcular pagos si hay fechas y forma de pago
+            if (p.fecha_inicio && p.fecha_fin && p.forma_pago) {
+                setTimeout(() => calcularPagos(false), 100);
+            }
+
+            // Notificar al usuario
+            const nombreCliente = [datos.cliente?.nombre, datos.cliente?.apellido].filter(Boolean).join(' ') || 'el cliente';
+            console.log(`✅ Formulario llenado desde PDF. Cliente: ${nombreCliente} (ID: ${cId})`);
+        }
+
     </script>
     <script src="menu.js"></script>
+
+    <!-- ============================================================ -->
+    <!-- MODAL: ESCÁNER DE PÓLIZA PDF CON IA                         -->
+    <!-- ============================================================ -->
+    <div id="modalScanner" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="cerrarScannerPDF()"></div>
+        <div class="relative bg-[#1c1f27] border border-[#3b4354] rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
+
+            <!-- Header modal -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-[#3b4354] flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-primary text-xl">document_scanner</span>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-white text-base" id="scanModalTitle">Escanear Póliza con IA</h2>
+                        <p class="text-[#9da6b9] text-xs" id="scanModalSubtitle">Sube el PDF y Gemini extraerá los datos automáticamente</p>
+                    </div>
+                </div>
+                <button onclick="cerrarScannerPDF()" class="p-2 text-[#9da6b9] hover:text-white hover:bg-[#3b4354] rounded-lg transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="overflow-y-auto flex-1 p-6">
+
+                <!-- PASO 1: Upload -->
+                <div id="scanStep1">
+                    <div id="scanDropZone"
+                        class="border-2 border-dashed border-[#3b4354] hover:border-primary rounded-xl p-10 text-center cursor-pointer transition-all"
+                        onclick="document.getElementById('scanPdfInput').click()"
+                        ondragover="event.preventDefault(); this.classList.add('border-primary','bg-primary/5')"
+                        ondragleave="this.classList.remove('border-primary','bg-primary/5')"
+                        ondrop="handleScanDrop(event)">
+                        <span class="material-symbols-outlined text-5xl text-[#475569] mb-3 block">picture_as_pdf</span>
+                        <p class="text-white font-semibold text-lg mb-1">Arrastra el PDF de la póliza aquí</p>
+                        <p class="text-[#9da6b9] text-sm mb-4">o haz clic para seleccionar el archivo</p>
+                        <span class="inline-block bg-primary/10 border border-primary/30 text-primary text-xs px-3 py-1.5 rounded-full font-medium">
+                            PDF · Máximo 10MB
+                        </span>
+                        <input type="file" id="scanPdfInput" accept="application/pdf" class="hidden" onchange="handleScanFile(event)">
+                    </div>
+                    <p class="text-xs text-[#475569] text-center mt-4">
+                        🔒 El documento se procesa de forma segura y no se almacena en ningún servidor externo.
+                    </p>
+                </div>
+
+                <!-- PASO 2: Loading -->
+                <div id="scanStep2" class="hidden py-8 text-center">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-5">
+                        <span class="material-symbols-outlined text-primary text-3xl animate-spin">sync</span>
+                    </div>
+                    <h3 class="text-white font-bold text-lg mb-2">Analizando documento...</h3>
+                    <p class="text-[#9da6b9] text-sm mb-1">Gemini está leyendo la póliza y extrayendo los datos</p>
+                    <p class="text-[#475569] text-xs">Esto puede tomar 5-15 segundos dependiendo del documento</p>
+                </div>
+
+                <!-- PASO 3: Preview -->
+                <div id="scanStep3" class="hidden">
+
+                    <!-- Banner cliente -->
+                    <div id="scanClienteBanner" class="rounded-xl p-4 mb-5 flex items-center gap-3 border"></div>
+
+                    <!-- Grid de datos extraídos -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+
+                        <!-- Card: Cliente -->
+                        <div class="bg-[#111318] border border-[#3b4354] rounded-xl p-4">
+                            <p class="text-xs text-[#9da6b9] uppercase font-bold tracking-wider mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-sm">person</span> Cliente
+                            </p>
+                            <div id="scanClienteData" class="space-y-1.5 text-sm"></div>
+                        </div>
+
+                        <!-- Card: Póliza -->
+                        <div class="bg-[#111318] border border-[#3b4354] rounded-xl p-4">
+                            <p class="text-xs text-[#9da6b9] uppercase font-bold tracking-wider mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-sm">description</span> Póliza
+                            </p>
+                            <div id="scanPolizaData" class="space-y-1.5 text-sm"></div>
+                        </div>
+
+                        <!-- Card: Vehículo (solo si es auto) -->
+                        <div id="scanVehiculoCard" class="hidden bg-[#111318] border border-[#3b4354] rounded-xl p-4 md:col-span-2">
+                            <p class="text-xs text-[#9da6b9] uppercase font-bold tracking-wider mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-sm">directions_car</span> Vehículo
+                            </p>
+                            <div id="scanVehiculoData" class="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-1.5 text-sm"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3 flex items-start gap-2 text-sm text-yellow-300">
+                        <span class="material-symbols-outlined text-sm mt-0.5 flex-shrink-0">info</span>
+                        Verifica los datos antes de continuar. Podrás editarlos en el formulario después de aplicar.
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="flex justify-between items-center px-6 py-4 border-t border-[#3b4354] flex-shrink-0" id="scanFooter">
+                <button onclick="cerrarScannerPDF()" class="px-4 py-2 text-sm text-[#9da6b9] hover:text-white border border-[#3b4354] rounded-lg transition-colors">
+                    Cancelar
+                </button>
+                <button id="btnUsarDatos" onclick="usarDatosEscaner()" class="hidden px-5 py-2 bg-primary hover:bg-blue-600 text-white font-bold text-sm rounded-lg flex items-center gap-2 transition-colors">
+                    <span class="material-symbols-outlined text-sm">auto_fix_high</span>
+                    Usar estos datos
+                </button>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>

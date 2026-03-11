@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Configuración - Segumex</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-dark": "#101622",
+                        "surface-card": "#1c1f27",
+                    },
+                    fontFamily: { "display": ["Inter", "sans-serif"] }
+                },
+            },
+        }
+
+        async function checkSession() {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) { window.location.href = 'login.html'; return; }
+            const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+            if (sesion.rol !== 'admin') { window.location.href = 'index.html'; }
+        }
+        checkSession();
+    </script>
+</head>
+
+<body class="bg-[#f6f6f8] dark:bg-background-dark font-display text-white relative h-screen flex overflow-hidden">
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black/50 z-10 hidden md:hidden" onclick="toggleMenu()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed md:relative -translate-x-full md:translate-x-0 w-64 border-r border-[#3b4354] bg-[#111318] h-full flex-shrink-0 flex flex-col z-20 transition-transform duration-300"></aside>
+
+    <main class="flex-1 overflow-y-auto p-4 md:p-8">
+
+        <!-- Mobile Header -->
+        <div class="flex items-center gap-3 mb-6 md:hidden">
+            <button onclick="toggleMenu()" class="text-white p-1">
+                <span class="material-symbols-outlined">menu</span>
+            </button>
+            <h1 class="text-lg font-bold">Configuración</h1>
+        </div>
+
+        <!-- Page Header -->
+        <header class="hidden md:flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-2xl font-bold mb-1">Configuración del Sistema ⚙️</h1>
+                <p class="text-[#9da6b9] text-sm">Personaliza los mensajes de cobranza automáticos y otros ajustes.</p>
+            </div>
+            <div id="saveStatus" class="hidden items-center gap-2 text-green-400 text-sm font-medium">
+                <span class="material-symbols-outlined text-sm">check_circle</span>
+                Cambios guardados
+            </div>
+        </header>
+
+        <!-- Tabs -->
+        <div class="flex border-b border-[#3b4354] mb-6 gap-1 overflow-x-auto scrollbar-hide">
+            <button onclick="switchTab('mensajes')" id="tab-mensajes"
+                class="px-5 py-3 text-sm font-medium border-b-2 border-primary text-primary whitespace-nowrap transition-colors">
+                Mensajes de Cobranza
+            </button>
+            <button onclick="switchTab('imagen')" id="tab-imagen"
+                class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-[#9da6b9] hover:text-white whitespace-nowrap transition-colors">
+                Imagen de Cobranza
+            </button>
+            <button onclick="switchTab('log')" id="tab-log"
+                class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-[#9da6b9] hover:text-white whitespace-nowrap transition-colors">
+                Historial de Envíos
+            </button>
+        </div>
+
+        <!-- ========== TAB: MENSAJES ========== -->
+        <div id="view-mensajes">
+            <div class="mb-5 bg-[#1c2030] border border-[#2d3442] rounded-xl p-4 flex gap-3 items-start">
+                <span class="material-symbols-outlined text-blue-400 mt-0.5 flex-shrink-0">info</span>
+                <div class="text-sm text-[#9da6b9]">
+                    <p class="font-semibold text-white mb-1">Variables disponibles para personalización:</p>
+                    <div class="flex flex-wrap gap-2 mt-2">
+                        <code class="bg-[#111318] px-2 py-0.5 rounded text-blue-300 text-xs">{nombre}</code>
+                        <code class="bg-[#111318] px-2 py-0.5 rounded text-blue-300 text-xs">{numero_poliza}</code>
+                        <code class="bg-[#111318] px-2 py-0.5 rounded text-blue-300 text-xs">{fecha_vencimiento}</code>
+                        <code class="bg-[#111318] px-2 py-0.5 rounded text-blue-300 text-xs">{prima}</code>
+                        <code class="bg-[#111318] px-2 py-0.5 rounded text-blue-300 text-xs">{aseguradora}</code>
+                    </div>
+                </div>
+            </div>
+
+            <div id="mensajesContainer" class="flex flex-col gap-4">
+                <!-- Se llena dinámicamente -->
+                <div class="text-center py-12 text-[#9da6b9]">
+                    <span class="material-symbols-outlined text-4xl mb-2 block animate-pulse">sync</span>
+                    Cargando plantillas...
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== TAB: IMAGEN ========== -->
+        <div id="view-imagen" class="hidden">
+            <div class="max-w-2xl">
+                <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-6">
+                    <h3 class="font-semibold text-white mb-1">Imagen de Cobranza</h3>
+                    <p class="text-[#9da6b9] text-sm mb-5">
+                        Esta imagen se adjunta automáticamente a los mensajes de cobranza de WhatsApp. Usa una imagen diseñada y profesional (JPG o PNG, máx. 2MB).
+                    </p>
+
+                    <!-- Preview actual -->
+                    <div id="imagenPreviewContainer" class="mb-5 hidden">
+                        <p class="text-xs text-[#9da6b9] uppercase font-bold tracking-wider mb-2">Imagen actual</p>
+                        <div class="relative inline-block">
+                            <img id="imagenPreview" src="" alt="Imagen de cobranza"
+                                class="max-w-xs rounded-xl border border-[#3b4354] shadow-lg" />
+                            <button onclick="eliminarImagen()"
+                                class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white rounded-full w-7 h-7 flex items-center justify-center transition-colors shadow">
+                                <span class="material-symbols-outlined text-sm">close</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Upload zone -->
+                    <div id="uploadZone"
+                        class="border-2 border-dashed border-[#3b4354] hover:border-primary rounded-xl p-8 text-center cursor-pointer transition-colors"
+                        onclick="document.getElementById('inputImagen').click()"
+                        ondragover="event.preventDefault(); this.classList.add('border-primary','bg-primary/5')"
+                        ondragleave="this.classList.remove('border-primary','bg-primary/5')"
+                        ondrop="handleDrop(event)">
+                        <span class="material-symbols-outlined text-4xl text-[#475569] mb-3 block">add_photo_alternate</span>
+                        <p class="text-white font-medium mb-1">Haz clic o arrastra una imagen aquí</p>
+                        <p class="text-[#9da6b9] text-sm">JPG, PNG o WEBP · Máximo 2MB</p>
+                        <input type="file" id="inputImagen" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="handleImagenUpload(event)" />
+                    </div>
+
+                    <!-- Upload progress -->
+                    <div id="uploadProgress" class="hidden mt-4">
+                        <div class="flex items-center gap-3 text-sm text-[#9da6b9]">
+                            <span class="material-symbols-outlined animate-spin text-primary">sync</span>
+                            Subiendo imagen...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview del mensaje con imagen -->
+                <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-6 mt-4">
+                    <h3 class="font-semibold text-white mb-3 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-green-400">chat_bubble</span>
+                        Vista previa del mensaje WhatsApp
+                    </h3>
+                    <div class="bg-[#111318] rounded-xl p-4 max-w-xs">
+                        <div id="previewImgContainer" class="mb-2 hidden">
+                            <img id="previewMsgImg" src="" class="rounded-lg w-full" alt="preview" />
+                        </div>
+                        <p class="text-[#9da6b9] text-sm whitespace-pre-wrap leading-relaxed">Hola *María García* 👋, te recordamos que tu póliza *GNP-2024-001* vence el *15/03/2026*.
+
+El monto de tu prima es de *$4,500*. ✅
+
+Saludos cordiales — Equipo Segumex 🛡️</p>
+                        <p class="text-[#475569] text-xs mt-2 text-right">10:30 ✓✓</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== TAB: HISTORIAL ========== -->
+        <div id="view-log" class="hidden">
+            <!-- Resumen stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-4">
+                    <p class="text-[#9da6b9] text-xs uppercase font-bold tracking-wider mb-1">Total Enviados</p>
+                    <p id="statTotal" class="text-2xl font-bold text-white">—</p>
+                </div>
+                <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-4">
+                    <p class="text-[#9da6b9] text-xs uppercase font-bold tracking-wider mb-1">Hoy</p>
+                    <p id="statHoy" class="text-2xl font-bold text-green-400">—</p>
+                </div>
+                <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-4">
+                    <p class="text-[#9da6b9] text-xs uppercase font-bold tracking-wider mb-1">Esta Semana</p>
+                    <p id="statSemana" class="text-2xl font-bold text-blue-400">—</p>
+                </div>
+                <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-4">
+                    <p class="text-[#9da6b9] text-xs uppercase font-bold tracking-wider mb-1">Con Error</p>
+                    <p id="statError" class="text-2xl font-bold text-red-400">—</p>
+                </div>
+            </div>
+
+            <!-- Tabla -->
+            <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-3 border-b border-[#3b4354]">
+                    <h3 class="font-semibold text-sm">Últimos envíos de cobranza</h3>
+                    <button onclick="cargarLog()" class="text-[#9da6b9] hover:text-white transition-colors">
+                        <span class="material-symbols-outlined text-sm">refresh</span>
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-[#3b4354] text-[#9da6b9] text-xs uppercase tracking-wider">
+                                <th class="text-left px-4 py-3 font-medium">Fecha</th>
+                                <th class="text-left px-4 py-3 font-medium">Cliente</th>
+                                <th class="text-left px-4 py-3 font-medium">Póliza</th>
+                                <th class="text-left px-4 py-3 font-medium">Tipo</th>
+                                <th class="text-left px-4 py-3 font-medium">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logTableBody">
+                            <tr>
+                                <td colspan="5" class="text-center py-10 text-[#9da6b9]">
+                                    Cargando historial...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="menu.js"></script>
+
+    <script>
+        // ============================================================
+        // ESTADO GLOBAL
+        // ============================================================
+        const CLAVES_MENSAJES = [
+            'cobranza_7_dias_antes',
+            'cobranza_1_dia_antes',
+            'cobranza_2_dias_despues',
+            'cobranza_5_dias_despues',
+            'cobranza_8_dias_despues'
+        ];
+
+        let _configData = {};  // { clave: contenido }
+        let _imagenActualUrl = '';
+
+        // ============================================================
+        // TABS
+        // ============================================================
+        function switchTab(tab) {
+            ['mensajes', 'imagen', 'log'].forEach(t => {
+                document.getElementById(`view-${t}`).classList.toggle('hidden', t !== tab);
+                const btn = document.getElementById(`tab-${t}`);
+                if (t === tab) {
+                    btn.classList.add('border-primary', 'text-primary');
+                    btn.classList.remove('border-transparent', 'text-[#9da6b9]');
+                } else {
+                    btn.classList.remove('border-primary', 'text-primary');
+                    btn.classList.add('border-transparent', 'text-[#9da6b9]');
+                }
+            });
+            if (tab === 'log') cargarLog();
+        }
+
+        // ============================================================
+        // CARGA DE PLANTILLAS
+        // ============================================================
+        async function cargarMensajes() {
+            const { data, error } = await window.supabaseClient
+                .from('configuracion_mensajes')
+                .select('clave, titulo, contenido');
+
+            if (error) {
+                console.error('Error cargando mensajes:', error);
+                document.getElementById('mensajesContainer').innerHTML = `
+                    <div class="text-center py-12 text-red-400">
+                        <span class="material-symbols-outlined text-4xl block mb-2">error</span>
+                        Error al cargar: ${error.message}
+                    </div>`;
+                return;
+            }
+
+            // Guardar en memoria
+            (data || []).forEach(row => {
+                _configData[row.clave] = { titulo: row.titulo, contenido: row.contenido || '' };
+            });
+
+            // Imagen actual
+            if (_configData['cobranza_imagen_url']?.contenido) {
+                _imagenActualUrl = _configData['cobranza_imagen_url'].contenido;
+                mostrarImagenActual(_imagenActualUrl);
+            }
+
+            renderMensajes();
+        }
+
+        function renderMensajes() {
+            const ICONOS = {
+                'cobranza_7_dias_antes': { icon: 'event', color: 'text-blue-400', badge: '7 días antes', badgeColor: 'bg-blue-500/20 text-blue-300' },
+                'cobranza_1_dia_antes': { icon: 'event_upcoming', color: 'text-yellow-400', badge: '1 día antes', badgeColor: 'bg-yellow-500/20 text-yellow-300' },
+                'cobranza_2_dias_despues': { icon: 'schedule', color: 'text-orange-400', badge: '2 días después', badgeColor: 'bg-orange-500/20 text-orange-300' },
+                'cobranza_5_dias_despues': { icon: 'warning', color: 'text-orange-500', badge: '5 días después', badgeColor: 'bg-orange-600/20 text-orange-400' },
+                'cobranza_8_dias_despues': { icon: 'priority_high', color: 'text-red-400', badge: '8 días después', badgeColor: 'bg-red-500/20 text-red-300' },
+            };
+
+            let html = '';
+            CLAVES_MENSAJES.forEach(clave => {
+                const cfg = _configData[clave] || { titulo: clave, contenido: '' };
+                const meta = ICONOS[clave] || { icon: 'chat', color: 'text-gray-400', badge: clave, badgeColor: 'bg-gray-500/20 text-gray-300' };
+                html += `
+                <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl overflow-hidden">
+                    <div class="flex items-center justify-between px-5 py-4 border-b border-[#3b4354] cursor-pointer hover:bg-[#1f242e] transition-colors"
+                         onclick="toggleMensaje('${clave}')">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined ${meta.color}">${meta.icon}</span>
+                            <div>
+                                <p class="font-semibold text-white text-sm">${cfg.titulo}</p>
+                                <span class="text-xs px-2 py-0.5 rounded-full ${meta.badgeColor} font-medium">${meta.badge}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span id="estado-${clave}" class="text-xs text-[#9da6b9]">Sin cambios</span>
+                            <span id="chevron-${clave}" class="material-symbols-outlined text-[#9da6b9] transition-transform">expand_more</span>
+                        </div>
+                    </div>
+                    <div id="body-${clave}" class="hidden px-5 py-4">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <!-- Editor -->
+                            <div>
+                                <label class="text-xs text-[#9da6b9] uppercase font-bold tracking-wider block mb-2">Mensaje</label>
+                                <textarea
+                                    id="textarea-${clave}"
+                                    rows="10"
+                                    oninput="onMensajeChange('${clave}')"
+                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg px-3 py-2.5 text-sm text-white placeholder-[#475569] focus:outline-none focus:border-primary resize-y font-mono leading-relaxed"
+                                    placeholder="Escribe el mensaje aquí..."
+                                >${escapeHtml(cfg.contenido)}</textarea>
+                                <p class="text-xs text-[#475569] mt-1">
+                                    <span id="chars-${clave}">${cfg.contenido.length}</span> caracteres
+                                </p>
+                            </div>
+                            <!-- Preview -->
+                            <div>
+                                <label class="text-xs text-[#9da6b9] uppercase font-bold tracking-wider block mb-2">Vista previa WhatsApp</label>
+                                <div class="bg-[#0d1117] rounded-xl p-4 border border-[#2d3442]">
+                                    <div class="flex items-center gap-2 mb-3 pb-3 border-b border-[#2d3442]">
+                                        <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">SX</div>
+                                        <div>
+                                            <p class="text-white text-xs font-semibold">Segumex</p>
+                                            <p class="text-[#9da6b9] text-[10px]">en línea</p>
+                                        </div>
+                                    </div>
+                                    <div id="preview-${clave}" class="text-[#e9edef] text-sm whitespace-pre-wrap leading-relaxed max-h-52 overflow-y-auto scrollbar-hide">
+                                        ${renderWhatsappPreview(cfg.contenido)}
+                                    </div>
+                                    <p class="text-[#475569] text-xs mt-2 text-right">10:30 ✓✓</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-[#3b4354]">
+                            <button onclick="restaurarMensaje('${clave}')"
+                                class="px-4 py-2 text-sm text-[#9da6b9] hover:text-white border border-[#3b4354] rounded-lg transition-colors">
+                                Restaurar original
+                            </button>
+                            <button onclick="guardarMensaje('${clave}')"
+                                class="px-5 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2">
+                                <span class="material-symbols-outlined text-sm">save</span>
+                                Guardar mensaje
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            document.getElementById('mensajesContainer').innerHTML = html;
+        }
+
+        function toggleMensaje(clave) {
+            const body = document.getElementById(`body-${clave}`);
+            const chevron = document.getElementById(`chevron-${clave}`);
+            const isHidden = body.classList.contains('hidden');
+            body.classList.toggle('hidden', !isHidden);
+            chevron.style.transform = isHidden ? 'rotate(180deg)' : '';
+        }
+
+        function onMensajeChange(clave) {
+            const ta = document.getElementById(`textarea-${clave}`);
+            const preview = document.getElementById(`preview-${clave}`);
+            const chars = document.getElementById(`chars-${clave}`);
+            const estado = document.getElementById(`estado-${clave}`);
+            if (preview) preview.innerHTML = renderWhatsappPreview(ta.value);
+            if (chars) chars.textContent = ta.value.length;
+            if (estado) { estado.textContent = '● Cambios sin guardar'; estado.classList.add('text-yellow-400'); estado.classList.remove('text-[#9da6b9]', 'text-green-400'); }
+        }
+
+        function renderWhatsappPreview(text) {
+            if (!text) return '<span class="text-[#475569] italic">Sin contenido...</span>';
+            // Simular markdown básico de WhatsApp: *bold*, _italic_, ~strike~
+            return text
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/\*([^*]+)\*/g, '<strong>$1</strong>')
+                .replace(/_([^_]+)_/g, '<em>$1</em>')
+                .replace(/~([^~]+)~/g, '<del>$1</del>')
+                .replace(/\n/g, '<br>');
+        }
+
+        function escapeHtml(text) {
+            return (text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // ============================================================
+        // GUARDAR / RESTAURAR
+        // ============================================================
+        async function guardarMensaje(clave) {
+            const ta = document.getElementById(`textarea-${clave}`);
+            const estado = document.getElementById(`estado-${clave}`);
+            const contenido = ta.value;
+
+            const { error } = await window.supabaseClient
+                .from('configuracion_mensajes')
+                .upsert({ clave, contenido, updated_at: new Date().toISOString() }, { onConflict: 'clave' });
+
+            if (error) {
+                alert('Error al guardar: ' + error.message);
+                return;
+            }
+
+            _configData[clave] = { ..._configData[clave], contenido };
+            if (estado) { estado.textContent = '✓ Guardado'; estado.classList.add('text-green-400'); estado.classList.remove('text-yellow-400', 'text-[#9da6b9]'); }
+            mostrarSaveStatus();
+        }
+
+        const DEFAULTS = {
+            cobranza_7_dias_antes: `Hola {nombre} 👋, te recordamos que tu póliza *{numero_poliza}* vence el *{fecha_vencimiento}*.\n\nEl monto de tu prima es de *${'{prima}'}*. Te invitamos a realizar tu pago con anticipación para mantener tu cobertura activa. ✅\n\n¿Tienes alguna duda? Con gusto te ayudamos.\n\nSaludos cordiales — Equipo Segumex 🛡️`,
+            cobranza_1_dia_antes: `Hola {nombre} 👋, te recordamos que tu póliza *{numero_poliza}* vence *mañana {fecha_vencimiento}*.\n\nPara evitar quedarte sin cobertura, te pedimos realizar tu pago de *${'{prima}'}* a la brevedad. 🚨\n\nContáctanos si necesitas apoyo con tu pago.\n\nSaludos cordiales — Equipo Segumex 🛡️`,
+            cobranza_2_dias_despues: `Hola {nombre}, notamos que tu póliza *{numero_poliza}* venció el *{fecha_vencimiento}* y aún está pendiente de pago. 😔\n\nEl monto es de *${'{prima}'}*. Por favor realiza tu pago para reactivar tu cobertura y continuar protegido.\n\n¿Necesitas ayuda? Estamos aquí para ti. 💙\n\nSaludos — Equipo Segumex`,
+            cobranza_5_dias_despues: `Hola {nombre} 🙏, seguimos pendientes de tu pago de *${'{prima}'}* correspondiente a tu póliza *{numero_poliza}*.\n\nHan pasado 5 días desde su vencimiento. Te pedimos regularizar tu situación lo antes posible para no perder tu cobertura.\n\nComunícate con tu asesor ante cualquier duda.\n\nSaludos cordiales — Equipo Segumex 🛡️`,
+            cobranza_8_dias_despues: `AVISO IMPORTANTE ⚠️\n\nHola {nombre}, tu póliza *{numero_poliza}* lleva más de una semana vencida con un adeudo de *${'{prima}'}*.\n\nSin tu pago, tu cobertura podría ser cancelada definitivamente. Por favor contáctanos HOY para evitarlo. 🚨\n\n📞 Nuestro equipo está listo para ayudarte.\n\nEquipo Segumex 🛡️`,
+        };
+
+        function restaurarMensaje(clave) {
+            if (!confirm('¿Restaurar el mensaje a su versión original? Los cambios sin guardar se perderán.')) return;
+            const ta = document.getElementById(`textarea-${clave}`);
+            if (ta && DEFAULTS[clave]) {
+                ta.value = DEFAULTS[clave];
+                onMensajeChange(clave);
+            }
+        }
+
+        function mostrarSaveStatus() {
+            const el = document.getElementById('saveStatus');
+            el.classList.remove('hidden');
+            el.classList.add('flex');
+            clearTimeout(window._saveTimeout);
+            window._saveTimeout = setTimeout(() => {
+                el.classList.add('hidden');
+                el.classList.remove('flex');
+            }, 3000);
+        }
+
+        // ============================================================
+        // IMAGEN DE COBRANZA
+        // ============================================================
+        function handleDrop(event) {
+            event.preventDefault();
+            const zone = document.getElementById('uploadZone');
+            zone.classList.remove('border-primary', 'bg-primary/5');
+            const file = event.dataTransfer.files[0];
+            if (file) subirImagen(file);
+        }
+
+        function handleImagenUpload(event) {
+            const file = event.target.files[0];
+            if (file) subirImagen(file);
+        }
+
+        async function subirImagen(file) {
+            if (!file.type.startsWith('image/')) { alert('Solo se aceptan archivos de imagen.'); return; }
+            if (file.size > 2 * 1024 * 1024) { alert('La imagen no debe superar 2MB.'); return; }
+
+            document.getElementById('uploadProgress').classList.remove('hidden');
+
+            const ext = file.name.split('.').pop();
+            const path = `cobranza/imagen_cobranza.${ext}`;
+
+            // Eliminar imagen anterior si existe
+            await window.supabaseClient.storage.from('configuracion').remove([path]);
+
+            const { error: uploadError } = await window.supabaseClient.storage
+                .from('configuracion')
+                .upload(path, file, { upsert: true, contentType: file.type });
+
+            document.getElementById('uploadProgress').classList.add('hidden');
+
+            if (uploadError) {
+                // Intentar con bucket 'documentos-polizas' como fallback
+                const { error: uploadError2 } = await window.supabaseClient.storage
+                    .from('documentos-polizas')
+                    .upload(path, file, { upsert: true, contentType: file.type });
+
+                if (uploadError2) {
+                    alert('Error al subir imagen: ' + (uploadError2.message || uploadError.message));
+                    return;
+                }
+
+                const { data: urlData } = window.supabaseClient.storage
+                    .from('documentos-polizas')
+                    .getPublicUrl(path);
+
+                await guardarImagenUrl(urlData.publicUrl);
+                mostrarImagenActual(urlData.publicUrl);
+                return;
+            }
+
+            const { data: urlData } = window.supabaseClient.storage
+                .from('configuracion')
+                .getPublicUrl(path);
+
+            await guardarImagenUrl(urlData.publicUrl);
+            mostrarImagenActual(urlData.publicUrl);
+        }
+
+        async function guardarImagenUrl(url) {
+            await window.supabaseClient
+                .from('configuracion_mensajes')
+                .upsert({ clave: 'cobranza_imagen_url', titulo: 'URL imagen de cobranza', contenido: url, updated_at: new Date().toISOString() }, { onConflict: 'clave' });
+            _imagenActualUrl = url;
+            mostrarSaveStatus();
+        }
+
+        function mostrarImagenActual(url) {
+            if (!url) return;
+            const container = document.getElementById('imagenPreviewContainer');
+            const img = document.getElementById('imagenPreview');
+            const previewContainer = document.getElementById('previewImgContainer');
+            const previewImg = document.getElementById('previewMsgImg');
+
+            img.src = url;
+            container.classList.remove('hidden');
+            previewContainer.classList.remove('hidden');
+            previewImg.src = url;
+        }
+
+        async function eliminarImagen() {
+            if (!confirm('¿Eliminar la imagen de cobranza? Los mensajes se enviarán sin imagen.')) return;
+
+            await window.supabaseClient
+                .from('configuracion_mensajes')
+                .upsert({ clave: 'cobranza_imagen_url', titulo: 'URL imagen de cobranza', contenido: '', updated_at: new Date().toISOString() }, { onConflict: 'clave' });
+
+            _imagenActualUrl = '';
+            document.getElementById('imagenPreviewContainer').classList.add('hidden');
+            document.getElementById('previewImgContainer').classList.add('hidden');
+            document.getElementById('imagenPreview').src = '';
+            mostrarSaveStatus();
+        }
+
+        // ============================================================
+        // HISTORIAL DE ENVÍOS
+        // ============================================================
+        async function cargarLog() {
+            const { data: logs, error } = await window.supabaseClient
+                .from('mensajes_cobranza_log')
+                .select('*')
+                .order('enviado_at', { ascending: false })
+                .limit(100);
+
+            if (error) {
+                document.getElementById('logTableBody').innerHTML = `<tr><td colspan="5" class="text-center py-8 text-red-400">Error: ${error.message}</td></tr>`;
+                return;
+            }
+
+            const hoy = new Date().toDateString();
+            const semanaAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+            let total = logs?.length || 0;
+            let countHoy = 0, countSemana = 0, countError = 0;
+
+            (logs || []).forEach(l => {
+                const fecha = new Date(l.enviado_at);
+                if (fecha.toDateString() === hoy) countHoy++;
+                if (fecha >= semanaAtras) countSemana++;
+                if (l.status === 'error') countError++;
+            });
+
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statHoy').textContent = countHoy;
+            document.getElementById('statSemana').textContent = countSemana;
+            document.getElementById('statError').textContent = countError;
+
+            const TIPO_LABELS = {
+                cobranza_7_dias_antes: '7 días antes',
+                cobranza_1_dia_antes: '1 día antes',
+                cobranza_2_dias_despues: '2 días después',
+                cobranza_5_dias_despues: '5 días después',
+                cobranza_8_dias_despues: '8 días después (urgente)',
+            };
+
+            if (!logs || logs.length === 0) {
+                document.getElementById('logTableBody').innerHTML = `
+                    <tr><td colspan="5" class="text-center py-12 text-[#9da6b9]">
+                        <span class="material-symbols-outlined text-3xl block mb-2">inbox</span>
+                        Aún no se han enviado mensajes de cobranza automáticos.
+                    </td></tr>`;
+                return;
+            }
+
+            document.getElementById('logTableBody').innerHTML = logs.map(l => {
+                const fecha = new Date(l.enviado_at);
+                const fechaStr = fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const tipoLabel = TIPO_LABELS[l.tipo_mensaje] || l.tipo_mensaje;
+                const statusBadge = l.status === 'error'
+                    ? `<span class="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 text-xs">Error</span>`
+                    : `<span class="px-2 py-0.5 rounded-full bg-green-500/20 text-green-300 text-xs">Enviado</span>`;
+
+                return `<tr class="border-b border-[#2d3442] hover:bg-[#1f242e] transition-colors">
+                    <td class="px-4 py-3 text-[#9da6b9] text-xs">${fechaStr}</td>
+                    <td class="px-4 py-3 text-white text-sm">${l.cliente_nombre || l.telefono}</td>
+                    <td class="px-4 py-3 text-[#9da6b9] text-xs">${l.numero_poliza || '—'}</td>
+                    <td class="px-4 py-3 text-[#9da6b9] text-xs">${tipoLabel}</td>
+                    <td class="px-4 py-3">${statusBadge}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // ============================================================
+        // INIT
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', cargarMensajes);
+    </script>
+</body>
+</html>

@@ -105,6 +105,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         menuItems.push({ name: 'Comisiones (R)', icon: 'lock_person', link: 'comisiones_restringidas.html' });
         menuItems.push({ name: 'Pay Tracker (R)', icon: 'lock_person', link: 'cobranza_restringida.html' });
         menuItems.push({ name: 'Usuarios', icon: 'manage_accounts', link: 'usuarios.html' });
+        menuItems.push({ name: 'Configuración', icon: 'settings', link: 'configuracion.html' });
     }
 
     let menuHTML = `
