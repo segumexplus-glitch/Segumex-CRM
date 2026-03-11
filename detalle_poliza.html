@@ -331,19 +331,24 @@
             const numPagos = parseInt(polizaData.finanzas.formaPago) || 1;
             let pagadosCount = 0;
             let fechaProgramada = new Date(polizaData.finanzas.inicio + "T12:00:00");
-            
-            const montoTotal = (polizaData.finanzas.primaTotal || 0) / numPagos;
-            const montoNeta = (polizaData.finanzas.primaNeta || 0) / numPagos;
-            const bono = (parseFloat(polizaData.finanzas.moduloHDI) || 0) / numPagos;
+
+            // Usar pagos_detalle si existe (datos reales por fila guardados en edición)
+            const pagosDetalle = polizaData.finanzas.pagos_detalle;
+            const usarDetalle = Array.isArray(pagosDetalle) && pagosDetalle.length === numPagos;
+
+            // Fallback: cálculo uniforme si no hay pagos_detalle
+            const montoTotalBase = (polizaData.finanzas.primaTotal || 0) / numPagos;
+            const montoNetaBase = (polizaData.finanzas.primaNeta || 0) / numPagos;
+            const bonoBase = (parseFloat(polizaData.finanzas.moduloHDI) || 0) / numPagos;
             const pctComision = parseFloat(polizaData.finanzas.comisionPct) || 0;
-            const comision = (montoNeta * (pctComision / 100)) + bono;
+            const comisionBase = (montoNetaBase * (pctComision / 100)) + bonoBase;
 
             for(let i=0; i<numPagos; i++) {
                 const esPagado = polizaData.pagos_status && polizaData.pagos_status[i] === true;
                 const fechaPagoReal = polizaData.pagos_fechas ? polizaData.pagos_fechas[i] : null;
-                
+
                 if(esPagado) pagadosCount++;
-                
+
                 const fechaStr = isNaN(fechaProgramada.getTime()) ? '---' : fechaProgramada.toLocaleDateString('es-MX', {day:'numeric', month:'short'});
                 const statusClass = esPagado ? "text-green-400" : (fechaProgramada < new Date() ? "text-red-500" : "text-[#9da6b9]");
                 const icon = esPagado ? "check_circle" : "radio_button_unchecked";
@@ -354,12 +359,15 @@
                     txtFechaPagoReal = fReal.toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit'});
                 }
 
+                const montoFila = usarDetalle ? (pagosDetalle[i].total || 0) : montoTotalBase;
+                const comisionFila = usarDetalle ? (pagosDetalle[i].comision || 0) : comisionBase;
+
                 tablaPagos.innerHTML += `
                     <tr class="hover:bg-[#282e39] transition-colors">
                         <td class="p-2 text-[#9da6b9] text-center">${i+1}</td>
                         <td class="p-2 text-white">${fechaStr}</td>
-                        <td class="p-2 text-white font-medium text-right">$${montoTotal.toFixed(2)}</td>
-                        <td class="p-2 text-green-400 font-bold text-right">$${comision.toFixed(2)}</td>
+                        <td class="p-2 text-white font-medium text-right">$${montoFila.toFixed(2)}</td>
+                        <td class="p-2 text-green-400 font-bold text-right">$${comisionFila.toFixed(2)}</td>
                         <td class="p-2 text-center text-[10px] text-green-500 font-mono">
                             ${txtFechaPagoReal}
                         </td>
