@@ -93,7 +93,18 @@ Deno.serve(async (req) => {
             .eq('clave', imgClave)
             .maybeSingle();
 
-        const imagenUrl = imgConfig?.contenido || '';
+        let imagenUrl = imgConfig?.contenido || '';
+
+        // Si no hay URL guardada, intentar generar URL firmada directamente desde el bucket
+        if (!imagenUrl && !esBienvenida) {
+            const { data: signedData } = await supabase.storage
+                .from('documentos-polizas')
+                .createSignedUrl('cobranza/imagen_cobranza.png', 3600);
+            if (signedData?.signedUrl) {
+                imagenUrl = signedData.signedUrl;
+                console.log('🔑 URL firmada generada automáticamente para cobranza');
+            }
+        }
 
         // Usar data_real si se provee (datos de póliza real), de lo contrario usar datos de ejemplo
         const testData = data_real || (esBienvenida ? TEST_DATA_BIENVENIDA : TEST_DATA_COBRANZA);

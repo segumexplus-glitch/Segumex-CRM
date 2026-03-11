@@ -557,6 +557,18 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
             if (_configData['cobranza_imagen_url']?.contenido) {
                 _imagenActualUrl = _configData['cobranza_imagen_url'].contenido;
                 mostrarImagenActual(_imagenActualUrl);
+            } else {
+                // Detectar imagen subida manualmente al bucket
+                const path = 'cobranza/imagen_cobranza.png';
+                const { data: signedData, error: signedError } = await window.supabaseClient.storage
+                    .from('documentos-polizas')
+                    .createSignedUrl(path, 31536000); // 1 año
+                if (!signedError && signedData?.signedUrl) {
+                    _imagenActualUrl = signedData.signedUrl;
+                    mostrarImagenActual(_imagenActualUrl);
+                    // Guardar en DB para que el Edge Function la use
+                    await guardarImagenUrl(signedData.signedUrl);
+                }
             }
 
             // Imagen bienvenida actual
@@ -754,11 +766,10 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
             document.getElementById('uploadProgress').classList.remove('hidden');
 
             const ext = file.name.split('.').pop();
-            const path = `COBRANZA.${ext}`;
+            const path = `cobranza/imagen_cobranza.${ext}`;
 
-            // Usar bucket 'marketing' (público) para que Green API pueda acceder a la imagen
             const { error: uploadError } = await window.supabaseClient.storage
-                .from('marketing')
+                .from('documentos-polizas')
                 .upload(path, file, { upsert: true, contentType: file.type });
 
             document.getElementById('uploadProgress').classList.add('hidden');
@@ -768,12 +779,14 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                 return;
             }
 
-            const { data: urlData } = window.supabaseClient.storage
-                .from('marketing')
-                .getPublicUrl(path);
+            const { data: signedData, error: signedError } = await window.supabaseClient.storage
+                .from('documentos-polizas')
+                .createSignedUrl(path, 31536000); // 1 año
 
-            await guardarImagenUrl(urlData.publicUrl);
-            mostrarImagenActual(urlData.publicUrl);
+            if (signedError) { alert('Imagen subida pero error al generar URL: ' + signedError.message); return; }
+
+            await guardarImagenUrl(signedData.signedUrl);
+            mostrarImagenActual(signedData.signedUrl);
         }
 
         async function guardarImagenUrl(url) {
