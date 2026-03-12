@@ -39,17 +39,31 @@ async function buscarClientePorTelefono(tel10: string) {
 }
 
 // ============================================================
-// Obtiene pólizas vigentes de un cliente
+// Obtiene pólizas vigentes de un cliente (incluye documentos)
 // ============================================================
 async function obtenerPolizasCliente(clienteId: number) {
     const { data } = await supabase
         .from('polizas')
-        .select('no_poliza, ramo, aseguradora, vence, prima, estado')
+        .select('id, no_poliza, ramo, aseguradora, vence, prima, estado, documentos')
         .eq('cliente_id', clienteId)
         .in('estado', ['activa', 'vigente'])
         .order('vence', { ascending: true })
         .limit(5);
     return data || [];
+}
+
+// ============================================================
+// Genera URL firmada para un path de Supabase Storage
+// ============================================================
+async function generarUrlFirmada(path: string): Promise<string | null> {
+    const { data, error } = await supabase.storage
+        .from('documentos-polizas')
+        .createSignedUrl(path, 300);
+    if (error) {
+        console.error('Error generando URL firmada:', error.message);
+        return null;
+    }
+    return data.signedUrl;
 }
 
 Deno.serve(async (req) => {
@@ -133,11 +147,13 @@ TUS REGLAS DE ORO:
 1. **Personalidad**: Amable, profesional, empático. Usa emojis moderadamente (🚗, 🏥, ✅, 🛡️).
 2. **Objetivo**: Resolver dudas, informar sobre pólizas existentes y cotizar seguros nuevos.
 3. **Lead Scoring (CRÍTICO)**: Si el usuario muestra interés en comprar o cotizar, marca "create_lead": true.
+4. **Envío de póliza PDF**: Si el cliente pide su póliza en cualquier forma — "mándame mis documentos", "quiero el pdf", "necesito mi póliza", "me lo puedes enviar", "dónde está mi póliza", o cualquier variación — marca "send_pdf": true. No importa cómo lo escriba, interpreta la intención.
 
 FORMATO DE SALIDA (JSON obligatorio):
 {
     "reply": "Tu mensaje para el usuario aquí.",
     "create_lead": true/false,
+    "send_pdf": true/false,
     "lead_data": {
         "nombre": "Extraer si lo menciona",
         "interes": "Auto/GMM/Vida/General"
@@ -321,12 +337,12 @@ FORMATO DE SALIDA (JSON obligatorio):
         // --------------------------------------------------------
         let waData, waRes;
 
-        if (textToSend && conversation.platform_user_id && GREEN_INSTANCE_ID && GREEN_API_TOKEN) {
-            let greenBaseUrl = `https://api.green-api.com/waInstance${GREEN_INSTANCE_ID}`;
-            if (GREEN_INSTANCE_ID.startsWith('7107')) {
-                greenBaseUrl = `https://7107.api.greenapi.com/waInstance${GREEN_INSTANCE_ID}`;
-            }
+        let greenBaseUrl = `https://api.green-api.com/waInstance${GREEN_INSTANCE_ID}`;
+        if (GREEN_INSTANCE_ID?.startsWith('7107')) {
+            greenBaseUrl = `https://7107.api.greenapi.com/waInstance${GREEN_INSTANCE_ID}`;
+        }
 
+        if (textToSend && conversation.platform_user_id && GREEN_INSTANCE_ID && GREEN_API_TOKEN) {
             const url = `${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`;
 
             waRes = await fetch(url, {
@@ -337,6 +353,62 @@ FORMATO DE SALIDA (JSON obligatorio):
 
             waData = await waRes.json();
             if (!waRes.ok) console.error("Error Green API:", waData);
+        }
+
+        // --------------------------------------------------------
+        // 11. ENVIAR PDF DE PÓLIZA (si Gemini lo solicitó)
+        // --------------------------------------------------------
+        if (aiResponseAction?.send_pdf && clienteIdentificado && polizasCliente.length > 0 && GREEN_INSTANCE_ID && GREEN_API_TOKEN) {
+            // Buscar la primera póliza que tenga documento con tipo 'poliza'
+            let docEncontrado: any = null;
+            let polizaDelDoc: any = null;
+
+            for (const poliza of polizasCliente) {
+                const docs: any[] = poliza.documentos || [];
+                const doc = docs.find((d: any) => d.tipo === 'poliza' && d.path);
+                if (doc) {
+                    docEncontrado = doc;
+                    polizaDelDoc = poliza;
+                    break;
+                }
+            }
+
+            if (docEncontrado) {
+                const signedUrl = await generarUrlFirmada(docEncontrado.path);
+                if (signedUrl) {
+                    const urlPdf = `${greenBaseUrl}/sendFileByUrl/${GREEN_API_TOKEN}`;
+                    const nombreArchivo = `${docEncontrado.nombre || 'Poliza'}.pdf`;
+
+                    const pdfRes = await fetch(urlPdf, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chatId: conversation.platform_user_id,
+                            urlFile: signedUrl,
+                            fileName: nombreArchivo,
+                            caption: `📄 Póliza ${polizaDelDoc.no_poliza || ''} · ${polizaDelDoc.aseguradora || ''}`
+                        })
+                    });
+
+                    const pdfData = await pdfRes.json();
+                    if (!pdfRes.ok) console.error("Error enviando PDF:", pdfData);
+                    else console.log("✅ PDF enviado por WhatsApp:", nombreArchivo);
+                } else {
+                    console.warn("No se pudo generar URL firmada para el PDF");
+                }
+            } else {
+                console.warn("Cliente no tiene documento PDF tipo 'poliza' adjunto");
+                // Notificar al cliente que no hay PDF disponible aún
+                const urlMsg = `${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`;
+                await fetch(urlMsg, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chatId: conversation.platform_user_id,
+                        message: "⚠️ Aún no tenemos tu póliza en formato digital. Tu asesor te la hará llegar pronto."
+                    })
+                });
+            }
         }
 
         return new Response(JSON.stringify({
