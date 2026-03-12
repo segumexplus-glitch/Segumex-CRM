@@ -161,6 +161,7 @@ Deno.serve(async (req) => {
         const plantillas: Record<string, string> = {};
         (configs || []).forEach((c: any) => { plantillas[c.clave] = c.contenido || ''; });
 
+        // Imagen recordatorio (7 y 1 días antes)
         let imagenUrl = plantillas['cobranza_imagen_url'] || '';
         if (!imagenUrl) {
             const { data: signedData } = await supabase.storage
@@ -168,6 +169,17 @@ Deno.serve(async (req) => {
                 .createSignedUrl('cobranza/imagen_cobranza.png', 3600);
             if (signedData?.signedUrl) imagenUrl = signedData.signedUrl;
         }
+
+        // Imagen cobranza vencida (2, 5 y 8 días después)
+        let imagenVencidaUrl = plantillas['cobranza_vencida_imagen_url'] || '';
+        if (!imagenVencidaUrl) {
+            const { data: signedVencida } = await supabase.storage
+                .from('documentos-polizas')
+                .createSignedUrl('cobranza/imagen_cobranza_vencida.png', 3600);
+            if (signedVencida?.signedUrl) imagenVencidaUrl = signedVencida.signedUrl;
+        }
+
+        const CLAVES_VENCIDAS = new Set(['cobranza_2_dias_despues', 'cobranza_5_dias_despues', 'cobranza_8_dias_despues']);
 
         // --------------------------------------------------------
         // 2. Mapa de offsets: días desde fecha de pago → clave plantilla
@@ -293,11 +305,12 @@ Deno.serve(async (req) => {
             let status = 'enviado';
 
             try {
-                if (imagenUrl) {
-                    // Verificar accesibilidad de imagen antes de enviar
-                    const imgCheck = await fetch(imagenUrl, { method: 'HEAD' }).catch(() => null);
+                // Seleccionar imagen según tipo: vencida (2,5,8 días después) o recordatorio (7,1 días antes)
+                const urlImagen = CLAVES_VENCIDAS.has(claveRegla) ? imagenVencidaUrl : imagenUrl;
+                if (urlImagen) {
+                    const imgCheck = await fetch(urlImagen, { method: 'HEAD' }).catch(() => null);
                     if (imgCheck?.ok) {
-                        respuestaApi = await enviarImagenConCaption(chatId, imagenUrl, mensaje);
+                        respuestaApi = await enviarImagenConCaption(chatId, urlImagen, mensaje);
                     } else {
                         console.warn(`⚠️ Imagen inaccesible, enviando solo texto.`);
                         respuestaApi = await enviarTexto(chatId, mensaje);

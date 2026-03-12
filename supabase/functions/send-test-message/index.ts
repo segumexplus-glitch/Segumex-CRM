@@ -86,9 +86,13 @@ Deno.serve(async (req) => {
             throw new Error(`Plantilla "${tipo_mensaje}" no encontrada o vacía`);
         }
 
-        // Cargar imagen según el tipo de mensaje
+        // Seleccionar clave de imagen según tipo de mensaje
         const esBienvenida = ES_BIENVENIDA(tipo_mensaje);
-        const imgClave = esBienvenida ? 'bienvenida_imagen_url' : 'cobranza_imagen_url';
+        const esVencida = ['cobranza_2_dias_despues', 'cobranza_5_dias_despues', 'cobranza_8_dias_despues'].includes(tipo_mensaje);
+        const imgClave = esBienvenida ? 'bienvenida_imagen_url'
+            : esVencida ? 'cobranza_vencida_imagen_url'
+            : 'cobranza_imagen_url';
+
         const { data: imgConfig } = await supabase
             .from('configuracion_mensajes')
             .select('contenido')
@@ -97,14 +101,15 @@ Deno.serve(async (req) => {
 
         let imagenUrl = imgConfig?.contenido || '';
 
-        // Si no hay URL guardada, intentar generar URL firmada directamente desde el bucket
+        // Fallback a URL firmada si no hay URL guardada
         if (!imagenUrl && !esBienvenida) {
+            const bucketPath = esVencida ? 'cobranza/imagen_cobranza_vencida.png' : 'cobranza/imagen_cobranza.png';
             const { data: signedData } = await supabase.storage
                 .from('documentos-polizas')
-                .createSignedUrl('cobranza/imagen_cobranza.png', 3600);
+                .createSignedUrl(bucketPath, 3600);
             if (signedData?.signedUrl) {
                 imagenUrl = signedData.signedUrl;
-                console.log('🔑 URL firmada generada automáticamente para cobranza');
+                console.log(`🔑 URL firmada generada automáticamente para ${imgClave}`);
             }
         }
 

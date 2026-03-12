@@ -119,11 +119,15 @@
 
         <!-- ========== TAB: IMAGEN ========== -->
         <div id="view-imagen" class="hidden">
-            <div class="max-w-2xl">
+            <div class="max-w-2xl flex flex-col gap-6">
                 <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-6">
-                    <h3 class="font-semibold text-white mb-1">Imagen de Cobranza</h3>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="material-symbols-outlined text-blue-400 text-lg">notifications</span>
+                        <h3 class="font-semibold text-white">Imagen de Recordatorio</h3>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-medium">7 y 1 día antes</span>
+                    </div>
                     <p class="text-[#9da6b9] text-sm mb-5">
-                        Esta imagen se adjunta automáticamente a los mensajes de cobranza de WhatsApp. Usa una imagen diseñada y profesional (JPG o PNG, máx. 2MB).
+                        Se adjunta en los mensajes preventivos (7 días antes y 1 día antes del vencimiento).
                     </p>
 
                     <!-- Preview actual -->
@@ -161,11 +165,11 @@
                     </div>
                 </div>
 
-                <!-- Preview del mensaje con imagen -->
+                <!-- Preview del mensaje con imagen recordatorio -->
                 <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-6 mt-4">
                     <h3 class="font-semibold text-white mb-3 flex items-center gap-2">
                         <span class="material-symbols-outlined text-green-400">chat_bubble</span>
-                        Vista previa del mensaje WhatsApp
+                        Vista previa — Recordatorio
                     </h3>
                     <div class="bg-[#111318] rounded-xl p-4 max-w-xs">
                         <div id="previewImgContainer" class="mb-2 hidden">
@@ -176,6 +180,71 @@
 El monto de tu prima es de *$4,500*. ✅
 
 Saludos cordiales — Equipo Segumex 🛡️</p>
+                        <p class="text-[#475569] text-xs mt-2 text-right">10:30 ✓✓</p>
+                    </div>
+                </div>
+
+                <!-- Segunda tarjeta: Imagen de Cobranza Vencida -->
+                <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-6">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="material-symbols-outlined text-red-400 text-lg">warning</span>
+                        <h3 class="font-semibold text-white">Imagen de Cobranza Vencida</h3>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 font-medium">2, 5 y 8 días después</span>
+                    </div>
+                    <p class="text-[#9da6b9] text-sm mb-5">
+                        Se adjunta en los mensajes de pago vencido (2, 5 y 8 días después del vencimiento).
+                    </p>
+
+                    <!-- Preview actual vencida -->
+                    <div id="imagenVencidaPreviewContainer" class="mb-5 hidden">
+                        <p class="text-xs text-[#9da6b9] uppercase font-bold tracking-wider mb-2">Imagen actual</p>
+                        <div class="relative inline-block">
+                            <img id="imagenVencidaPreview" src="" alt="Imagen de cobranza vencida"
+                                class="max-w-xs rounded-xl border border-[#3b4354] shadow-lg" />
+                            <button onclick="eliminarImagenVencida()"
+                                class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white rounded-full w-7 h-7 flex items-center justify-center transition-colors shadow">
+                                <span class="material-symbols-outlined text-sm">close</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Upload zone vencida -->
+                    <div id="uploadZoneVencida"
+                        class="border-2 border-dashed border-[#3b4354] hover:border-red-500 rounded-xl p-8 text-center cursor-pointer transition-colors"
+                        onclick="document.getElementById('inputImagenVencida').click()"
+                        ondragover="event.preventDefault(); this.classList.add('border-red-500','bg-red-500/5')"
+                        ondragleave="this.classList.remove('border-red-500','bg-red-500/5')"
+                        ondrop="handleDropVencida(event)">
+                        <span class="material-symbols-outlined text-4xl text-[#475569] mb-3 block">add_photo_alternate</span>
+                        <p class="text-white font-medium mb-1">Haz clic o arrastra una imagen aquí</p>
+                        <p class="text-[#9da6b9] text-sm">JPG, PNG o WEBP · Máximo 2MB</p>
+                        <input type="file" id="inputImagenVencida" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="handleImagenVencidaUpload(event)" />
+                    </div>
+
+                    <!-- Upload progress vencida -->
+                    <div id="uploadProgressVencida" class="hidden mt-4">
+                        <div class="flex items-center gap-3 text-sm text-[#9da6b9]">
+                            <span class="material-symbols-outlined animate-spin text-red-400">sync</span>
+                            Subiendo imagen...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview del mensaje con imagen vencida -->
+                <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-6">
+                    <h3 class="font-semibold text-white mb-3 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-red-400">chat_bubble</span>
+                        Vista previa — Cobranza Vencida
+                    </h3>
+                    <div class="bg-[#111318] rounded-xl p-4 max-w-xs">
+                        <div id="previewImgVencidaContainer" class="mb-2 hidden">
+                            <img id="previewMsgImgVencida" src="" class="rounded-lg w-full" alt="preview vencida" />
+                        </div>
+                        <p class="text-[#9da6b9] text-sm whitespace-pre-wrap leading-relaxed">Hola *María García*, tu pago de la póliza *GNP-2024-001* venció el *15/03/2026* y aún no hemos recibido tu pago.
+
+Por favor realízalo a la brevedad para mantener tu cobertura activa. ⚠️
+
+Equipo Segumex 🛡️</p>
                         <p class="text-[#475569] text-xs mt-2 text-right">10:30 ✓✓</p>
                     </div>
                 </div>
@@ -509,6 +578,7 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
 
         let _configData = {};  // { clave: contenido }
         let _imagenActualUrl = '';
+        let _imagenVencidaUrl = '';
 
         // ============================================================
         // TABS
@@ -568,6 +638,24 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                     mostrarImagenActual(_imagenActualUrl);
                     // Guardar en DB para que el Edge Function la use
                     await guardarImagenUrl(signedData.signedUrl);
+                }
+            }
+
+            // Imagen cobranza vencida
+            if (_configData['cobranza_vencida_imagen_url']?.contenido) {
+                _imagenVencidaUrl = _configData['cobranza_vencida_imagen_url'].contenido;
+                mostrarImagenVencidaActual(_imagenVencidaUrl);
+            } else {
+                const pathV = 'cobranza/imagen_cobranza_vencida.png';
+                const { data: signedV } = await window.supabaseClient.storage
+                    .from('documentos-polizas')
+                    .createSignedUrl(pathV, 31536000);
+                if (signedV?.signedUrl) {
+                    _imagenVencidaUrl = signedV.signedUrl;
+                    mostrarImagenVencidaActual(_imagenVencidaUrl);
+                    await window.supabaseClient.from('configuracion_mensajes')
+                        .upsert({ clave: 'cobranza_vencida_imagen_url', titulo: 'URL imagen cobranza vencida', contenido: signedV.signedUrl, updated_at: new Date().toISOString() }, { onConflict: 'clave' });
+                    _configData['cobranza_vencida_imagen_url'] = { titulo: 'URL imagen cobranza vencida', contenido: signedV.signedUrl };
                 }
             }
 
@@ -839,6 +927,74 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
             document.getElementById('imagenPreviewContainer').classList.add('hidden');
             document.getElementById('previewImgContainer').classList.add('hidden');
             document.getElementById('imagenPreview').src = '';
+            mostrarSaveStatus();
+        }
+
+        // ============================================================
+        // IMAGEN DE COBRANZA VENCIDA
+        // ============================================================
+        function handleDropVencida(event) {
+            event.preventDefault();
+            document.getElementById('uploadZoneVencida').classList.remove('border-red-500', 'bg-red-500/5');
+            const file = event.dataTransfer.files[0];
+            if (file) subirImagenVencida(file);
+        }
+
+        function handleImagenVencidaUpload(event) {
+            const file = event.target.files[0];
+            if (file) subirImagenVencida(file);
+        }
+
+        async function subirImagenVencida(file) {
+            if (!file.type.startsWith('image/')) { alert('Solo se aceptan archivos de imagen.'); return; }
+            if (file.size > 2 * 1024 * 1024) { alert('La imagen no debe superar 2MB.'); return; }
+
+            document.getElementById('uploadProgressVencida').classList.remove('hidden');
+
+            const ext = file.name.split('.').pop();
+            const path = `cobranza/imagen_cobranza_vencida.${ext}`;
+
+            const { error: uploadError } = await window.supabaseClient.storage
+                .from('documentos-polizas')
+                .upload(path, file, { upsert: true, contentType: file.type });
+
+            document.getElementById('uploadProgressVencida').classList.add('hidden');
+
+            if (uploadError) { alert('Error al subir imagen: ' + uploadError.message); return; }
+
+            const { data: signedData, error: signedError } = await window.supabaseClient.storage
+                .from('documentos-polizas')
+                .createSignedUrl(path, 31536000);
+
+            if (signedError) { alert('Imagen subida pero error al generar URL: ' + signedError.message); return; }
+
+            await window.supabaseClient.from('configuracion_mensajes')
+                .upsert({ clave: 'cobranza_vencida_imagen_url', titulo: 'URL imagen cobranza vencida', contenido: signedData.signedUrl, updated_at: new Date().toISOString() }, { onConflict: 'clave' });
+            _imagenVencidaUrl = signedData.signedUrl;
+            _configData['cobranza_vencida_imagen_url'] = { titulo: 'URL imagen cobranza vencida', contenido: signedData.signedUrl };
+            mostrarImagenVencidaActual(signedData.signedUrl);
+            mostrarSaveStatus();
+        }
+
+        function mostrarImagenVencidaActual(url) {
+            if (!url) return;
+            document.getElementById('imagenVencidaPreview').src = url;
+            document.getElementById('imagenVencidaPreviewContainer').classList.remove('hidden');
+            document.getElementById('previewImgVencidaContainer').classList.remove('hidden');
+            document.getElementById('previewMsgImgVencida').src = url;
+        }
+
+        async function eliminarImagenVencida() {
+            if (!confirm('¿Eliminar la imagen de cobranza vencida?')) return;
+
+            await window.supabaseClient.from('configuracion_mensajes')
+                .upsert({ clave: 'cobranza_vencida_imagen_url', titulo: 'URL imagen cobranza vencida', contenido: '', updated_at: new Date().toISOString() }, { onConflict: 'clave' });
+
+            _imagenVencidaUrl = '';
+            _configData['cobranza_vencida_imagen_url'] = { titulo: 'URL imagen cobranza vencida', contenido: '' };
+            document.getElementById('imagenVencidaPreviewContainer').classList.add('hidden');
+            document.getElementById('previewImgVencidaContainer').classList.add('hidden');
+            document.getElementById('imagenVencidaPreview').src = '';
             mostrarSaveStatus();
         }
 
