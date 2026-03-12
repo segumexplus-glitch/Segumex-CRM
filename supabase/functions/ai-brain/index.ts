@@ -90,6 +90,9 @@ Deno.serve(async (req) => {
         if (!conversation) throw new Error("Conversación no encontrada");
 
         let textToSend = "";
+        let aiResponseAction: any = { reply: "", create_lead: false, send_pdf: false };
+        let clienteIdentificado: any = null;
+        let polizasCliente: any[] = [];
 
         // --------------------------------------------------------
         // MODO 1: RESPUESTA MANUAL DEL AGENTE
@@ -114,8 +117,6 @@ Deno.serve(async (req) => {
 
             // 2. Identificar cliente por teléfono
             const tel10 = extraerTelefono10(conversation.platform_user_id || '');
-            let clienteIdentificado: any = null;
-            let polizasCliente: any[] = [];
 
             if (tel10.length === 10) {
                 clienteIdentificado = await buscarClientePorTelefono(tel10);
@@ -264,7 +265,7 @@ FORMATO DE SALIDA (JSON obligatorio):
             });
 
             aiData = await response.json();
-            let aiResponseAction: any = { reply: "Disculpa, no entendí eso.", create_lead: false };
+            aiResponseAction = { reply: "Disculpa, no entendí eso.", create_lead: false, send_pdf: false };
 
             if (aiData.candidates?.[0]?.content?.parts) {
                 const rawText = aiData.candidates[0].content.parts[0].text;
