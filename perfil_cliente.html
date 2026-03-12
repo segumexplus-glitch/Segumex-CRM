@@ -516,6 +516,9 @@
                     return chain;
                 }
                 const chains = raices.map(buildChain);
+                // Ordenar cada cadena por fecha real de vencimiento (más antigua primero, más reciente al final)
+                // Esto corrige el caso donde poliza_anterior_id apunta en dirección inversa
+                chains.forEach(chain => chain.sort((a, b) => new Date(a.vence || 0) - new Date(b.vence || 0)));
 
                 lista.innerHTML = '';
                 chains.forEach((chain, chainIdx) => {
