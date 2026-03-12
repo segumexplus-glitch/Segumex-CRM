@@ -391,7 +391,14 @@
             const clientes = clientesCache;
             const polizasConSiniestro = polizasConSiniestroCache;
 
-            datos.forEach((p) => {
+            // Mapa global para lookup de póliza anterior (historial)
+            const polizaMap = {};
+            polizasGlobales.forEach(pg => { polizaMap[String(pg.id)] = pg; });
+
+            // Excluir de filas principales las pólizas que ya tienen renovación (se muestran como sub-fila)
+            const mainDatos = datos.filter(p => !polizasRenovadas.has(String(p.id)));
+
+            mainDatos.forEach((p) => {
                 const finVigenciaStr = window.SegumexDate.toDisplay(p.vence);
                 const diffDays = window.SegumexDate.diffDays(p.vence);
 
@@ -401,9 +408,6 @@
                 if (p.estado === 'cancelada') {
                     estadoTexto = "Cancelada";
                     estadoClase = "bg-gray-500/10 text-gray-400 border border-gray-500/20";
-                } else if (diffDays < 0 && polizasRenovadas.has(String(p.id))) {
-                    estadoTexto = "Renovada";
-                    estadoClase = "bg-teal-500/10 text-teal-400 border border-teal-500/20";
                 } else if (diffDays < 0) {
                     estadoTexto = "Vencida";
                     estadoClase = "bg-red-500/10 text-red-500 border border-red-500/20";
@@ -418,6 +422,32 @@
                 let iconoAseguradora = p.icono || 'verified';
                 let colorIcono = p.estiloIcono || 'text-blue-500 bg-blue-500/10';
                 let ramo = p.ramo || "Seguro";
+
+                // Sub-fila histórica: póliza que fue renovada por esta
+                let subFila = '';
+                if (p.poliza_anterior_id) {
+                    const oldP = polizaMap[String(p.poliza_anterior_id)];
+                    if (oldP) {
+                        subFila = `<tr id="hist-row-${p.id}" class="hidden">
+                            <td colspan="8" class="px-6 pb-3 pt-0 bg-[#111318]">
+                                <div class="rounded-xl border border-sky-500/15 bg-sky-500/5 px-4 py-3 flex items-center justify-between hover:bg-sky-500/10 transition-all cursor-pointer"
+                                     onclick="window.location.href='detalle_poliza.html?id=${oldP.id}&origen=lista'">
+                                    <div class="flex items-center gap-3">
+                                        <span class="material-symbols-outlined text-[18px] text-sky-400/60">history</span>
+                                        <div>
+                                            <span class="text-white/70 text-xs font-mono font-bold mr-3">${oldP.no_poliza || oldP.numero || 'S/N'}</span>
+                                            <span class="text-[#9da6b9] text-xs">${oldP.aseguradora || ''} &bull; Venció: ${oldP.vence}</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-sky-500/10 text-sky-400 border-sky-500/20">Renovada</span>
+                                        <span class="material-symbols-outlined text-[16px] text-[#9da6b9]">open_in_new</span>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>`;
+                    }
+                }
 
                 const fila = `
                 <tr class="group hover:bg-[#282e39]/50 transition-colors border-b border-[#2d3442] last:border-0">
@@ -465,24 +495,36 @@
                             </span>
                             ${polizasConSiniestro.has(String(p.id)) ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase bg-orange-500/10 text-orange-400 border border-orange-500/20 animate-pulse">⚠ Siniestro</span>` : ''}
                             ${p.domiciliada ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20">🏦 Domiciliada</span>` : ''}
+                            ${p.poliza_anterior_id ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#0f1117] border border-[#3b4354] text-[#9da6b9] text-[10px] font-medium"><span class="material-symbols-outlined text-[10px] text-teal-400">autorenew</span> Renov.</span>` : ''}
                         </div>
                     </td>
                     <td class="p-4 text-right">
-                        <div class="flex items-center justify-end gap-2">
+                        <div class="flex items-center justify-end gap-1">
                             <a href="detalle_poliza.html?id=${p.id}&origen=lista" class="text-[#9da6b9] hover:text-white transition-colors p-2 hover:bg-[#3b4354] rounded-lg" title="Ver Detalle">
                                 <span class="material-symbols-outlined text-[20px]">visibility</span>
                             </a>
                             <button onclick="borrarPoliza('${p.id}')" class="text-[#9da6b9] hover:text-red-500 transition-colors p-2 hover:bg-[#3b4354] rounded-lg" title="Eliminar">
                                 <span class="material-symbols-outlined text-[20px]">delete</span>
                             </button>
+                            ${p.poliza_anterior_id ? `<button onclick="toggleHistorialPoliza('${p.id}')" class="text-[#9da6b9] hover:text-sky-400 transition-colors p-2 hover:bg-[#3b4354] rounded-lg" title="Ver póliza anterior">
+                                <span class="material-symbols-outlined text-[20px] transition-transform duration-200" id="expand-icon-${p.id}">expand_more</span>
+                            </button>` : ''}
                         </div>
                     </td>
                 </tr>
             `;
-                tabla.innerHTML += fila;
+                tabla.innerHTML += fila + subFila;
             });
 
             contador.innerText = `${datos.length} resultados`;
+        }
+
+        function toggleHistorialPoliza(polizaId) {
+            const row = document.getElementById(`hist-row-${polizaId}`);
+            const icon = document.getElementById(`expand-icon-${polizaId}`);
+            if (!row) return;
+            const isHidden = row.classList.toggle('hidden');
+            if (icon) icon.style.transform = isHidden ? '' : 'rotate(180deg)';
         }
 
         async function borrarPoliza(id) {
