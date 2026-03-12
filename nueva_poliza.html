@@ -368,6 +368,7 @@
         let polizaID_Unico = null;
         let clienteId = null;
         let origen = 'lista';
+        let polizaAnteriorId = null;
 
         // --- LÓGICA DE SELECCIÓN DE CLIENTE ---
         let debounceTimer;
@@ -463,8 +464,28 @@
                 const { data: poliza } = await window.supabaseClient.from('polizas').select('*').eq('id', idParam).single();
                 if (poliza) {
                     polizaID_Unico = poliza.id;
-                    clienteId = poliza.cliente_id; // Asegurar que tenemos el clienteID al editar
+                    clienteId = poliza.cliente_id;
                     await cargarDatosParaEdicion(poliza);
+                }
+            }
+
+            // Detectar flujo de renovación
+            const renovacionParam = urlParams.get('renovacion');
+            if (renovacionParam && !idParam) {
+                polizaAnteriorId = renovacionParam;
+                const { data: polizaVieja } = await window.supabaseClient.from('polizas').select('*').eq('id', renovacionParam).single();
+                if (polizaVieja) {
+                    if (!clienteId) clienteId = polizaVieja.cliente_id;
+                    await prefillDesdePolizaAnterior(polizaVieja);
+                }
+                document.getElementById('tituloPrincipal').innerText = 'Renovar Póliza';
+                // Banner informativo
+                const form = document.querySelector('.space-y-6, form, #contenedorFormulario') || document.querySelector('main > div');
+                if (form) {
+                    const banner = document.createElement('div');
+                    banner.className = 'mb-6 p-4 rounded-xl border border-teal-500/30 bg-teal-500/5 flex items-center gap-3';
+                    banner.innerHTML = `<span class="material-symbols-outlined text-teal-400">autorenew</span><div><p class="text-teal-300 font-bold text-sm">Renovación de Póliza</p><p class="text-[#9da6b9] text-xs">Datos pre-llenados desde la póliza anterior. Ajusta según la nueva póliza.</p></div>`;
+                    form.insertBefore(banner, form.firstChild);
                 }
             }
 
@@ -488,9 +509,43 @@
             }
         }
 
+        async function prefillDesdePolizaAnterior(p) {
+            const finanzas = p.finanzas || {};
+            document.getElementById('ramoSelect').value = p.ramo || 'vida';
+            const asegEl = document.getElementById('aseguradoraSelect');
+            const opt = [...asegEl.options].find(o => o.value === p.aseguradora);
+            if (opt) { asegEl.value = p.aseguradora; }
+            else { asegEl.value = 'Otro'; document.getElementById('otraAseguradoraInput').value = p.aseguradora; document.getElementById('otraAseguradoraInput').classList.remove('hidden'); }
+            document.getElementById('formaPago').value = finanzas.formaPago || '1';
+            document.getElementById('primaNeta').value = finanzas.primaNeta || '';
+            document.getElementById('primaTotal').value = p.prima || finanzas.primaTotal || '';
+            document.getElementById('porcentajeComision').value = finanzas.comisionPct || '10';
+            document.getElementById('esDomiciliada').checked = p.domiciliada || false;
+            // Fecha inicio = día siguiente al vencimiento de la anterior; fin = 1 año después
+            if (p.vence) {
+                const nuevaInicio = new Date(p.vence + 'T12:00:00');
+                nuevaInicio.setDate(nuevaInicio.getDate() + 1);
+                const nuevaFin = new Date(nuevaInicio);
+                nuevaFin.setFullYear(nuevaFin.getFullYear() + 1);
+                document.getElementById('fechaInicio').value = window.SegumexDate.toISO(nuevaInicio);
+                document.getElementById('fechaFin').value = window.SegumexDate.toISO(nuevaFin);
+            }
+            if (p.vehiculo) {
+                document.getElementById('vehMarca').value = p.vehiculo.marca || '';
+                document.getElementById('vehModelo').value = p.vehiculo.modelo || '';
+                document.getElementById('vehAnio').value = p.vehiculo.anio || '';
+                document.getElementById('vehVersion').value = p.vehiculo.version || '';
+                document.getElementById('vehSerie').value = p.vehiculo.serie || '';
+                document.getElementById('vehPlacas').value = p.vehiculo.placas || '';
+            }
+            verificarLogicaNegocio();
+            calcularPagos();
+        }
+
         async function cargarDatosParaEdicion(p) {
             if (!p) return;
             document.getElementById('tituloPrincipal').innerText = "Editar Póliza";
+            polizaAnteriorId = p.poliza_anterior_id || null; // Preservar link existente al editar
 
             const agenteSelect = document.getElementById('agenteSelect');
             const otroAgenteInput = document.getElementById('otroAgenteInput');
@@ -833,7 +888,8 @@
                     },
                     pagos_status: pagosGuardados,
                     pagos_fechas: pagosFechasGuardadas.map(f => window.SegumexDate.toISO(f)),
-                    prima: document.getElementById('primaTotal').value
+                    prima: document.getElementById('primaTotal').value,
+                    poliza_anterior_id: polizaAnteriorId || null
                 };
 
                 // Si estamos editando, añadimos el ID. Si es nueva, no lo enviamos.
@@ -852,8 +908,8 @@
                 alert("✅ Póliza guardada correctamente");
                 const newId = dataPoliza[0].id; // ID real
 
-                // --- TRIGGER WELCOME MESSAGE (Solo si es NUEVA) ---
-                if (!polizaID_Unico) {
+                // --- TRIGGER WELCOME MESSAGE (Solo si es NUEVA y NO es renovación) ---
+                if (!polizaID_Unico && !polizaAnteriorId) {
                     btnGuardar.innerHTML = '<span class="material-symbols-outlined animate-spin">send</span> Enviando bienvenida...';
                     console.log("✨ Enviando mensaje de bienvenida...");
 

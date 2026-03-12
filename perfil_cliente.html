@@ -502,33 +502,94 @@
                         .map(s => String(s.poliza_id))
                 );
 
-                lista.innerHTML = '';
-                susPolizas.forEach((p) => {
-                    let ramoTexto = p.ramo.charAt(0).toUpperCase() + p.ramo.slice(1);
-                    if (p.ramo === 'gmm') ramoTexto = 'Gastos Médicos';
-                    let estiloIcono = p.estiloIcono || 'text-blue-500 bg-blue-500/10';
-                    const tieneSiniestro = polizasConSiniestro.has(String(p.id));
+                // Construir mapa de renovaciones y cadenas
+                const renovacionMap = {}; // { anteriorId: polizaSiguiente }
+                susPolizas.forEach(p => { if (p.poliza_anterior_id) renovacionMap[String(p.poliza_anterior_id)] = p; });
+                const allIds = new Set(susPolizas.map(p => String(p.id)));
+                // Raíces: pólizas que no son renovación de ninguna otra del cliente
+                const raices = susPolizas.filter(p => !p.poliza_anterior_id || !allIds.has(String(p.poliza_anterior_id)));
+                // Construir cadenas ordenadas raíz → renovación
+                function buildChain(start) {
+                    const chain = [start];
+                    let cur = start;
+                    while (renovacionMap[String(cur.id)]) { cur = renovacionMap[String(cur.id)]; chain.push(cur); }
+                    return chain;
+                }
+                const chains = raices.map(buildChain);
 
-                    lista.innerHTML += `
-                    <div class="p-4 hover:bg-[#282e39]/50 transition-colors flex items-center justify-between group cursor-pointer"
-                         onclick="window.location.href='detalle_poliza.html?id=${p.id}&origen=cliente&clienteId=${clienteID}'">
-                        <div class="flex items-center gap-4">
-                            <div class="size-10 rounded-lg ${estiloIcono} flex items-center justify-center">
-                                <span class="material-symbols-outlined">${p.icono || 'description'}</span>
-                            </div>
-                            <div>
-                                <div class="flex items-center gap-2">
-                                    <p class="text-white font-bold">${ramoTexto} - ${p.aseguradora || 'Por definir'}</p>
-                                    ${tieneSiniestro ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500/10 text-orange-400 border border-orange-500/20 animate-pulse">⚠ SINIESTRO</span>` : ''}
+                lista.innerHTML = '';
+                chains.forEach((chain, chainIdx) => {
+                    if (chainIdx > 0) lista.innerHTML += `<div class="border-t-2 border-dashed border-[#3b4354]/50 my-1"></div>`;
+                    chain.forEach((p, idx) => {
+                        let ramoTexto = p.ramo.charAt(0).toUpperCase() + p.ramo.slice(1);
+                        if (p.ramo === 'gmm') ramoTexto = 'Gastos Médicos';
+                        let estiloIcono = p.estiloIcono || 'text-blue-500 bg-blue-500/10';
+                        const tieneSiniestro = polizasConSiniestro.has(String(p.id));
+                        const esRenovacion = idx > 0;
+                        const tieneRenovacion = idx < chain.length - 1;
+                        const conector = esRenovacion ? `<div class="ml-6 pl-4 border-l-2 border-teal-500/30">` : '';
+                        const cierreConector = esRenovacion ? `</div>` : '';
+                        const badgeRenov = esRenovacion ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-teal-500/10 text-teal-400 border border-teal-500/20">Renovación</span>` : '';
+                        const badgeRenovada = tieneRenovacion ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-500/10 text-gray-400 border border-gray-500/20">Renovada</span>` : '';
+                        const noPoliza = (p.no_poliza || p.numero || 'S/N').replace(/'/g, "\\'");
+
+                        lista.innerHTML += `${conector}
+                        ${esRenovacion ? `<div class="flex items-center gap-1 text-[10px] text-teal-400 px-4 pt-2 font-bold"><span class="material-symbols-outlined text-[12px]">arrow_downward</span> Renovada a</div>` : ''}
+                        <div class="p-4 hover:bg-[#282e39]/50 transition-colors flex items-center justify-between group cursor-pointer"
+                             onclick="window.location.href='detalle_poliza.html?id=${p.id}&origen=cliente&clienteId=${clienteID}'">
+                            <div class="flex items-center gap-4">
+                                <div class="size-10 rounded-lg ${estiloIcono} flex items-center justify-center">
+                                    <span class="material-symbols-outlined">${p.icono || 'description'}</span>
                                 </div>
-                                <p class="text-[#9da6b9] text-xs">Póliza: ${p.no_poliza || p.numero} • Vence: ${p.vence}</p>
+                                <div>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <p class="text-white font-bold">${ramoTexto} - ${p.aseguradora || 'Por definir'}</p>
+                                        ${tieneSiniestro ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500/10 text-orange-400 border border-orange-500/20 animate-pulse">⚠ SINIESTRO</span>` : ''}
+                                        ${badgeRenov}${badgeRenovada}
+                                    </div>
+                                    <p class="text-[#9da6b9] text-xs">Póliza: ${p.no_poliza || p.numero} • Vence: ${p.vence}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="event.stopPropagation(); abrirModalLigar('${p.id}', '${noPoliza}');"
+                                    class="hidden group-hover:flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold text-[#9da6b9] hover:text-teal-400 hover:bg-teal-500/10 border border-transparent hover:border-teal-500/20 transition-all">
+                                    <span class="material-symbols-outlined text-[14px]">link</span> Ligar
+                                </button>
+                                <span class="material-symbols-outlined text-[#9da6b9] group-hover:text-white">chevron_right</span>
                             </div>
                         </div>
-                        <span class="material-symbols-outlined text-[#9da6b9] group-hover:text-white">chevron_right</span>
-                    </div>
-                `;
+                        ${cierreConector}`;
+                    });
                 });
             }
+        }
+
+        // ---- Modal Ligar como Renovación ----
+        let ligarPolizaTarget = null;
+
+        async function abrirModalLigar(polizaId, polizaNum) {
+            ligarPolizaTarget = polizaId;
+            document.getElementById('ligarPolizaNombre').textContent = `Póliza ${polizaNum}`;
+            const { data: otras } = await window.supabaseClient.from('polizas').select('id, no_poliza, aseguradora, vence').eq('cliente_id', clienteID).neq('id', polizaId);
+            const sel = document.getElementById('ligarSelectPoliza');
+            sel.innerHTML = '<option value="">-- Seleccionar póliza anterior --</option>';
+            (otras || []).forEach(p => { sel.innerHTML += `<option value="${p.id}">${p.no_poliza || 'S/N'} — ${p.aseguradora} (vence: ${p.vence})</option>`; });
+            document.getElementById('modalLigar').classList.remove('hidden');
+        }
+
+        function cerrarModalLigar() {
+            document.getElementById('modalLigar').classList.add('hidden');
+            ligarPolizaTarget = null;
+        }
+
+        async function guardarLigacion() {
+            const anteriorId = document.getElementById('ligarSelectPoliza').value;
+            if (!anteriorId) { alert('Selecciona una póliza anterior.'); return; }
+            if (anteriorId === ligarPolizaTarget) { alert('No puedes ligar una póliza consigo misma.'); return; }
+            const { error } = await window.supabaseClient.from('polizas').update({ poliza_anterior_id: anteriorId }).eq('id', ligarPolizaTarget);
+            if (error) { alert('Error al ligar: ' + error.message); return; }
+            cerrarModalLigar();
+            await cargarPolizas();
         }
 
         async function descargarFichaPDF() {
@@ -544,6 +605,26 @@
         }
     </script>
     <script src="menu.js"></script>
+
+    <!-- Modal: Ligar como Renovación -->
+    <div id="modalLigar" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl w-full max-w-md p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2"><span class="material-symbols-outlined text-teal-400">link</span> Ligar como Renovación</h2>
+                <button onclick="cerrarModalLigar()" class="text-[#9da6b9] hover:text-white"><span class="material-symbols-outlined">close</span></button>
+            </div>
+            <p class="text-[#9da6b9] text-sm mb-4">Selecciona la póliza anterior de la que <span id="ligarPolizaNombre" class="font-bold text-white"></span> es renovación.</p>
+            <select id="ligarSelectPoliza" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-3 text-white text-sm mb-4 focus:border-primary outline-none">
+                <option value="">-- Seleccionar póliza anterior --</option>
+            </select>
+            <div class="flex justify-end gap-3">
+                <button onclick="cerrarModalLigar()" class="px-4 py-2 text-sm text-[#9da6b9] hover:text-white transition-colors">Cancelar</button>
+                <button onclick="guardarLigacion()" class="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-sm font-bold rounded-lg flex items-center gap-2 transition-colors">
+                    <span class="material-symbols-outlined text-[16px]">link</span> Ligar Pólizas
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

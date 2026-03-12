@@ -72,11 +72,15 @@
                     <button id="btnCancelarPoliza" onclick="cancelarPolizaActual()" class="flex items-center gap-2 px-4 py-2 rounded-lg border border-orange-500/30 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-all text-sm font-medium">
                         <span class="material-symbols-outlined text-[18px]">block</span> Cancelar
                     </button>
+                    <button id="btnRenovarPoliza" onclick="iniciarRenovacion()" class="hidden items-center gap-2 px-6 py-2 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-lg shadow-lg transition-all">
+                        <span class="material-symbols-outlined text-[20px]">autorenew</span> Renovar Póliza
+                    </button>
                     <button onclick="irAEditar()" class="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-blue-600 text-white font-bold rounded-lg shadow-lg shadow-primary/30 transition-all">
                         <span class="material-symbols-outlined text-[20px]">edit</span> Editar Póliza
                     </button>
                 </div>
             </div>
+            <div id="renovacionInfoBanner" class="hidden mb-6"></div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
@@ -264,6 +268,57 @@
             document.getElementById('badgeDomiciliada').classList.remove('hidden');
         }
 
+        // --- CADENA DE RENOVACIÓN ---
+        const diffDays = Math.ceil((finVig - hoy) / (1000 * 60 * 60 * 24));
+
+        // Póliza anterior (esta es renovación de otra)
+        let polizaAnterior = null;
+        if (polizaData.poliza_anterior_id) {
+            const { data: ant } = await window.supabaseClient.from('polizas').select('id, no_poliza, aseguradora, vence').eq('id', polizaData.poliza_anterior_id).single();
+            polizaAnterior = ant;
+        }
+
+        // Póliza siguiente (esta fue renovada por otra)
+        const { data: sigArr } = await window.supabaseClient.from('polizas').select('id, no_poliza, aseguradora, vence').eq('poliza_anterior_id', polizaId).limit(1);
+        const polizaSiguiente = sigArr && sigArr[0] ? sigArr[0] : null;
+
+        // Construir banner de renovación
+        const banner = document.getElementById('renovacionInfoBanner');
+        let bannerHTML = '';
+        if (polizaAnterior) {
+            bannerHTML += `<div class="flex items-center gap-2 px-4 py-3 rounded-xl bg-blue-500/10 border border-blue-500/20 cursor-pointer select-none" onclick="toggleSeccionAnterior()">
+                <span class="material-symbols-outlined text-blue-400 text-[18px]">history</span>
+                <span class="text-blue-300 font-medium text-sm">Renovación de <strong class="font-mono">${polizaAnterior.no_poliza}</strong> (${polizaAnterior.aseguradora})</span>
+                <span class="material-symbols-outlined text-blue-400 text-[14px] ml-auto" id="iconExpandAnterior">expand_more</span>
+            </div>
+            <div id="seccionAnterior" class="hidden mt-2 p-4 bg-[#111318] border border-[#3b4354] rounded-xl text-sm space-y-1">
+                <p class="text-[#9da6b9] text-xs font-bold uppercase mb-2">Póliza Anterior</p>
+                <p class="text-white"><span class="text-[#9da6b9]">No. Póliza: </span>${polizaAnterior.no_poliza}</p>
+                <p class="text-white"><span class="text-[#9da6b9]">Aseguradora: </span>${polizaAnterior.aseguradora}</p>
+                <p class="text-white"><span class="text-[#9da6b9]">Venció: </span>${polizaAnterior.vence}</p>
+                <a href="detalle_poliza.html?id=${polizaAnterior.id}" class="inline-flex items-center gap-1 text-primary hover:underline text-xs mt-2">
+                    <span class="material-symbols-outlined text-[14px]">open_in_new</span> Ver detalle de póliza anterior
+                </a>
+            </div>`;
+        }
+        if (polizaSiguiente) {
+            bannerHTML += `<div class="flex items-center gap-2 px-4 py-3 rounded-xl bg-teal-500/10 border border-teal-500/20 ${polizaAnterior ? 'mt-2' : ''}">
+                <span class="material-symbols-outlined text-teal-400 text-[18px]">autorenew</span>
+                <span class="text-teal-300 font-medium text-sm">Renovada</span>
+                <span class="material-symbols-outlined text-[#9da6b9] text-[14px]">arrow_forward</span>
+                <a href="detalle_poliza.html?id=${polizaSiguiente.id}" class="text-teal-400 font-bold font-mono hover:underline text-sm">${polizaSiguiente.no_poliza}</a>
+                <span class="text-[#9da6b9] text-xs">(${polizaSiguiente.aseguradora})</span>
+            </div>`;
+        }
+        if (bannerHTML) { banner.innerHTML = bannerHTML; banner.classList.remove('hidden'); }
+
+        // Botón Renovar: solo si está vencida/por vencer y NO tiene renovación ya
+        const btnRenovar = document.getElementById('btnRenovarPoliza');
+        if (btnRenovar && !polizaSiguiente && polizaData.estado !== 'cancelada' && diffDays <= 30) {
+            btnRenovar.classList.remove('hidden');
+            btnRenovar.classList.add('flex');
+        }
+
         document.getElementById('txtAseguradora').innerText = polizaData.aseguradora || 'Por definir';
         document.getElementById('txtRamo').innerText = polizaData.ramo || 'Seguro';
         
@@ -401,6 +456,17 @@
         if (badgeSin) {
             tieneSiniestroActivo ? badgeSin.classList.remove('hidden') : badgeSin.classList.add('hidden');
         }
+    }
+
+    function iniciarRenovacion() {
+        const params = new URLSearchParams({ renovacion: polizaId, clienteId: polizaData.cliente_id, origen: 'renovacion' });
+        window.location.href = `nueva_poliza.html?${params.toString()}`;
+    }
+
+    function toggleSeccionAnterior() {
+        const sec = document.getElementById('seccionAnterior');
+        const icon = document.getElementById('iconExpandAnterior');
+        if (sec) { sec.classList.toggle('hidden'); if (icon) icon.textContent = sec.classList.contains('hidden') ? 'expand_more' : 'expand_less'; }
     }
 
     function irAEditar() {

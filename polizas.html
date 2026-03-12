@@ -255,6 +255,7 @@
         let filtroAseguradora = '';
         let filtroRamo = '';
         let clientesMap = {}; // { cliente_id: "Nombre Apellido" }
+        let polizasRenovadas = new Set(); // IDs de pólizas que ya tienen una renovación
 
         async function renderizarPolizas() {
             const tabla = document.getElementById('tabla-polizas');
@@ -270,6 +271,13 @@
                 console.error("Error cargando pólizas:", error);
                 return;
             }
+
+            // Detectar pólizas que ya fueron renovadas (tienen una sucesora)
+            const { data: renovacionesRaw } = await window.supabaseClient
+                .from('polizas')
+                .select('poliza_anterior_id')
+                .not('poliza_anterior_id', 'is', null);
+            polizasRenovadas = new Set((renovacionesRaw || []).map(r => String(r.poliza_anterior_id)));
 
             // --- FILTRO VISIBILIDAD ---
             const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
@@ -389,6 +397,9 @@
                 if (p.estado === 'cancelada') {
                     estadoTexto = "Cancelada";
                     estadoClase = "bg-gray-500/10 text-gray-400 border border-gray-500/20";
+                } else if (diffDays < 0 && polizasRenovadas.has(String(p.id))) {
+                    estadoTexto = "Renovada";
+                    estadoClase = "bg-teal-500/10 text-teal-400 border border-teal-500/20";
                 } else if (diffDays < 0) {
                     estadoTexto = "Vencida";
                     estadoClase = "bg-red-500/10 text-red-500 border border-red-500/20";
