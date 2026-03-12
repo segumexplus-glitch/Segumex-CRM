@@ -167,6 +167,9 @@
                                     <button onclick="filtrarEstado('Por Vencer')"
                                         class="px-3 py-1 text-xs font-medium text-[#9da6b9] hover:text-white transition-colors"
                                         id="btnPorVencer">Por Vencer</button>
+                                    <button onclick="filtrarEstado('Domiciliada')"
+                                        class="px-3 py-1 text-xs font-medium text-[#9da6b9] hover:text-white transition-colors"
+                                        id="btnDomiciliada">🏦 Domiciliadas</button>
                                 </div>
                             </div>
                         </div>
@@ -446,6 +449,7 @@
                                 ${estadoTexto}
                             </span>
                             ${polizasConSiniestro.has(String(p.id)) ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase bg-orange-500/10 text-orange-400 border border-orange-500/20 animate-pulse">⚠ Siniestro</span>` : ''}
+                            ${p.domiciliada ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase bg-purple-500/10 text-purple-400 border border-purple-500/20">🏦 Domiciliada</span>` : ''}
                         </div>
                     </td>
                     <td class="p-4 text-right">
@@ -495,6 +499,7 @@
                 let matchEstado = true;
                 if (filtroEstadoActivo === 'Vigente') matchEstado = diff > 30 && p.estado !== 'cancelada';
                 if (filtroEstadoActivo === 'Por Vencer') matchEstado = diff >= 0 && diff <= 30 && p.estado !== 'cancelada';
+                if (filtroEstadoActivo === 'Domiciliada') matchEstado = p.domiciliada === true;
                 // Filtro aseguradora
                 const matchAseg = !filtroAseguradora || (p.aseguradora || '') === filtroAseguradora;
                 // Filtro ramo
@@ -511,9 +516,11 @@
             document.getElementById('btnTodos').className = "px-3 py-1 text-xs font-medium text-[#9da6b9] hover:text-white transition-colors";
             document.getElementById('btnVigente').className = "px-3 py-1 text-xs font-medium text-[#9da6b9] hover:text-white transition-colors";
             document.getElementById('btnPorVencer').className = "px-3 py-1 text-xs font-medium text-[#9da6b9] hover:text-white transition-colors";
+            document.getElementById('btnDomiciliada').className = "px-3 py-1 text-xs font-medium text-[#9da6b9] hover:text-white transition-colors";
             if (estado === 'Todos') document.getElementById('btnTodos').className = "px-3 py-1 text-xs font-medium text-white bg-[#3b4354] rounded transition-colors";
             if (estado === 'Vigente') document.getElementById('btnVigente').className = "px-3 py-1 text-xs font-medium text-white bg-[#3b4354] rounded transition-colors";
             if (estado === 'Por Vencer') document.getElementById('btnPorVencer').className = "px-3 py-1 text-xs font-medium text-white bg-[#3b4354] rounded transition-colors";
+            if (estado === 'Domiciliada') document.getElementById('btnDomiciliada').className = "px-3 py-1 text-xs font-medium text-purple-400 bg-purple-500/10 border border-purple-500/20 rounded transition-colors";
             aplicarTodosLosFiltros();
         }
 

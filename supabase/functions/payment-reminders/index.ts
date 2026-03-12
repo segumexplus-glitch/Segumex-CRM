@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
                 continue;
             }
 
-            // Buscar pólizas que venzan en la fecha objetivo y estén activas
+            // Buscar pólizas que venzan en la fecha objetivo, estén activas y NO sean domiciliadas
             const { data: polizas, error: polizasError } = await supabase
                 .from('polizas')
                 .select(`
@@ -214,6 +214,7 @@ Deno.serve(async (req) => {
                     aseguradora,
                     ramo,
                     cliente_id,
+                    domiciliada,
                     clientes (
                         nombre,
                         apellido,
@@ -221,7 +222,8 @@ Deno.serve(async (req) => {
                     )
                 `)
                 .eq('vence', regla.fechaVence)
-                .in('estado', ['activa', 'vigente']);
+                .in('estado', ['activa', 'vigente'])
+                .or('domiciliada.is.null,domiciliada.eq.false');
 
             if (polizasError) {
                 console.error(`Error consultando pólizas para ${regla.clave}:`, polizasError);
