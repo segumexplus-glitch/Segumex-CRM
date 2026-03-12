@@ -19,15 +19,15 @@ const corsHeaders = {
 // Mensajes por defecto (usados si no hay plantilla en DB)
 const DEFAULT_NUEVO = `¡Hola *{nombre}*! 👋
 
-🌟 *¡Bienvenido a la familia Segumex!* 🌟
+*🌟 ¡Bienvenido a la familia Segumex! 🌟*
 
 Gracias por confiar en nosotros para proteger lo que más valoras. Tu póliza de *{ramo}* ya está activa. ✅
 
-📄 *No. de Póliza*: {no_poliza}
-🏥 *Aseguradora*: {aseguradora}
-🗓️ *Vigencia*: {vigencia}
+📄 *No. de Póliza:* {no_poliza}
+🏢 *Aseguradora:* {aseguradora}
+🗓️ *Vigencia:* {vigencia}
 
-📅 *Tu Plan de Pagos ({forma_pago}):*{pagos}{domiciliada}
+📆 *Tu Plan de Pagos{forma_pago}:*{pagos}{domiciliada}
 
 Cualquier duda, aquí estamos para apoyarte 24/7. 🤝`;
 
@@ -35,19 +35,27 @@ const DEFAULT_EXISTENTE = `¡Qué gusto saludarte de nuevo, *{nombre}*! 🤩
 
 Gracias por seguir construyendo tu seguridad con nosotros. Tu nueva póliza de *{ramo}* ({no_poliza}) ha sido registrada exitosamente. ✅
 
-🗓️ *Vigencia*: {vigencia}
+🗓️ *Vigencia:* {vigencia}
 
-📅 *Tu Plan de Pagos ({forma_pago}):*{pagos}{domiciliada}
+📆 *Tu Plan de Pagos{forma_pago}:*{pagos}{domiciliada}
 
 ¡Seguimos a la orden! 🛡️`;
 
 const MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const MESES_CORTO_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
 function fmtFechaMX(str: string | null | undefined): string {
     if (!str) return '---';
     const [y, m, d] = String(str).substring(0, 10).split('-').map(Number);
     if (isNaN(d) || isNaN(m)) return '---';
     return `${d} de ${MESES_ES[m - 1]} de ${y}`;
+}
+
+function fmtFechaCortaMX(str: string | null | undefined): string {
+    if (!str) return '---';
+    const [y, m, d] = String(str).substring(0, 10).split('-').map(Number);
+    if (isNaN(d) || isNaN(m)) return '---';
+    return `${d} ${MESES_CORTO_ES[m - 1]} ${y}`;
 }
 
 function fmtMontoMX(n: number): string {
@@ -157,7 +165,7 @@ Deno.serve(async (req) => {
             const limite = formaPagoNum === '1' ? 1 : 3;
             pagosDetalle.slice(0, limite).forEach((p: any, idx: number) => {
                 const monto = p.total != null ? fmtMontoMX(Number(p.total)) : '';
-                pagosTexto += `\n  • Pago ${p.numero || idx + 1}: ${monto} — ${fmtFechaMX(p.fecha)}`;
+                pagosTexto += `\n  • Pago ${p.numero || idx + 1}: ${monto} — ${fmtFechaCortaMX(p.fecha)}`;
             });
             if (pagosDetalle.length > 3 && formaPagoNum !== '1') {
                 pagosTexto += `\n  _...y ${pagosDetalle.length - 3} pagos más._`;
@@ -168,7 +176,7 @@ Deno.serve(async (req) => {
             const numPagos = parseInt(formaPagoNum) || 1;
             const montoPago = record.prima ? fmtMontoMX(Number(record.prima) / numPagos) : '';
             pagosFechas.slice(0, 3).forEach((fecha: string, idx: number) => {
-                pagosTexto += `\n  • Pago ${idx + 1}: ${montoPago} — ${fmtFechaMX(fecha)}`;
+                pagosTexto += `\n  • Pago ${idx + 1}: ${montoPago} — ${fmtFechaCortaMX(fecha)}`;
             });
             if (pagosFechas.length > 3) pagosTexto += `\n  _...y ${pagosFechas.length - 3} pagos más._`;
             if (!pagosFechas.length) pagosTexto = '\n  _Tu asesor te compartirá el calendario de pagos._';
@@ -189,7 +197,7 @@ Deno.serve(async (req) => {
             ramo: record.ramo || '',
             aseguradora: record.aseguradora || '',
             vigencia: `${inicioVigencia} al ${finVigencia}`,
-            forma_pago: formaLabel,
+            forma_pago: formaLabel ? ` (${formaLabel})` : '',
             pagos: pagosTexto,
             domiciliada: domiciliadaTexto
         };

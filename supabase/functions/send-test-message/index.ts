@@ -31,8 +31,8 @@ const TEST_DATA_BIENVENIDA: Record<string, string> = {
     ramo: 'Auto',
     aseguradora: 'GNP',
     vigencia: '01 de enero de 2026 al 01 de enero de 2027',
-    forma_pago: 'Semestral',
-    pagos: '\n  • Pago 1: $1,500.00 — 01 de enero de 2026\n  • Pago 2: $1,500.00 — 01 de julio de 2026',
+    forma_pago: ' (Semestral)',
+    pagos: '\n  • Pago 1: $1,500.00 — 01 ene 2026\n  • Pago 2: $1,500.00 — 01 jul 2026',
     domiciliada: '\n\n💳 *Póliza domiciliada:* Tus pagos se cargarán automáticamente a tu tarjeta en cada fecha programada. No tienes que hacer nada. ✅'
 };
 
