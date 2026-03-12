@@ -41,6 +41,20 @@ Gracias por seguir construyendo tu seguridad con nosotros. Tu nueva póliza de *
 
 ¡Seguimos a la orden! 🛡️`;
 
+const MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+function fmtFechaMX(str: string | null | undefined): string {
+    if (!str) return '---';
+    const [y, m, d] = str.split('-').map(Number);
+    return `${d} de ${MESES_ES[m - 1]} de ${y}`;
+}
+
+function fmtMontoMX(n: number): string {
+    const parts = n.toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return '$' + parts.join('.');
+}
+
 function aplicarPlantilla(template: string, vars: Record<string, string>): string {
     let result = template;
     for (const [key, value] of Object.entries(vars)) {
@@ -141,13 +155,8 @@ Deno.serve(async (req) => {
         if (pagosDetalle.length > 0) {
             const limite = formaPagoNum === '1' ? 1 : 3;
             pagosDetalle.slice(0, limite).forEach((p: any, idx: number) => {
-                const fecha = p.fecha
-                    ? new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
-                    : '---';
-                const monto = p.total != null
-                    ? `$${Number(p.total).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                    : '';
-                pagosTexto += `\n  • Pago ${p.numero || idx + 1}: ${monto} — ${fecha}`;
+                const monto = p.total != null ? fmtMontoMX(Number(p.total)) : '';
+                pagosTexto += `\n  • Pago ${p.numero || idx + 1}: ${monto} — ${fmtFechaMX(p.fecha)}`;
             });
             if (pagosDetalle.length > 3 && formaPagoNum !== '1') {
                 pagosTexto += `\n  _...y ${pagosDetalle.length - 3} pagos más._`;
@@ -156,10 +165,9 @@ Deno.serve(async (req) => {
             // Fallback: usar pagos_fechas + prima dividida si no hay pagos_detalle
             const pagosFechas: string[] = record.pagos_fechas || [];
             const numPagos = parseInt(formaPagoNum) || 1;
-            const montoPago = record.prima ? (Number(record.prima) / numPagos).toFixed(2) : '';
+            const montoPago = record.prima ? fmtMontoMX(Number(record.prima) / numPagos) : '';
             pagosFechas.slice(0, 3).forEach((fecha: string, idx: number) => {
-                const fechaStr = new Date(fecha + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
-                pagosTexto += `\n  • Pago ${idx + 1}: $${montoPago} — ${fechaStr}`;
+                pagosTexto += `\n  • Pago ${idx + 1}: ${montoPago} — ${fmtFechaMX(fecha)}`;
             });
             if (pagosFechas.length > 3) pagosTexto += `\n  _...y ${pagosFechas.length - 3} pagos más._`;
             if (!pagosFechas.length) pagosTexto = '\n  _Tu asesor te compartirá el calendario de pagos._';
@@ -171,12 +179,8 @@ Deno.serve(async (req) => {
             ? '\n\n💳 *Póliza domiciliada:* Tus pagos se cargarán automáticamente a tu tarjeta en cada fecha programada. No tienes que hacer nada. ✅'
             : '\n\n🔔 Recuerda realizar tu pago en cada fecha programada para mantener tu cobertura activa.';
 
-        const inicioVigencia = finanzas.inicio
-            ? new Date(finanzas.inicio + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
-            : 'N/A';
-        const finVigencia = record.vence
-            ? new Date(record.vence + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
-            : 'N/A';
+        const inicioVigencia = fmtFechaMX(finanzas.inicio || null);
+        const finVigencia = fmtFechaMX(record.vence || null);
 
         const vars: Record<string, string> = {
             nombre: cliente.nombre || '',
