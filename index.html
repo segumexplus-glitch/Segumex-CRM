@@ -271,7 +271,7 @@
 
         function renderTablasOperativas(clientes, polizasActivas) {
             const hoyObj = new Date(); hoyObj.setHours(0, 0, 0, 0);
-            let htmlProx = '', htmlVenc = '', htmlRenov = '';
+            let htmlProxReg = '', htmlProxDom = '', htmlVencReg = '', htmlVencDom = '', htmlRenov = '';
 
             polizasActivas.forEach(p => {
                 // IMPORTANTISIMO: Buscar el cliente en la lista FILTRADA 'clientes'
@@ -283,6 +283,8 @@
 
                 const nombreCli = `${cliente.nombre} ${cliente.apellido || ''}`;
                 const telCli = cliente.telefono || "";
+                const esDomiciliada = p.domiciliada === true;
+                const badgeDom = esDomiciliada ? `<span class="text-[8px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20 px-1 py-0.5 rounded ml-1">🏦</span>` : '';
 
                 if (p.finanzas?.inicio) {
                     const numPagos = parseInt(p.finanzas.formaPago) || 1;
@@ -297,10 +299,10 @@
                             const diffDias = window.SegumexDate.diffDays(fechaIterada);
                             const fechaStr = window.SegumexDate.toShortDisplay(fechaIterada);
 
-                            const itemHtml = `<div class="p-3 border-b border-[#3b4354] hover:bg-white/5 transition-colors flex justify-between items-center group"><div class="overflow-hidden pr-2"><p class="text-white text-[11px] font-bold truncate">${nombreCli}</p><p class="text-[#9da6b9] text-[10px]">${p.no_poliza || p.numero || 'S/N'} • $${montoPago.toFixed(2)}</p></div><div class="flex flex-col items-end gap-1 shrink-0"><span class="text-[10px] font-mono ${diffDias < 0 ? 'text-red-500 font-bold' : 'text-blue-400'}">${fechaStr}</span><button onclick="enviarWhatsApp('${telCli}', 'cobranza', '${nombreCli}', '${p.no_poliza || p.numero || 'S/N'}', '${montoPago.toFixed(2)}', ${diffDias})" class="opacity-0 group-hover:opacity-100 transition-opacity text-green-500 hover:scale-110"><span class="material-symbols-outlined text-sm">chat</span></button></div></div>`;
+                            const itemHtml = `<div class="p-3 border-b border-[#3b4354] hover:bg-white/5 transition-colors flex justify-between items-center group"><div class="overflow-hidden pr-2"><p class="text-white text-[11px] font-bold truncate">${nombreCli}${badgeDom}</p><p class="text-[#9da6b9] text-[10px]">${p.no_poliza || p.numero || 'S/N'} • $${montoPago.toFixed(2)}</p></div><div class="flex flex-col items-end gap-1 shrink-0"><span class="text-[10px] font-mono ${diffDias < 0 ? 'text-red-500 font-bold' : 'text-blue-400'}">${fechaStr}</span><button onclick="enviarWhatsApp('${telCli}', 'cobranza', '${nombreCli}', '${p.no_poliza || p.numero || 'S/N'}', '${montoPago.toFixed(2)}', ${diffDias})" class="opacity-0 group-hover:opacity-100 transition-opacity text-green-500 hover:scale-110"><span class="material-symbols-outlined text-sm">chat</span></button></div></div>`;
 
-                            if (diffDias < 0) htmlVenc += itemHtml;
-                            else if (diffDias <= 7) htmlProx += itemHtml;
+                            if (diffDias < 0) { if (esDomiciliada) htmlVencDom += itemHtml; else htmlVencReg += itemHtml; }
+                            else if (diffDias <= 7) { if (esDomiciliada) htmlProxDom += itemHtml; else htmlProxReg += itemHtml; }
                         }
                         // Avanzar meses
                         if (fechaIterada) fechaIterada.setMonth(fechaIterada.getMonth() + (12 / numPagos));
@@ -316,6 +318,11 @@
                     }
                 }
             });
+
+            const sepDom = (label) => `<div class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/5 border-t border-purple-500/20"><span class="material-symbols-outlined text-purple-400 text-[13px]">account_balance</span><span class="text-purple-400 text-[9px] font-bold uppercase tracking-wider">${label}</span></div>`;
+
+            const htmlProx = htmlProxReg + (htmlProxDom ? sepDom('Domiciliadas') + htmlProxDom : '');
+            const htmlVenc = htmlVencReg + (htmlVencDom ? sepDom('Domiciliadas') + htmlVencDom : '');
 
             document.getElementById('listaPagosProximos').innerHTML = htmlProx || '<div class="p-8 text-center text-[#9da6b9] text-[10px] italic">No hay pagos cercanos</div>';
             document.getElementById('listaPagosVencidos').innerHTML = htmlVenc || '<div class="p-8 text-center text-[#9da6b9] text-[10px] italic">Sin cartera vencida</div>';

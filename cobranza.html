@@ -312,7 +312,8 @@
                                 fecha: fechaLimite,
                                 monto: montoRealRecibo,
                                 estatus: estatusCalculado,
-                                diffDias: diffDias
+                                diffDias: diffDias,
+                                domiciliada: p.domiciliada || false
                             });
                         }
                     }
@@ -343,6 +344,30 @@
             renderProximos();
         }
 
+        function renderFilaProximo(r) {
+            const fechaFmt = r.fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+            const colorDias = r.diffDias <= 3 ? "text-red-400 font-bold" : (r.diffDias <= 7 ? "text-yellow-400" : "text-green-400");
+            const datosStr = JSON.stringify(r).replace(/"/g, '&quot;');
+            const badgeDom = r.domiciliada ? `<span class="text-[9px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded ml-1">🏦 Dom.</span>` : '';
+            return `
+            <div class="grid grid-cols-12 gap-4 px-4 py-3 hover:bg-[#1a202a] border-b border-[#2d3442]/50 transition-colors items-center group rounded-lg mx-2">
+                <div class="col-span-4 flex items-center gap-3">
+                    <div class="overflow-hidden">
+                        <p class="text-white text-sm font-medium truncate">${r.cliente}${badgeDom}</p>
+                        <a href="detalle_poliza.html?id=${r.polizaIdReal}&origen=cobranza" class="text-[11px] text-primary hover:underline truncate block">${r.poliza} • ${r.ramo}</a>
+                    </div>
+                </div>
+                <div class="col-span-2 text-xs text-[#94a3b8] font-medium">${r.aseguradora}</div>
+                <div class="col-span-2 text-right font-mono text-sm text-white font-bold">${formatoMoneda(r.monto)}</div>
+                <div class="col-span-2"><div class="flex flex-col"><span class="text-white text-xs font-medium">${fechaFmt}</span><span class="text-[10px] ${colorDias}">En ${r.diffDias} días</span></div></div>
+                <div class="col-span-2 flex justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                    <button onclick='cobrarRecibo("${r.polizaIdReal}", ${r.idPago})' class="p-1.5 rounded bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all"><span class="material-symbols-outlined text-[18px]">payments</span></button>
+                    <button onclick='gestionarWhatsapp("${r.polizaIdReal}", ${r.idPago}, ${datosStr})' class="p-1.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all"><span class="material-symbols-outlined text-[18px]">send</span></button>
+                    <button onclick='descargarReciboPDF(${datosStr}, "${r.estatus}")' class="p-1.5 rounded bg-[#2d3442] text-[#94a3b8] hover:bg-red-500 hover:text-white transition-all" title="Descargar PDF"><span class="material-symbols-outlined text-[18px]">picture_as_pdf</span></button>
+                </div>
+            </div>`;
+        }
+
         function renderProximos() {
             const contenedor = document.getElementById('listaProximos');
             contenedor.innerHTML = '';
@@ -351,73 +376,68 @@
             const proximos = recibosGlobales.filter(r =>
                 r.estatus !== 'vencido' && r.diffDias >= 0 && r.diffDias <= diasFiltro &&
                 (r.cliente.toLowerCase().includes(textoBusqueda) || r.poliza.toLowerCase().includes(textoBusqueda))
-            );
-
-            proximos.sort((a, b) => a.fecha - b.fecha);
+            ).sort((a, b) => a.fecha - b.fecha);
 
             if (proximos.length === 0) {
                 contenedor.innerHTML = `<div class="flex flex-col items-center justify-center h-40 text-[#475569]"><span class="material-symbols-outlined text-4xl mb-2">event_available</span><p class="text-sm">Nada pendiente para los próximos ${diasFiltro} días.</p></div>`;
                 return;
             }
 
-            proximos.forEach(r => {
-                const fechaFmt = r.fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
-                let colorDias = r.diffDias <= 3 ? "text-red-400 font-bold" : (r.diffDias <= 7 ? "text-yellow-400" : "text-green-400");
-                const datosStr = JSON.stringify(r).replace(/"/g, '&quot;');
+            const regulares = proximos.filter(r => !r.domiciliada);
+            const domiciliadas = proximos.filter(r => r.domiciliada);
 
-                contenedor.innerHTML += `
-                <div class="grid grid-cols-12 gap-4 px-4 py-3 hover:bg-[#1a202a] border-b border-[#2d3442]/50 transition-colors items-center group rounded-lg mx-2">
-                    <div class="col-span-4 flex items-center gap-3">
-                        <div class="overflow-hidden">
-                            <p class="text-white text-sm font-medium truncate">${r.cliente}</p>
-                            <a href="detalle_poliza.html?id=${r.polizaIdReal}&origen=cobranza" class="text-[11px] text-primary hover:underline truncate block">${r.poliza} • ${r.ramo}</a>
-                        </div>
+            regulares.forEach(r => { contenedor.innerHTML += renderFilaProximo(r); });
+
+            if (domiciliadas.length > 0) {
+                contenedor.innerHTML += `<div class="flex items-center gap-2 px-4 py-2 mt-1 border-t border-purple-500/20 bg-purple-500/5"><span class="material-symbols-outlined text-purple-400 text-[16px]">account_balance</span><span class="text-purple-400 text-xs font-bold uppercase tracking-wider">Domiciliadas (${domiciliadas.length})</span><span class="text-[#9da6b9] text-[10px]">— Sin recordatorio automático</span></div>`;
+                domiciliadas.forEach(r => { contenedor.innerHTML += renderFilaProximo(r); });
+            }
+        }
+
+        function renderFilaVencido(r) {
+            const datosStr = JSON.stringify(r).replace(/"/g, '&quot;');
+            const badgeDom = r.domiciliada ? `<span class="text-[9px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded ml-1">🏦 Dom.</span>` : '';
+            return `
+            <div class="${r.domiciliada ? 'bg-[#120f1f] border border-purple-500/10' : 'bg-[#1f0f0f] border border-red-500/10'} rounded-lg p-3 hover:border-${r.domiciliada ? 'purple' : 'red'}-500/30 transition-all group">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <h4 class="text-white text-sm font-bold truncate w-40">${r.cliente}${badgeDom}</h4>
+                        <a href="detalle_poliza.html?id=${r.polizaIdReal}&origen=cobranza" class="text-[10px] text-[#94a3b8] hover:text-white">${r.poliza}</a>
                     </div>
-                    <div class="col-span-2 text-xs text-[#94a3b8] font-medium">${r.aseguradora}</div>
-                    <div class="col-span-2 text-right font-mono text-sm text-white font-bold">${formatoMoneda(r.monto)}</div>
-                    <div class="col-span-2"><div class="flex flex-col"><span class="text-white text-xs font-medium">${fechaFmt}</span><span class="text-[10px] ${colorDias}">En ${r.diffDias} días</span></div></div>
-                    <div class="col-span-2 flex justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <button onclick='cobrarRecibo("${r.polizaIdReal}", ${r.idPago})' class="p-1.5 rounded bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all"><span class="material-symbols-outlined text-[18px]">payments</span></button>
-                        <button onclick='gestionarWhatsapp("${r.polizaIdReal}", ${r.idPago}, ${datosStr})' class="p-1.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all"><span class="material-symbols-outlined text-[18px]">send</span></button>
-                        <button onclick='descargarReciboPDF(${datosStr}, "${r.estatus}")' class="p-1.5 rounded bg-[#2d3442] text-[#94a3b8] hover:bg-red-500 hover:text-white transition-all" title="Descargar PDF"><span class="material-symbols-outlined text-[18px]">picture_as_pdf</span></button>
+                    <span class="${r.domiciliada ? 'text-purple-400' : 'text-red-400'} font-mono font-bold text-sm">${formatoMoneda(r.monto)}</span>
+                </div>
+                <div class="flex items-center justify-between mt-2">
+                    <div class="text-[10px] ${r.domiciliada ? 'text-purple-300 bg-purple-500/10 border-purple-500/10' : 'text-red-300 bg-red-500/10 border-red-500/10'} px-2 py-0.5 rounded border">${r.domiciliada ? '🏦 Domiciliada' : `Vencido hace ${Math.abs(r.diffDias)} días`}</div>
+                    <div class="flex gap-1">
+                        <button onclick='descargarReciboPDF(${datosStr}, "${r.estatus}")' class="p-1.5 rounded-md bg-[#2d3442] hover:bg-red-600 text-[#94a3b8] hover:text-white" title="Descargar PDF"><span class="material-symbols-outlined text-[16px]">picture_as_pdf</span></button>
+                        <button onclick='gestionarWhatsapp("${r.polizaIdReal}", ${r.idPago}, ${datosStr})' class="p-1.5 rounded-md bg-[#2d3442] hover:bg-green-600 text-[#94a3b8] hover:text-white"><span class="material-symbols-outlined text-[16px]">chat</span></button>
+                        <button onclick='cobrarRecibo("${r.polizaIdReal}", ${r.idPago})' class="p-1.5 rounded-md bg-[#2d3442] hover:bg-blue-600 text-[#94a3b8] hover:text-white"><span class="material-symbols-outlined text-[16px]">check</span></button>
                     </div>
-                </div>`;
-            });
+                </div>
+            </div>`;
         }
 
         function renderVencidos() {
             const contenedor = document.getElementById('listaVencidos');
             contenedor.innerHTML = '';
             const textoBusqueda = document.getElementById('buscadorGlobal').value.toLowerCase();
-            const vencidos = recibosGlobales.filter(r => r.estatus === 'vencido' && (r.cliente.toLowerCase().includes(textoBusqueda) || r.poliza.toLowerCase().includes(textoBusqueda)));
+            const vencidos = recibosGlobales.filter(r => r.estatus === 'vencido' && (r.cliente.toLowerCase().includes(textoBusqueda) || r.poliza.toLowerCase().includes(textoBusqueda)))
+                .sort((a, b) => a.fecha - b.fecha);
 
-            vencidos.sort((a, b) => a.fecha - b.fecha);
             if (vencidos.length === 0) {
                 contenedor.innerHTML = `<div class="p-6 text-center text-[#94a3b8] opacity-50"><span class="material-symbols-outlined text-3xl mb-1">thumb_up</span><p class="text-xs">Sin cartera vencida</p></div>`;
                 return;
             }
 
-            vencidos.forEach(r => {
-                const datosStr = JSON.stringify(r).replace(/"/g, '&quot;');
-                contenedor.innerHTML += `
-                <div class="bg-[#1f0f0f] border border-red-500/10 rounded-lg p-3 hover:border-red-500/30 transition-all group">
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <h4 class="text-white text-sm font-bold truncate w-40">${r.cliente}</h4>
-                            <a href="detalle_poliza.html?id=${r.polizaIdReal}&origen=cobranza" class="text-[10px] text-[#94a3b8] hover:text-white">${r.poliza}</a>
-                        </div>
-                        <span class="text-red-400 font-mono font-bold text-sm">${formatoMoneda(r.monto)}</span>
-                    </div>
-                    <div class="flex items-center justify-between mt-2">
-                        <div class="text-[10px] text-red-300 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/10">Vencido hace ${Math.abs(r.diffDias)} días</div>
-                        <div class="flex gap-1">
-                            <button onclick='descargarReciboPDF(${datosStr}, "${r.estatus}")' class="p-1.5 rounded-md bg-[#2d3442] hover:bg-red-600 text-[#94a3b8] hover:text-white" title="Descargar PDF"><span class="material-symbols-outlined text-[16px]">picture_as_pdf</span></button>
-                            <button onclick='gestionarWhatsapp("${r.polizaIdReal}", ${r.idPago}, ${datosStr})' class="p-1.5 rounded-md bg-[#2d3442] hover:bg-green-600 text-[#94a3b8] hover:text-white"><span class="material-symbols-outlined text-[16px]">chat</span></button>
-                            <button onclick='cobrarRecibo("${r.polizaIdReal}", ${r.idPago})' class="p-1.5 rounded-md bg-[#2d3442] hover:bg-blue-600 text-[#94a3b8] hover:text-white"><span class="material-symbols-outlined text-[16px]">check</span></button>
-                        </div>
-                    </div>
-                </div>`;
-            });
+            const regulares = vencidos.filter(r => !r.domiciliada);
+            const domiciliadas = vencidos.filter(r => r.domiciliada);
+
+            regulares.forEach(r => { contenedor.innerHTML += renderFilaVencido(r); });
+
+            if (domiciliadas.length > 0) {
+                contenedor.innerHTML += `<div class="flex items-center gap-2 px-2 py-2 mt-2 border-t border-purple-500/20 bg-purple-500/5 rounded"><span class="material-symbols-outlined text-purple-400 text-[16px]">account_balance</span><span class="text-purple-400 text-xs font-bold uppercase tracking-wider">Domiciliadas (${domiciliadas.length})</span></div>`;
+                domiciliadas.forEach(r => { contenedor.innerHTML += renderFilaVencido(r); });
+            }
         }
 
         function filtrarGlobal() { renderProximos(); renderVencidos(); }
