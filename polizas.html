@@ -395,23 +395,31 @@
             const polizaMap = {};
             polizasGlobales.forEach(pg => { polizaMap[String(pg.id)] = pg; });
 
-            // Determinar pares de renovación usando fecha real (no dirección del FK)
-            // La póliza con vence más reciente = fila principal; la más antigua = sub-fila "Renovada"
+            // Determinar pares de renovación por FECHA (independiente de la dirección del FK)
+            // Usamos comparación de strings ISO (YYYY-MM-DD) — lexicográficamente = cronológicamente
             const subRowIds = new Set();
-            const mainToSubMap = {}; // mainId → subId (la que se oculta)
+            const mainToSubMap = {};
+            const pairsProcessed = new Set(); // evita procesar el mismo par dos veces (ciclos FK)
             polizasGlobales.forEach(p => {
                 if (!p.poliza_anterior_id) return;
-                const oldP = polizaMap[String(p.poliza_anterior_id)];
-                if (!oldP) return;
-                const vP = new Date(p.vence || 0), vO = new Date(oldP.vence || 0);
+                const otherId = String(p.poliza_anterior_id);
+                const pId = String(p.id);
+                const pairKey = [pId, otherId].sort().join('|');
+                if (pairsProcessed.has(pairKey)) return;
+                pairsProcessed.add(pairKey);
+                const otherP = polizaMap[otherId];
+                if (!otherP) return;
+                // La póliza con vence más reciente (string ISO mayor) = fila principal
+                const vP = p.vence || '0000-00-00';
+                const vO = otherP.vence || '0000-00-00';
                 if (vP >= vO) {
-                    // p es más reciente → oldP va en sub-fila
-                    subRowIds.add(String(oldP.id));
-                    mainToSubMap[String(p.id)] = String(oldP.id);
+                    // p tiene vence más reciente o igual → es la principal
+                    subRowIds.add(otherId);
+                    mainToSubMap[pId] = otherId;
                 } else {
-                    // oldP es más reciente (FK al revés) → p va en sub-fila
-                    subRowIds.add(String(p.id));
-                    mainToSubMap[String(oldP.id)] = String(p.id);
+                    // otherP tiene vence más reciente → es la principal
+                    subRowIds.add(pId);
+                    mainToSubMap[otherId] = pId;
                 }
             });
 
@@ -457,7 +465,7 @@
                                         <span class="material-symbols-outlined text-[18px] text-sky-400/60">history</span>
                                         <div>
                                             <span class="text-white/70 text-xs font-mono font-bold mr-3">${oldP.no_poliza || oldP.numero || 'S/N'}</span>
-                                            <span class="text-[#9da6b9] text-xs">${oldP.aseguradora || ''} &bull; Venció: ${oldP.vence}</span>
+                                            <span class="text-[#9da6b9] text-xs">${oldP.aseguradora || ''} &bull; ${window.SegumexDate.diffDays(oldP.vence) < 0 ? 'Venció' : 'Vence'}: ${window.SegumexDate.toDisplay(oldP.vence)}</span>
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2">
