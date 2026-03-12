@@ -141,7 +141,13 @@
                     </div>
 
                     <div class="bg-surface-card border border-[#3b4354] rounded-xl p-6">
-                        <h3 class="text-white font-bold mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-blue-400">folder</span> Documentos</h3>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-white font-bold flex items-center gap-2"><span class="material-symbols-outlined text-blue-400">folder</span> Documentos</h3>
+                            <button type="button" onclick="abrirModalDocDetalle()" class="flex items-center gap-1 text-xs font-medium text-primary hover:text-white bg-primary/10 hover:bg-primary/20 border border-primary/30 px-3 py-1.5 rounded-lg transition-all">
+                                <span class="material-symbols-outlined text-[16px]">add</span> Agregar
+                            </button>
+                        </div>
+                        <input type="file" id="inputDocDetalle" accept=".pdf" class="hidden" onchange="handleDocFileSelectedDetalle(event)">
                         <div id="listaDocumentos" class="space-y-2">
                             <p class="text-[#9da6b9] text-sm italic">No hay documentos adjuntos.</p>
                         </div>
@@ -200,6 +206,8 @@
     let origen = 'lista';
     let clienteIdRef = null;
     const STORAGE_BUCKET = 'documentos-polizas';
+    let clienteNombre = '';
+    let _docTipoSel = 'poliza';
 
     document.addEventListener('DOMContentLoaded', async () => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -347,37 +355,14 @@
             document.getElementById('vSerie').innerText = v.serie || '---';
         }
 
-        const docsDiv = document.getElementById('listaDocumentos');
-        if(polizaData.documentos && polizaData.documentos.length > 0) {
-            docsDiv.innerHTML = '';
-            polizaData.documentos.forEach(doc => {
-                const safePath = doc.path ? doc.path.replace(/'/g, "\\'") : '';
-                const safeNombre = (doc.nombre || '').replace(/'/g, "\\'");
-                const accionBtn = doc.path
-                    ? `<button onclick="abrirDocumento('${safePath}', '${safeNombre}')" class="text-[#9da6b9] hover:text-white transition-colors" title="Ver / Descargar"><span class="material-symbols-outlined">download</span></button>`
-                    : `<span class="text-[#9da6b9] text-xs italic">Sin archivo</span>`;
-                docsDiv.innerHTML += `
-                    <div class="flex items-center gap-3 p-3 bg-[#111318] border border-[#3b4354] rounded-lg">
-                        <span class="material-symbols-outlined text-red-400">picture_as_pdf</span>
-                        <div class="flex-1 overflow-hidden">
-                            <p class="text-white text-sm truncate font-medium">${doc.nombre}</p>
-                            <p class="text-[#9da6b9] text-xs">${doc.tamano || 'PDF'}</p>
-                        </div>
-                        ${accionBtn}
-                    </div>
-                `;
-            });
-        }
-
         // --- CONSULTA CLIENTE RELACIONADO EN SUPABASE ---
         const { data: cliente } = await window.supabaseClient.from('clientes').select('nombre, apellido').eq('id', polizaData.cliente_id).single();
-        
-        let clienteNombre = "Sin Titular Asignado";
-        if(cliente) {
-             clienteNombre = `${cliente.nombre} ${cliente.apellido || ''}`; 
-        }
+
+        clienteNombre = cliente ? `${cliente.nombre} ${cliente.apellido || ''}`.trim() : "Sin Titular Asignado";
         document.getElementById('nombreCliente').innerText = clienteNombre;
         document.getElementById('avatarCliente').innerText = clienteNombre.charAt(0).toUpperCase();
+
+        renderizarDocumentosDetalle();
 
         const tablaPagos = document.getElementById('tablaPagosMini');
         tablaPagos.innerHTML = '';
@@ -522,6 +507,207 @@
             alert("El cliente no tiene un teléfono registrado.");
         }
     }
+
+    // ============================================================
+    // GESTIÓN DE DOCUMENTOS
+    // ============================================================
+    function renderizarDocumentosDetalle() {
+        const docsDiv = document.getElementById('listaDocumentos');
+        const docs = polizaData?.documentos || [];
+        if (docs.length === 0) {
+            docsDiv.innerHTML = '<p class="text-[#9da6b9] text-sm italic">No hay documentos adjuntos.</p>';
+            return;
+        }
+        docsDiv.innerHTML = '';
+        docs.forEach((doc, index) => {
+            const safePath = doc.path ? doc.path.replace(/'/g, "\\'") : '';
+            const safeNombre = (doc.nombre || '').replace(/'/g, "\\'");
+            const tipo = doc.tipo || '';
+            const tipoTag = tipo === 'poliza'
+                ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">PÓLIZA</span>'
+                : tipo === 'endoso'
+                ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30">ENDOSO</span>'
+                : '';
+            const accionBtn = doc.path
+                ? `<button onclick="abrirDocumento('${safePath}', '${safeNombre}')" class="text-[#9da6b9] hover:text-white transition-colors" title="Ver / Descargar"><span class="material-symbols-outlined text-[20px]">download</span></button>`
+                : '<span class="text-[#9da6b9] text-xs italic">Sin archivo</span>';
+            docsDiv.innerHTML += `
+                <div class="flex items-center gap-3 p-3 bg-[#111318] border border-[#3b4354] rounded-lg group">
+                    <span class="material-symbols-outlined text-red-400">picture_as_pdf</span>
+                    <div class="flex-1 overflow-hidden">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <p class="text-white text-sm truncate font-medium">${doc.nombre}</p>
+                            ${tipoTag}
+                        </div>
+                        <p class="text-[#9da6b9] text-xs">${doc.tamano || 'PDF'}</p>
+                    </div>
+                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onclick="renombrarDocumentoDetalle(${index})" class="text-[#9da6b9] hover:text-yellow-400 transition-colors" title="Renombrar"><span class="material-symbols-outlined text-[20px]">edit</span></button>
+                        ${accionBtn}
+                        <button onclick="eliminarDocumentoDetalle(${index})" class="text-[#9da6b9] hover:text-red-500 transition-colors" title="Eliminar"><span class="material-symbols-outlined text-[20px]">delete</span></button>
+                    </div>
+                </div>`;
+        });
+    }
+
+    function _formaLabel(fp) {
+        return ({ '1': 'Anual', '2': 'Semestral', '3': 'Trimestral', '4': 'Mensual' })[String(fp)] || '';
+    }
+
+    function generarNombreDocDetalle(tipo, tipoEndoso) {
+        const fp = polizaData?.finanzas?.formaPago || '';
+        const aseg = (polizaData?.aseguradora || '').trim();
+        const noP = (polizaData?.no_poliza || '').trim();
+        const nombre = clienteNombre.trim();
+        const forma = _formaLabel(fp);
+        if (tipo === 'endoso') {
+            const te = (tipoEndoso || '').trim();
+            return `Endoso ${te} ${aseg} ${noP} ${nombre} ${forma}`.replace(/\s+/g, ' ').trim();
+        }
+        return `Poliza ${aseg} ${noP} ${nombre} ${forma}`.replace(/\s+/g, ' ').trim();
+    }
+
+    function abrirModalDocDetalle() {
+        _docTipoSel = 'poliza';
+        document.getElementById('btnTipoPolizaD').className = 'p-4 rounded-xl border-2 border-primary bg-primary/10 text-white font-bold flex flex-col items-center gap-2 transition-all';
+        document.getElementById('btnTipoEndosoD').className = 'p-4 rounded-xl border-2 border-[#3b4354] text-[#9da6b9] font-bold flex flex-col items-center gap-2 transition-all hover:border-sky-500 hover:text-sky-400';
+        document.getElementById('inputTipoEndosoContD').classList.add('hidden');
+        document.getElementById('inputTipoEndosoD').value = '';
+        document.getElementById('inputNombreDocD').value = generarNombreDocDetalle('poliza', '');
+        document.getElementById('modalTipoDocD').classList.remove('hidden');
+    }
+
+    function cerrarModalDocDetalle() {
+        document.getElementById('modalTipoDocD').classList.add('hidden');
+    }
+
+    function seleccionarTipoDocDetalle(tipo) {
+        _docTipoSel = tipo;
+        const btnP = document.getElementById('btnTipoPolizaD');
+        const btnE = document.getElementById('btnTipoEndosoD');
+        const cont = document.getElementById('inputTipoEndosoContD');
+        if (tipo === 'poliza') {
+            btnP.className = 'p-4 rounded-xl border-2 border-primary bg-primary/10 text-white font-bold flex flex-col items-center gap-2 transition-all';
+            btnE.className = 'p-4 rounded-xl border-2 border-[#3b4354] text-[#9da6b9] font-bold flex flex-col items-center gap-2 transition-all hover:border-sky-500 hover:text-sky-400';
+            cont.classList.add('hidden');
+        } else {
+            btnE.className = 'p-4 rounded-xl border-2 border-sky-500 bg-sky-500/10 text-sky-400 font-bold flex flex-col items-center gap-2 transition-all';
+            btnP.className = 'p-4 rounded-xl border-2 border-[#3b4354] text-[#9da6b9] font-bold flex flex-col items-center gap-2 transition-all hover:border-primary hover:text-white';
+            cont.classList.remove('hidden');
+        }
+        actualizarNombreDocDetalle();
+    }
+
+    function actualizarNombreDocDetalle() {
+        const tipoEndoso = document.getElementById('inputTipoEndosoD').value;
+        document.getElementById('inputNombreDocD').value = generarNombreDocDetalle(_docTipoSel, tipoEndoso);
+    }
+
+    function confirmarDocDetalle() {
+        const nombre = document.getElementById('inputNombreDocD').value.trim();
+        if (!nombre) { alert('El nombre no puede estar vacío.'); return; }
+        if (_docTipoSel === 'endoso' && !document.getElementById('inputTipoEndosoD').value.trim()) {
+            alert('Por favor escribe el tipo de endoso.'); return;
+        }
+        const input = document.getElementById('inputDocDetalle');
+        input.dataset.nombrePendiente = nombre;
+        input.dataset.tipoPendiente = _docTipoSel;
+        input.click();
+    }
+
+    async function handleDocFileSelectedDetalle(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        event.target.value = '';
+        const nombre = event.target.dataset.nombrePendiente || file.name;
+        const tipo = event.target.dataset.tipoPendiente || 'poliza';
+        cerrarModalDocDetalle();
+        await subirDocumentoDetalle(file, nombre, tipo);
+    }
+
+    async function subirDocumentoDetalle(file, nombre, tipo) {
+        if (!polizaData.documentos) polizaData.documentos = [];
+        const idx = polizaData.documentos.length;
+        polizaData.documentos.push({ nombre, tamano: (file.size / 1024).toFixed(1) + ' KB', tipo, subiendo: true });
+        renderizarDocumentosDetalle();
+
+        const filePath = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const { data, error } = await window.supabaseClient.storage.from(STORAGE_BUCKET).upload(filePath, file);
+        if (error) {
+            polizaData.documentos.splice(idx, 1);
+            renderizarDocumentosDetalle();
+            alert('Error al subir el archivo: ' + error.message);
+            return;
+        }
+        polizaData.documentos[idx] = { nombre, tamano: (file.size / 1024).toFixed(1) + ' KB', path: data.path, tipo };
+        await guardarDocumentosDB();
+        renderizarDocumentosDetalle();
+    }
+
+    async function renombrarDocumentoDetalle(index) {
+        const doc = polizaData.documentos[index];
+        const nuevoNombre = prompt('Nuevo nombre:', doc.nombre);
+        if (nuevoNombre === null || !nuevoNombre.trim()) return;
+        polizaData.documentos[index] = { ...doc, nombre: nuevoNombre.trim() };
+        await guardarDocumentosDB();
+        renderizarDocumentosDetalle();
+    }
+
+    async function eliminarDocumentoDetalle(index) {
+        if (!confirm('¿Eliminar este documento?')) return;
+        const doc = polizaData.documentos[index];
+        if (doc.path) {
+            await window.supabaseClient.storage.from(STORAGE_BUCKET).remove([doc.path]);
+        }
+        polizaData.documentos.splice(index, 1);
+        await guardarDocumentosDB();
+        renderizarDocumentosDetalle();
+    }
+
+    async function guardarDocumentosDB() {
+        await window.supabaseClient.from('polizas').update({ documentos: polizaData.documentos }).eq('id', polizaId);
+    }
 </script>
+<!-- MODAL: Tipo de Documento -->
+<div id="modalTipoDocD" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+    <div class="bg-[#1c1f27] border border-[#3b4354] rounded-2xl w-full max-w-md shadow-2xl">
+        <div class="p-6 border-b border-[#3b4354] flex items-center justify-between">
+            <h3 class="text-white font-bold text-lg">Adjuntar Documento</h3>
+            <button onclick="cerrarModalDocDetalle()" class="text-[#9da6b9] hover:text-white"><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <p class="text-[#9da6b9] text-sm">¿Qué tipo de documento es?</p>
+            <div class="grid grid-cols-2 gap-3">
+                <button type="button" id="btnTipoPolizaD" onclick="seleccionarTipoDocDetalle('poliza')" class="p-4 rounded-xl border-2 border-primary bg-primary/10 text-white font-bold flex flex-col items-center gap-2 transition-all">
+                    <span class="material-symbols-outlined text-primary">description</span>
+                    <span class="text-sm">Póliza</span>
+                </button>
+                <button type="button" id="btnTipoEndosoD" onclick="seleccionarTipoDocDetalle('endoso')" class="p-4 rounded-xl border-2 border-[#3b4354] text-[#9da6b9] font-bold flex flex-col items-center gap-2 transition-all hover:border-sky-500 hover:text-sky-400">
+                    <span class="material-symbols-outlined">edit_document</span>
+                    <span class="text-sm">Endoso</span>
+                </button>
+            </div>
+            <div id="inputTipoEndosoContD" class="hidden">
+                <label class="text-xs text-[#9da6b9] uppercase font-bold block mb-1">Tipo de Endoso</label>
+                <input type="text" id="inputTipoEndosoD" placeholder="Ej. Cambio de vehículo, Inclusión conductor..."
+                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-primary outline-none"
+                    oninput="actualizarNombreDocDetalle()">
+            </div>
+            <div>
+                <label class="text-xs text-[#9da6b9] uppercase font-bold block mb-1">Nombre del archivo</label>
+                <input type="text" id="inputNombreDocD" placeholder="Nombre del archivo..."
+                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-primary outline-none">
+                <p class="text-xs text-[#9da6b9] mt-1">Puedes editar el nombre sugerido</p>
+            </div>
+        </div>
+        <div class="p-6 pt-0 flex gap-3">
+            <button type="button" onclick="cerrarModalDocDetalle()" class="flex-1 px-4 py-2 rounded-lg border border-[#3b4354] text-[#9da6b9] hover:text-white font-medium transition-colors text-sm">Cancelar</button>
+            <button type="button" onclick="confirmarDocDetalle()" class="flex-1 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors text-sm flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined text-[18px]">upload</span> Seleccionar PDF
+            </button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
