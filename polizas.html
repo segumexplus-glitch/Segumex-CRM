@@ -256,6 +256,8 @@
         let filtroRamo = '';
         let clientesMap = {}; // { cliente_id: "Nombre Apellido" }
         let polizasRenovadas = new Set(); // IDs de pólizas que ya tienen una renovación
+        let clientesCache = []; // cache para dibujarTabla (evita race condition)
+        let polizasConSiniestroCache = new Set(); // cache para dibujarTabla
 
         async function renderizarPolizas() {
             const tabla = document.getElementById('tabla-polizas');
@@ -322,18 +324,27 @@
             document.getElementById('kpiPorVencer').innerText = porVencer;
             document.getElementById('kpiCanceladas').innerText = canceladas;
 
-            // Construir mapa de clientes para búsqueda por nombre
-            const { data: clientesRaw } = await window.supabaseClient.from('clientes').select('id, nombre, apellido');
+            // Construir mapa de clientes para búsqueda por nombre (incluye agente para la tabla)
+            const { data: clientesRaw } = await window.supabaseClient.from('clientes').select('id, nombre, apellido, agente');
+            clientesCache = clientesRaw || [];
             clientesMap = {};
-            (clientesRaw || []).forEach(c => {
+            clientesCache.forEach(c => {
                 clientesMap[String(c.id)] = `${c.nombre || ''} ${c.apellido || ''}`.toLowerCase().trim();
             });
 
+            // Cargar siniestros activos una sola vez (evita race condition en dibujarTabla)
+            const { data: siniestrosRaw } = await window.supabaseClient.from('siniestros').select('poliza_id, status');
+            polizasConSiniestroCache = new Set(
+                (siniestrosRaw || [])
+                    .filter(s => !['Cerrado', 'Pagado', 'Rechazado'].includes(s.status))
+                    .map(s => String(s.poliza_id))
+            );
+
             poblarDropdowns();
-            await dibujarTabla(polizasGlobales);
+            dibujarTabla(polizasGlobales);
         }
 
-        async function dibujarTabla(datos) {
+        function dibujarTabla(datos) {
             const tabla = document.getElementById('tabla-polizas');
             const mensajeVacio = document.getElementById('sin-datos');
             const contador = document.getElementById('contadorResultados');
@@ -376,16 +387,9 @@
                 mensajeVacio.classList.add('hidden');
             }
 
-            // Obtener clientes para los nombres de los titulares
-            const { data: clientes } = await window.supabaseClient.from('clientes').select('id, nombre, apellido, agente');
-
-            // Cargar siniestros activos para mostrar badge
-            const { data: siniestrosRaw } = await window.supabaseClient.from('siniestros').select('poliza_id, status');
-            const polizasConSiniestro = new Set(
-                (siniestrosRaw || [])
-                    .filter(s => !['Cerrado', 'Pagado', 'Rechazado'].includes(s.status))
-                    .map(s => String(s.poliza_id))
-            );
+            // Usar datos cacheados (cargados en renderizarPolizas, evita race condition)
+            const clientes = clientesCache;
+            const polizasConSiniestro = polizasConSiniestroCache;
 
             datos.forEach((p) => {
                 const finVigenciaStr = window.SegumexDate.toDisplay(p.vence);
