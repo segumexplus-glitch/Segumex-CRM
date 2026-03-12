@@ -27,7 +27,7 @@ Gracias por confiar en nosotros para proteger lo que más valoras. Tu póliza de
 🏥 *Aseguradora*: {aseguradora}
 🗓️ *Vigencia*: {vigencia}
 
-📅 *Tu Plan de Pagos:*{pagos}
+📅 *Tu Plan de Pagos ({forma_pago}):*{pagos}{domiciliada}
 
 Cualquier duda, aquí estamos para apoyarte 24/7. 🤝`;
 
@@ -37,7 +37,7 @@ Gracias por seguir construyendo tu seguridad con nosotros. Tu nueva póliza de *
 
 🗓️ *Vigencia*: {vigencia}
 
-📅 *Fechas de pago para esta póliza:*{pagos}
+📅 *Tu Plan de Pagos ({forma_pago}):*{pagos}{domiciliada}
 
 ¡Seguimos a la orden! 🛡️`;
 
@@ -130,17 +130,53 @@ Deno.serve(async (req) => {
         console.log(`📞 Teléfono: ${phone} → ChatId: ${chatId}`);
 
         // 5. Preparar variables del mensaje
-        const pagos = record.pagos_fechas || [];
-        const monto = (record.prima / (pagos.length || 1)).toFixed(2);
+        const finanzas = record.finanzas || {};
+        const pagosDetalle: any[] = finanzas.pagos_detalle || [];
+        const formaPagoNum = String(finanzas.formaPago || '1');
+        const formaMap: Record<string, string> = { '1': 'Anual', '2': 'Semestral', '3': 'Trimestral', '4': 'Mensual' };
+        const formaLabel = formaMap[formaPagoNum] || '';
 
+        // Construir lista de pagos desde pagos_detalle (fuente real con montos por pago)
         let pagosTexto = '';
-        pagos.slice(0, 3).forEach((fecha: string, idx: number) => {
-            pagosTexto += `\n- Pago ${idx + 1}: $${monto} (${new Date(fecha).toLocaleDateString(undefined, { timeZone: 'UTC' })})`;
-        });
-        if (pagos.length > 3) pagosTexto += `\n... y ${pagos.length - 3} pagos más.`;
+        if (pagosDetalle.length > 0) {
+            const limite = formaPagoNum === '1' ? 1 : 3;
+            pagosDetalle.slice(0, limite).forEach((p: any, idx: number) => {
+                const fecha = p.fecha
+                    ? new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
+                    : '---';
+                const monto = p.total != null
+                    ? `$${Number(p.total).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : '';
+                pagosTexto += `\n  • Pago ${p.numero || idx + 1}: ${monto} — ${fecha}`;
+            });
+            if (pagosDetalle.length > 3 && formaPagoNum !== '1') {
+                pagosTexto += `\n  _...y ${pagosDetalle.length - 3} pagos más._`;
+            }
+        } else {
+            // Fallback: usar pagos_fechas + prima dividida si no hay pagos_detalle
+            const pagosFechas: string[] = record.pagos_fechas || [];
+            const numPagos = parseInt(formaPagoNum) || 1;
+            const montoPago = record.prima ? (Number(record.prima) / numPagos).toFixed(2) : '';
+            pagosFechas.slice(0, 3).forEach((fecha: string, idx: number) => {
+                const fechaStr = new Date(fecha + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
+                pagosTexto += `\n  • Pago ${idx + 1}: $${montoPago} — ${fechaStr}`;
+            });
+            if (pagosFechas.length > 3) pagosTexto += `\n  _...y ${pagosFechas.length - 3} pagos más._`;
+            if (!pagosFechas.length) pagosTexto = '\n  _Tu asesor te compartirá el calendario de pagos._';
+        }
 
-        const inicioVigencia = record.finanzas?.inicio ? new Date(record.finanzas.inicio).toLocaleDateString(undefined, { timeZone: 'UTC' }) : 'N/A';
-        const finVigencia = record.vence ? new Date(record.vence).toLocaleDateString(undefined, { timeZone: 'UTC' }) : 'N/A';
+        // Texto de domiciliación
+        const esDomiciliada = record.domiciliada === true;
+        const domiciliadaTexto = esDomiciliada
+            ? '\n\n💳 *Póliza domiciliada:* Tus pagos se cargarán automáticamente a tu tarjeta en cada fecha programada. No tienes que hacer nada. ✅'
+            : '\n\n🔔 Recuerda realizar tu pago en cada fecha programada para mantener tu cobertura activa.';
+
+        const inicioVigencia = finanzas.inicio
+            ? new Date(finanzas.inicio + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
+            : 'N/A';
+        const finVigencia = record.vence
+            ? new Date(record.vence + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
+            : 'N/A';
 
         const vars: Record<string, string> = {
             nombre: cliente.nombre || '',
@@ -148,7 +184,9 @@ Deno.serve(async (req) => {
             ramo: record.ramo || '',
             aseguradora: record.aseguradora || '',
             vigencia: `${inicioVigencia} al ${finVigencia}`,
-            pagos: pagosTexto
+            forma_pago: formaLabel,
+            pagos: pagosTexto,
+            domiciliada: domiciliadaTexto
         };
 
         // 6. Construir mensaje con plantilla
