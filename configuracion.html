@@ -576,6 +576,20 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
                 mostrarImagenBienvenidaActual(_configData['bienvenida_imagen_url'].contenido);
             }
 
+            // Auto-migrar plantillas de bienvenida que no tienen las variables nuevas
+            for (const clave of CLAVES_BIENVENIDA) {
+                const contenido = _configData[clave]?.contenido || '';
+                const necesitaMigracion = contenido && (!contenido.includes('{domiciliada}') || !contenido.includes('{forma_pago}'));
+                if (necesitaMigracion) {
+                    const nuevoContenido = DEFAULTS_BIENVENIDA[clave];
+                    const titulo = BIENVENIDA_META[clave]?.titulo || clave;
+                    await window.supabaseClient.from('configuracion_mensajes')
+                        .upsert({ clave, titulo, contenido: nuevoContenido, updated_at: new Date().toISOString() }, { onConflict: 'clave' });
+                    _configData[clave] = { titulo, contenido: nuevoContenido };
+                    console.log(`🔄 Plantilla "${clave}" actualizada con variables nuevas.`);
+                }
+            }
+
             renderMensajes();
         }
 
