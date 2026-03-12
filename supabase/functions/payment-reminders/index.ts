@@ -17,12 +17,12 @@ const corsHeaders = {
 };
 
 // ============================================================
-// Construye el chatId de Green API desde teléfono de 10 dígitos
+// Construye el chatId de Green API (formato México 521XXXXXXXXXX)
 // ============================================================
 function buildChatId(telefono: string): string {
     const digits = telefono.replace(/\D/g, '');
-    const tel10 = digits.length === 12 && digits.startsWith('52') ? digits.slice(2) : digits.slice(-10);
-    return `52${tel10}@c.us`;
+    const tel10 = digits.length >= 12 && digits.startsWith('52') ? digits.slice(-10) : digits.slice(-10);
+    return `521${tel10}@c.us`;
 }
 
 // ============================================================
@@ -73,20 +73,17 @@ function aplicarPlantilla(template: string, vars: Record<string, string>): strin
 }
 
 // ============================================================
-// Verificar si ya se envió este tipo de mensaje para esta póliza hoy
+// Verificar si ya se envió este tipo de recordatorio para este
+// pago específico (poliza_id + tipo_mensaje + numero_pago)
 // ============================================================
-async function yaEnviado(polizaId: number, tipoMensaje: string): Promise<boolean> {
-    const hoyInicio = new Date();
-    hoyInicio.setHours(0, 0, 0, 0);
-
+async function yaEnviado(polizaId: number, tipoMensaje: string, numeroPago: number): Promise<boolean> {
     const { data } = await supabase
         .from('mensajes_cobranza_log')
         .select('id')
         .eq('poliza_id', polizaId)
         .eq('tipo_mensaje', tipoMensaje)
-        .gte('enviado_at', hoyInicio.toISOString())
+        .eq('numero_pago', numeroPago)
         .maybeSingle();
-
     return !!data;
 }
 
@@ -101,6 +98,7 @@ async function registrarEnvio(
     noPoliza: string,
     fechaVencimiento: string,
     prima: number,
+    numeroPago: number,
     status: string,
     respuestaApi: any
 ) {
@@ -112,6 +110,7 @@ async function registrarEnvio(
         numero_poliza: noPoliza,
         fecha_vencimiento: fechaVencimiento,
         prima,
+        numero_pago: numeroPago,
         status,
         respuesta_api: respuestaApi
     });
@@ -153,7 +152,7 @@ Deno.serve(async (req) => {
         }
 
         // --------------------------------------------------------
-        // 1. Cargar plantillas de mensajes desde configuracion_mensajes
+        // 1. Cargar plantillas de mensajes y imagen
         // --------------------------------------------------------
         const { data: configs } = await supabase
             .from('configuracion_mensajes')
@@ -163,8 +162,6 @@ Deno.serve(async (req) => {
         (configs || []).forEach((c: any) => { plantillas[c.clave] = c.contenido || ''; });
 
         let imagenUrl = plantillas['cobranza_imagen_url'] || '';
-
-        // Si no hay URL guardada, generar URL firmada directo desde el bucket
         if (!imagenUrl) {
             const { data: signedData } = await supabase.storage
                 .from('documentos-polizas')
@@ -173,145 +170,174 @@ Deno.serve(async (req) => {
         }
 
         // --------------------------------------------------------
-        // 2. Calcular fechas objetivo
+        // 2. Mapa de offsets: días desde fecha de pago → clave plantilla
+        //    Negativo = días DESPUÉS del vencimiento (pago atrasado)
+        //    Positivo = días ANTES del vencimiento
         // --------------------------------------------------------
+        const OFFSET_MAP = new Map<number, string>([
+            [ 7, 'cobranza_7_dias_antes'   ],
+            [ 1, 'cobranza_1_dia_antes'    ],
+            [-2, 'cobranza_2_dias_despues' ],
+            [-5, 'cobranza_5_dias_despues' ],
+            [-8, 'cobranza_8_dias_despues' ],
+        ]);
+
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
 
-        function fechaOffset(dias: number): string {
-            const d = new Date(hoy);
-            d.setDate(d.getDate() + dias);
-            return d.toISOString().split('T')[0]; // YYYY-MM-DD
-        }
+        // --------------------------------------------------------
+        // 3. Traer todas las pólizas activas no domiciliadas
+        // --------------------------------------------------------
+        const { data: todasPolizas, error: polizasError } = await supabase
+            .from('polizas')
+            .select(`
+                id,
+                no_poliza,
+                vence,
+                prima,
+                aseguradora,
+                ramo,
+                domiciliada,
+                finanzas,
+                pagos_status,
+                clientes (
+                    nombre,
+                    apellido,
+                    telefono
+                )
+            `)
+            .in('estado', ['activa', 'vigente'])
+            .or('domiciliada.is.null,domiciliada.eq.false');
 
-        // Mapa: tipo_mensaje → fecha_vencimiento objetivo
-        const REGLAS: Array<{ clave: string; fechaVence: string }> = [
-            { clave: 'cobranza_7_dias_antes', fechaVence: fechaOffset(7) },
-            { clave: 'cobranza_1_dia_antes',  fechaVence: fechaOffset(1) },
-            { clave: 'cobranza_2_dias_despues', fechaVence: fechaOffset(-2) },
-            { clave: 'cobranza_5_dias_despues', fechaVence: fechaOffset(-5) },
-            { clave: 'cobranza_8_dias_despues', fechaVence: fechaOffset(-8) },
-        ];
+        if (polizasError) throw new Error('Error cargando pólizas: ' + polizasError.message);
+        console.log(`📋 Total pólizas activas no domiciliadas: ${(todasPolizas || []).length}`);
 
         // --------------------------------------------------------
-        // 3. Para cada regla, buscar pólizas y enviar mensajes
+        // 4. Por cada póliza, encontrar próximo pago no cubierto
         // --------------------------------------------------------
-        for (const regla of REGLAS) {
-            const template = plantillas[regla.clave];
+        for (const poliza of (todasPolizas || [])) {
+            const cliente = (poliza as any).clientes;
+            if (!cliente?.telefono) {
+                console.log(`⚠️ Póliza ${(poliza as any).no_poliza}: sin teléfono, omitiendo.`);
+                continue;
+            }
+
+            const finanzas = (poliza as any).finanzas || {};
+            const pagosDetalle: any[] = finanzas.pagos_detalle || [];
+            const pagosStatus: boolean[] = (poliza as any).pagos_status || [];
+
+            // Sin calendario de pagos — no se puede procesar
+            if (pagosDetalle.length === 0) {
+                console.log(`⚠️ Póliza ${(poliza as any).no_poliza}: sin pagos_detalle, omitiendo.`);
+                continue;
+            }
+
+            // Encontrar primer pago no pagado
+            let proximoIdx = -1;
+            for (let i = 0; i < pagosDetalle.length; i++) {
+                if (!pagosStatus[i]) {
+                    proximoIdx = i;
+                    break;
+                }
+            }
+
+            // Todos los pagos cubiertos — no mandar nada
+            if (proximoIdx === -1) {
+                console.log(`✅ Póliza ${(poliza as any).no_poliza}: todos los pagos cubiertos.`);
+                continue;
+            }
+
+            const proximoPago = pagosDetalle[proximoIdx];
+            const fechaStr = String(proximoPago.fecha).substring(0, 10); // YYYY-MM-DD
+            const montoPago = Number(proximoPago.total) || 0;
+            const numeroPago = Number(proximoPago.numero || (proximoIdx + 1));
+
+            // Calcular diferencia de días: positivo = faltan días, negativo = días vencido
+            const fechaPagoDate = new Date(fechaStr + 'T12:00:00');
+            const diffMs = fechaPagoDate.getTime() - hoy.getTime();
+            const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+            const claveRegla = OFFSET_MAP.get(diffDias);
+            if (!claveRegla) continue; // No coincide con ningún recordatorio hoy
+
+            const template = plantillas[claveRegla];
             if (!template) {
-                console.log(`⚠️ Sin plantilla para ${regla.clave}, omitiendo.`);
+                console.log(`⚠️ Sin plantilla para ${claveRegla}, omitiendo.`);
                 continue;
             }
 
-            // Buscar pólizas que venzan en la fecha objetivo, estén activas y NO sean domiciliadas
-            const { data: polizas, error: polizasError } = await supabase
-                .from('polizas')
-                .select(`
-                    id,
-                    no_poliza,
-                    vence,
-                    prima,
-                    aseguradora,
-                    ramo,
-                    cliente_id,
-                    domiciliada,
-                    clientes (
-                        nombre,
-                        apellido,
-                        telefono
-                    )
-                `)
-                .eq('vence', regla.fechaVence)
-                .in('estado', ['activa', 'vigente'])
-                .or('domiciliada.is.null,domiciliada.eq.false');
-
-            if (polizasError) {
-                console.error(`Error consultando pólizas para ${regla.clave}:`, polizasError);
+            // Verificar si ya se envió este recordatorio para este pago
+            const enviado = await yaEnviado((poliza as any).id, claveRegla, numeroPago);
+            if (enviado) {
+                console.log(`⏭️ Ya enviado: póliza ${(poliza as any).no_poliza} pago #${numeroPago} (${claveRegla})`);
                 continue;
             }
 
-            if (!polizas || polizas.length === 0) {
-                console.log(`ℹ️ ${regla.clave}: 0 pólizas para ${regla.fechaVence}`);
-                continue;
-            }
+            // Preparar mensaje
+            const chatId = buildChatId(cliente.telefono);
+            const nombreCliente = `${cliente.nombre} ${cliente.apellido || ''}`.trim();
+            const fechaFormateada = new Date(fechaStr + 'T12:00:00').toLocaleDateString('es-MX', {
+                day: '2-digit', month: 'long', year: 'numeric'
+            });
+            const montoFormateado = montoPago.toLocaleString('es-MX', { minimumFractionDigits: 2 });
 
-            console.log(`📋 ${regla.clave}: ${polizas.length} póliza(s) para ${regla.fechaVence}`);
+            const mensaje = aplicarPlantilla(template, {
+                nombre: cliente.nombre,
+                numero_poliza: (poliza as any).no_poliza || 'S/N',
+                fecha_vencimiento: fechaFormateada,
+                prima: montoFormateado,
+                aseguradora: (poliza as any).aseguradora || ''
+            });
 
-            for (const poliza of polizas) {
-                const cliente = (poliza as any).clientes;
-                if (!cliente || !cliente.telefono) {
-                    console.log(`⚠️ Póliza ${poliza.id}: sin teléfono de cliente, omitiendo.`);
-                    continue;
-                }
+            let respuestaApi: any = null;
+            let status = 'enviado';
 
-                // Verificar si ya se envió hoy
-                const enviado = await yaEnviado(poliza.id, regla.clave);
-                if (enviado) {
-                    console.log(`⏭️ Ya enviado hoy: póliza ${poliza.no_poliza} (${regla.clave})`);
-                    continue;
-                }
-
-                const chatId = buildChatId(cliente.telefono);
-                const nombreCliente = `${cliente.nombre} ${cliente.apellido || ''}`.trim();
-                const fechaFormateada = new Date(poliza.vence + 'T12:00:00').toLocaleDateString('es-MX', {
-                    day: '2-digit',
-                    month: 'long',
-                    year: 'numeric'
-                });
-                const primaFormateada = poliza.prima
-                    ? Number(poliza.prima).toLocaleString('es-MX', { minimumFractionDigits: 2 })
-                    : '0.00';
-
-                const mensaje = aplicarPlantilla(template, {
-                    nombre: cliente.nombre,
-                    numero_poliza: poliza.no_poliza || 'S/N',
-                    fecha_vencimiento: fechaFormateada,
-                    prima: primaFormateada,
-                    aseguradora: poliza.aseguradora || ''
-                });
-
-                let respuestaApi: any = null;
-                let status = 'enviado';
-
-                try {
-                    // Enviar con imagen si hay URL configurada, si no solo texto
-                    if (imagenUrl) {
+            try {
+                if (imagenUrl) {
+                    // Verificar accesibilidad de imagen antes de enviar
+                    const imgCheck = await fetch(imagenUrl, { method: 'HEAD' }).catch(() => null);
+                    if (imgCheck?.ok) {
                         respuestaApi = await enviarImagenConCaption(chatId, imagenUrl, mensaje);
                     } else {
+                        console.warn(`⚠️ Imagen inaccesible, enviando solo texto.`);
                         respuestaApi = await enviarTexto(chatId, mensaje);
                     }
-
-                    console.log(`✅ Enviado: ${nombreCliente} (${poliza.no_poliza}) - ${regla.clave}`);
-                    resultados.push({
-                        poliza: poliza.no_poliza,
-                        cliente: nombreCliente,
-                        tipo: regla.clave,
-                        chatId
-                    });
-
-                } catch (sendErr: any) {
-                    console.error(`❌ Error enviando a ${chatId}:`, sendErr.message);
-                    status = 'error';
-                    respuestaApi = { error: sendErr.message };
-                    errores.push({ poliza: poliza.no_poliza, error: sendErr.message });
+                } else {
+                    respuestaApi = await enviarTexto(chatId, mensaje);
                 }
 
-                // Registrar en log (éxito o error)
-                await registrarEnvio(
-                    poliza.id,
-                    nombreCliente,
-                    cliente.telefono,
-                    regla.clave,
-                    poliza.no_poliza || '',
-                    poliza.vence,
-                    poliza.prima,
-                    status,
-                    respuestaApi
-                );
+                console.log(`✅ Enviado: ${nombreCliente} (${(poliza as any).no_poliza}) pago #${numeroPago} — ${claveRegla}`);
+                resultados.push({
+                    poliza: (poliza as any).no_poliza,
+                    cliente: nombreCliente,
+                    tipo: claveRegla,
+                    numeroPago,
+                    fechaPago: fechaStr,
+                    chatId
+                });
 
-                // Pequeña pausa entre envíos para no saturar la API
-                await new Promise(r => setTimeout(r, 500));
+            } catch (sendErr: any) {
+                console.error(`❌ Error enviando a ${chatId}:`, sendErr.message);
+                status = 'error';
+                respuestaApi = { error: sendErr.message };
+                errores.push({ poliza: (poliza as any).no_poliza, error: sendErr.message });
             }
+
+            await registrarEnvio(
+                (poliza as any).id,
+                nombreCliente,
+                cliente.telefono,
+                claveRegla,
+                (poliza as any).no_poliza || '',
+                fechaStr,
+                montoPago,
+                numeroPago,
+                status,
+                respuestaApi
+            );
+
+            // Pausa entre envíos para no saturar la API
+            await new Promise(r => setTimeout(r, 500));
         }
 
         return new Response(JSON.stringify({
