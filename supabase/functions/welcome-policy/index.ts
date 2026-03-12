@@ -45,7 +45,8 @@ const MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agos
 
 function fmtFechaMX(str: string | null | undefined): string {
     if (!str) return '---';
-    const [y, m, d] = str.split('-').map(Number);
+    const [y, m, d] = String(str).substring(0, 10).split('-').map(Number);
+    if (isNaN(d) || isNaN(m)) return '---';
     return `${d} de ${MESES_ES[m - 1]} de ${y}`;
 }
 

@@ -1266,7 +1266,8 @@ Saludos cordiales — Equipo Segumex 🛡️</p>
             const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
             function fmtFecha(str) {
                 if (!str) return '---';
-                const [y, m, d] = str.split('-').map(Number);
+                const [y, m, d] = String(str).substring(0, 10).split('-').map(Number);
+                if (isNaN(d) || isNaN(m)) return '---';
                 return `${d} de ${MESES[m - 1]} de ${y}`;
             }
             function fmtMonto(n) {
