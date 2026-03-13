@@ -113,80 +113,145 @@
 
         <div id="modalNuevoLead"
             class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-            <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl w-full max-w-md p-6 shadow-2xl">
-                <div class="flex justify-between items-center mb-6">
+            <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl w-full max-w-xl shadow-2xl flex flex-col max-h-[90vh]">
+                <!-- Header -->
+                <div class="flex justify-between items-center px-6 pt-6 pb-4 border-b border-[#3b4354] flex-shrink-0">
                     <h2 class="text-lg font-bold text-white">Nuevo Prospecto</h2>
-                    <button onclick="cerrarModalNuevo()" class="text-[#9da6b9] hover:text-white"><span
-                            class="material-symbols-outlined">close</span></button>
+                    <button onclick="cerrarModalNuevo()" class="text-[#9da6b9] hover:text-white">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
                 </div>
-                <form onsubmit="guardarLead(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-[#9da6b9] mb-1">Nombre del Prospecto</label>
-                        <input type="text" id="nombreLead" required
-                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
+                <!-- Body scrollable -->
+                <div class="overflow-y-auto flex-1 px-6 py-4">
+                    <form id="formNuevoLead" onsubmit="guardarLead(event)" class="space-y-4">
+                        <!-- Nombre -->
                         <div>
-                            <label class="block text-xs font-bold text-[#9da6b9] mb-1">Producto</label>
-                            <select id="productoLead"
+                            <label class="block text-xs font-bold text-[#9da6b9] mb-1">Nombre del Prospecto *</label>
+                            <input type="text" id="nombreLead" required
                                 class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
-                                <option value="Seguro de Vida">Seguro de Vida</option>
-                                <option value="Gastos Médicos">Gastos Médicos</option>
-                                <option value="Autos">Autos</option>
-                                <option value="Flotilla">Flotilla</option>
-                                <option value="Daños">Daños</option>
-                            </select>
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-[#9da6b9] mb-1">Valor Est. (MXN)</label>
-                            <input type="number" id="valorLead" required
-                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm"
-                                placeholder="0.00">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-[#9da6b9] mb-1">Probabilidad</label>
-                            <select id="probLead"
-                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
-                                <option value="Baja">Baja</option>
-                                <option value="Media">Media</option>
-                                <option value="Alta">Alta</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-[#9da6b9] mb-1">Etapa Inicial</label>
-                            <select id="etapaLead"
-                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
-                                <option value="nuevo">Nuevo Lead</option>
-                                <option value="calificado">Calificado</option>
-                                <option value="cotizacion">Cotización</option>
-                                <option value="cierre">Cierre</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="border-t border-[#3b4354] pt-4">
+                        <!-- Producto + CP -->
                         <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-[#9da6b9] mb-1">Producto</label>
+                                <select id="productoLead" onchange="toggleAutoFields()"
+                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
+                                    <option value="Seguro de Vida">Seguro de Vida</option>
+                                    <option value="Seguro de Auto">Seguro de Auto</option>
+                                    <option value="Seguro de Gastos Médicos">Seguro de Gastos Médicos</option>
+                                    <option value="Seguro de Casa/Habitación">Seguro de Casa/Habitación</option>
+                                    <option value="Seguro para Negocio">Seguro para Negocio</option>
+                                    <option value="Otros">Otros</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-[#9da6b9] mb-1">Código Postal</label>
+                                <input type="text" id="cpLead" maxlength="5" inputmode="numeric"
+                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm"
+                                    placeholder="00000">
+                            </div>
+                        </div>
+                        <!-- Otros producto -->
+                        <div id="seccionOtrosProducto" class="hidden">
+                            <label class="block text-xs font-bold text-[#9da6b9] mb-1">Especifica el producto</label>
+                            <input type="text" id="otrosProductoLead"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm"
+                                placeholder="Ej: Seguro de Mascotas">
+                        </div>
+                        <!-- Valor + Probabilidad -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-[#9da6b9] mb-1">Valor Est. (MXN)</label>
+                                <input type="number" id="valorLead"
+                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm"
+                                    placeholder="0.00">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-[#9da6b9] mb-1">Probabilidad</label>
+                                <select id="probLead"
+                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
+                                    <option value="Baja">Baja</option>
+                                    <option value="Media">Media</option>
+                                    <option value="Alta">Alta</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Etapa + Teléfono -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-[#9da6b9] mb-1">Etapa Inicial</label>
+                                <select id="etapaLead"
+                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
+                                    <option value="nuevo">Nuevo Lead</option>
+                                    <option value="calificado">Calificado</option>
+                                    <option value="cotizacion">Cotización</option>
+                                    <option value="cierre">Cierre</option>
+                                </select>
+                            </div>
                             <div>
                                 <label class="block text-xs font-bold text-[#9da6b9] mb-1">Teléfono</label>
                                 <input type="tel" id="telLead"
                                     class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
                             </div>
-                            <div>
-                                <label class="block text-xs font-bold text-[#9da6b9] mb-1">Email</label>
-                                <input type="email" id="emailLead"
-                                    class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
+                        </div>
+                        <!-- Email -->
+                        <div>
+                            <label class="block text-xs font-bold text-[#9da6b9] mb-1">Email</label>
+                            <input type="email" id="emailLead"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm">
+                        </div>
+                        <!-- Sección Auto (condicional) -->
+                        <div id="seccionAuto" class="hidden border border-blue-500/30 bg-blue-500/5 rounded-xl p-4 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <p class="text-xs font-bold text-blue-400 uppercase tracking-wider">Datos del Vehículo</p>
+                                <!-- Botón escáner IA -->
+                                <label id="btnEscanear"
+                                    class="cursor-pointer flex items-center gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg transition-colors">
+                                    <span class="material-symbols-outlined" style="font-size:16px">document_scanner</span>
+                                    <span id="textoEscanear">Escanear con IA</span>
+                                    <input type="file" id="archivoEscanear"
+                                        accept=".pdf,.jpg,.jpeg,.png,image/*"
+                                        class="hidden" onchange="escanearDocumento(this)">
+                                </label>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-[#9da6b9] mb-1">Marca / Modelo</label>
+                                    <input type="text" id="autoModeloLead"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm"
+                                        placeholder="Ej: Toyota Corolla">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-[#9da6b9] mb-1">Año</label>
+                                    <input type="text" id="autoAnioLead"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm"
+                                        placeholder="Ej: 2022">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-[#9da6b9] mb-1">Versión / Trim</label>
+                                    <input type="text" id="autoVersionLead"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm"
+                                        placeholder="Ej: SE CVT">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-[#9da6b9] mb-1">No. de Serie (VIN)</label>
+                                    <input type="text" id="autoSerieLead"
+                                        class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2 text-white text-sm"
+                                        placeholder="17 caracteres">
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="pt-4 flex justify-end gap-2">
-                        <button type="button" onclick="cerrarModalNuevo()"
-                            class="px-4 py-2 text-sm text-[#9da6b9] hover:text-white">Cancelar</button>
-                        <button type="submit"
-                            class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-primary/20">Crear
-                            Lead</button>
-                    </div>
-                </form>
+                    </form>
+                </div>
+                <!-- Footer -->
+                <div class="px-6 py-4 border-t border-[#3b4354] flex justify-end gap-2 flex-shrink-0">
+                    <button type="button" onclick="cerrarModalNuevo()"
+                        class="px-4 py-2 text-sm text-[#9da6b9] hover:text-white">Cancelar</button>
+                    <button type="submit" form="formNuevoLead"
+                        class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-primary/20">Crear Lead</button>
+                </div>
             </div>
         </div>
     </div>
@@ -219,7 +284,9 @@
 
                     let tagColor = "bg-blue-500/10 text-blue-400 border-blue-500/20";
                     if (l.producto === 'Seguro de Vida') tagColor = "bg-purple-500/10 text-purple-400 border-purple-500/20";
-                    if (l.producto === 'Autos' || l.producto === 'Flotilla') tagColor = "bg-orange-500/10 text-orange-400 border-orange-500/20";
+                    if (l.producto === 'Seguro de Auto' || l.producto === 'Autos' || l.producto === 'Flotilla') tagColor = "bg-orange-500/10 text-orange-400 border-orange-500/20";
+                    if (l.producto === 'Seguro de Casa/Habitación') tagColor = "bg-green-500/10 text-green-400 border-green-500/20";
+                    if (l.producto === 'Seguro para Negocio') tagColor = "bg-yellow-500/10 text-yellow-400 border-yellow-500/20";
 
                     let probBadge = "";
                     if (l.prob === "Alta") probBadge = `<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30 flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">auto_awesome</span> Alta Prob.</span>`;
@@ -368,6 +435,87 @@
             document.getElementById('valorLead').value = '';
             document.getElementById('telLead').value = '';
             document.getElementById('emailLead').value = '';
+            document.getElementById('cpLead').value = '';
+            document.getElementById('otrosProductoLead').value = '';
+            document.getElementById('autoModeloLead').value = '';
+            document.getElementById('autoAnioLead').value = '';
+            document.getElementById('autoVersionLead').value = '';
+            document.getElementById('autoSerieLead').value = '';
+            document.getElementById('archivoEscanear').value = '';
+            document.getElementById('textoEscanear').textContent = 'Escanear con IA';
+            document.getElementById('seccionAuto').classList.add('hidden');
+            document.getElementById('seccionOtrosProducto').classList.add('hidden');
+            document.getElementById('productoLead').value = 'Seguro de Vida';
+        }
+
+        function toggleAutoFields() {
+            const producto = document.getElementById('productoLead').value;
+            document.getElementById('seccionAuto').classList.toggle('hidden', producto !== 'Seguro de Auto');
+            document.getElementById('seccionOtrosProducto').classList.toggle('hidden', producto !== 'Otros');
+        }
+
+        async function escanearDocumento(input) {
+            if (!input.files || !input.files[0]) return;
+            const archivo = input.files[0];
+            const textoBtn = document.getElementById('textoEscanear');
+            textoBtn.textContent = 'Analizando...';
+
+            try {
+                // Leer como base64
+                const base64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(archivo);
+                });
+
+                const mimeType = archivo.type || 'application/pdf';
+
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                const token = session?.access_token;
+
+                const res = await fetch('https://mmhdpbygdvdyujiktvqa.supabase.co/functions/v1/scan-policy-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                    },
+                    body: JSON.stringify({ pdf_base64: base64, mime_type: mimeType, filename: archivo.name })
+                });
+
+                const resultado = await res.json();
+                if (!resultado.success) throw new Error(resultado.error || 'Error al escanear');
+
+                const d = resultado.data;
+                const v = d.vehiculo || {};
+                const c = d.cliente || {};
+
+                // Prefill campos del vehículo
+                if (v.marca || v.modelo) {
+                    const marcaModelo = [v.marca, v.modelo].filter(Boolean).join(' ');
+                    document.getElementById('autoModeloLead').value = marcaModelo;
+                }
+                if (v.anio) document.getElementById('autoAnioLead').value = v.anio;
+                if (v.version) document.getElementById('autoVersionLead').value = v.version;
+                if (v.serie) document.getElementById('autoSerieLead').value = v.serie;
+
+                // Prefill datos del cliente si están vacíos
+                if (c.nombre && !document.getElementById('nombreLead').value) {
+                    document.getElementById('nombreLead').value = [c.nombre, c.apellido].filter(Boolean).join(' ');
+                }
+                if (c.telefono && !document.getElementById('telLead').value) {
+                    document.getElementById('telLead').value = c.telefono;
+                }
+                if (c.cp && !document.getElementById('cpLead').value) {
+                    document.getElementById('cpLead').value = c.cp;
+                }
+
+                textoBtn.textContent = '✓ Datos cargados';
+            } catch (err) {
+                console.error('Error escanear:', err);
+                textoBtn.textContent = 'Escanear con IA';
+                alert('No se pudo escanear el documento:\n' + err.message);
+            }
         }
 
         async function guardarLead(e) {
@@ -375,16 +523,25 @@
             const btnSubmit = e.target.querySelector('button[type="submit"]'); // Use querySelector on form
             window.SegumexUI.setLoading(btnSubmit, "Guardando...");
 
+            const productoBase = document.getElementById('productoLead').value;
+            const productoFinal = productoBase === 'Otros'
+                ? (document.getElementById('otrosProductoLead').value.trim() || 'Otros')
+                : productoBase;
+
             const nuevo = {
-                // id: Autogenerado
                 nombre: document.getElementById('nombreLead').value,
-                producto: document.getElementById('productoLead').value,
+                producto: productoFinal,
                 valor: parseFloat(document.getElementById('valorLead').value) || 0,
                 prob: document.getElementById('probLead').value,
                 etapa: document.getElementById('etapaLead').value,
                 telefono: document.getElementById('telLead').value,
                 email: document.getElementById('emailLead').value,
-                fecha: new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+                fecha: new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }),
+                codigo_postal: document.getElementById('cpLead').value.trim() || null,
+                auto_modelo: document.getElementById('autoModeloLead').value.trim() || null,
+                auto_anio: document.getElementById('autoAnioLead').value.trim() || null,
+                auto_version: document.getElementById('autoVersionLead').value.trim() || null,
+                auto_serie: document.getElementById('autoSerieLead').value.trim() || null,
             };
 
             const { error } = await window.supabaseClient.from('leads').insert([nuevo]);

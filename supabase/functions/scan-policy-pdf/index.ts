@@ -14,11 +14,13 @@ Deno.serve(async (req) => {
     }
 
     try {
-        const { pdf_base64, filename } = await req.json();
+        const { pdf_base64, filename, mime_type } = await req.json();
 
         if (!pdf_base64) {
             throw new Error('Se requiere pdf_base64');
         }
+
+        const mimeType = mime_type || 'application/pdf';
 
         const prompt = `Analiza esta póliza de seguro mexicana y extrae toda la información relevante.
 
@@ -73,7 +75,7 @@ Notas:
                     parts: [
                         {
                             inline_data: {
-                                mime_type: 'application/pdf',
+                                mime_type: mimeType,
                                 data: pdf_base64
                             }
                         },
