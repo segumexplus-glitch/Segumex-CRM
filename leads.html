@@ -133,6 +133,19 @@
                 </div>
                 <!-- Body scrollable -->
                 <div class="overflow-y-auto flex-1 px-6 py-4">
+                    <!-- Zona drag & drop -->
+                    <div id="dropZoneLead"
+                        class="mb-4 border-2 border-dashed border-[#3b4354] rounded-xl p-4 text-center transition-all duration-200 cursor-pointer hover:border-indigo-500/70 hover:bg-indigo-500/5"
+                        onclick="document.getElementById('archivoEscanear').click()"
+                        ondragover="dragOverZone(event)"
+                        ondragleave="dragLeaveZone(event)"
+                        ondrop="dropZone(event)">
+                        <span class="material-symbols-outlined text-[#9da6b9] block" style="font-size:28px">document_scanner</span>
+                        <p class="text-xs text-[#9da6b9] mt-1">Arrastra tu <span class="text-indigo-400 font-semibold">tarjeta de circulación</span> o <span class="text-indigo-400 font-semibold">póliza anterior</span> aquí</p>
+                        <p class="text-[10px] text-[#6b7486] mt-0.5">o haz clic para seleccionar &nbsp;·&nbsp; PDF, JPG, PNG</p>
+                        <p id="textoDropZone" class="text-[10px] text-indigo-400 mt-1 font-semibold hidden"></p>
+                    </div>
+
                     <form id="formNuevoLead" onsubmit="guardarLead(event)" class="space-y-4">
                         <!-- Nombre -->
                         <div>
@@ -444,6 +457,8 @@
             document.getElementById('autoSerieLead').value = '';
             document.getElementById('archivoEscanear').value = '';
             document.getElementById('textoEscanear').textContent = 'Escanear póliza / doc.';
+            document.getElementById('textoDropZone').classList.add('hidden');
+            document.getElementById('textoDropZone').textContent = '';
             document.getElementById('seccionAuto').classList.add('hidden');
             document.getElementById('seccionOtrosProducto').classList.add('hidden');
             document.getElementById('productoLead').value = 'Seguro de Vida';
@@ -512,11 +527,40 @@
                 }
 
                 textoBtn.textContent = '✓ Datos cargados';
+                document.getElementById('textoDropZone').textContent = '✓ Datos extraídos correctamente';
+                document.getElementById('textoDropZone').classList.remove('hidden');
             } catch (err) {
                 console.error('Error escanear:', err);
-                textoBtn.textContent = 'Escanear con IA';
+                textoBtn.textContent = 'Escanear póliza / doc.';
+                document.getElementById('textoDropZone').classList.add('hidden');
                 alert('No se pudo escanear el documento:\n' + err.message);
             }
+        }
+
+        function dragOverZone(e) {
+            e.preventDefault();
+            const zone = document.getElementById('dropZoneLead');
+            zone.classList.add('border-indigo-500', 'bg-indigo-500/10');
+            zone.classList.remove('border-[#3b4354]');
+        }
+
+        function dragLeaveZone(e) {
+            const zone = document.getElementById('dropZoneLead');
+            zone.classList.remove('border-indigo-500', 'bg-indigo-500/10');
+            zone.classList.add('border-[#3b4354]');
+        }
+
+        function dropZone(e) {
+            e.preventDefault();
+            dragLeaveZone(e);
+            const file = e.dataTransfer?.files?.[0];
+            if (!file) return;
+            // Simular que el file input recibió el archivo
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            const input = document.getElementById('archivoEscanear');
+            input.files = dt.files;
+            escanearDocumento(input);
         }
 
         async function guardarLead(e) {
