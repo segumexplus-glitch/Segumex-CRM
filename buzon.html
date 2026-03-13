@@ -316,14 +316,33 @@
                 });
             }
 
-            _conversacionesAll = (convData || []).map(c => ({
-                ...c,
-                _nombre: getNombreCliente(c),
-                _lastMsg: lastMsgMap[c.id] || null,
-            }));
+            // Mapear y deduplicar por teléfono normalizado
+            // (un mismo contacto puede tener 2 registros con chatId 521... vs 52...)
+            const seenTels = new Map();
+            _conversacionesAll = [];
+            (convData || []).forEach(c => {
+                const tel10 = extraerTel10(c.platform_user_id || '');
+                const key   = tel10 || c.platform_user_id;
+                if (seenTels.has(key)) return; // conservar solo el más reciente (ya vienen DESC)
+                seenTels.set(key, true);
+                _conversacionesAll.push({
+                    ...c,
+                    _nombre:  getNombreCliente(c),
+                    _lastMsg: lastMsgMap[c.id] || null,
+                });
+            });
 
             const q = document.getElementById('buscadorBuzon')?.value || '';
             renderLista(filtrarConvs(q));
+
+            // Pre-cargar avatares en background para todos los contactos visibles
+            _conversacionesAll.forEach(c => {
+                if (_avatarCache[c.platform_user_id] === undefined) {
+                    cargarAvatar(c.platform_user_id).then(url => {
+                        if (url) renderLista(filtrarConvs(document.getElementById('buscadorBuzon')?.value || ''));
+                    });
+                }
+            });
         }
 
         function filtrarConvs(texto) {

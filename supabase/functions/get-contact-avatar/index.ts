@@ -1,7 +1,7 @@
 // Deploy: supabase functions deploy get-contact-avatar --no-verify-jwt
 
 const GREEN_INSTANCE_ID = Deno.env.get('GREEN_INSTANCE_ID');
-const GREEN_API_TOKEN = Deno.env.get('GREEN_API_TOKEN');
+const GREEN_API_TOKEN   = Deno.env.get('GREEN_API_TOKEN');
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -29,25 +29,62 @@ Deno.serve(async (req) => {
             greenBaseUrl = `https://7107.api.greenapi.com/waInstance${GREEN_INSTANCE_ID}`;
         }
 
-        const res = await fetch(`${greenBaseUrl}/getContactInfo/${GREEN_API_TOKEN}`, {
+        // 1. Obtener info del contacto (incluye URL de avatar)
+        const infoRes = await fetch(`${greenBaseUrl}/getContactInfo/${GREEN_API_TOKEN}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chatId })
         });
 
-        if (!res.ok) {
+        if (!infoRes.ok) {
             return new Response(JSON.stringify({ avatar: null }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
         }
 
-        const data = await res.json();
+        const info = await infoRes.json();
+        const avatarUrl = info.avatar || null;
+        const name = info.name || info.contactName || null;
 
-        return new Response(JSON.stringify({
-            avatar: data.avatar || null,
-            name: data.name || null,
-            contactName: data.contactName || null,
-        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        if (!avatarUrl) {
+            return new Response(JSON.stringify({ avatar: null, name }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+        }
+
+        // 2. Descargar la imagen y convertirla a base64 data URL
+        // (Las URLs del CDN de WhatsApp no cargan directamente en el browser por CORS)
+        try {
+            const imgRes = await fetch(avatarUrl, {
+                headers: { 'User-Agent': 'WhatsApp/2.23.20.0' }
+            });
+
+            if (imgRes.ok) {
+                const buffer      = await imgRes.arrayBuffer();
+                const bytes       = new Uint8Array(buffer);
+                const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+
+                // Encode to base64
+                let binary = '';
+                const chunkSize = 8192;
+                for (let i = 0; i < bytes.length; i += chunkSize) {
+                    binary += String.fromCharCode(...bytes.slice(i, i + chunkSize));
+                }
+                const base64 = btoa(binary);
+                const dataUrl = `data:${contentType};base64,${base64}`;
+
+                return new Response(JSON.stringify({ avatar: dataUrl, name }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+            }
+        } catch (imgErr) {
+            console.warn('No se pudo descargar la imagen:', imgErr);
+        }
+
+        // Fallback: devolver la URL directa (puede o no cargar en el browser)
+        return new Response(JSON.stringify({ avatar: avatarUrl, name }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
 
     } catch (err: any) {
         return new Response(JSON.stringify({ avatar: null, error: err.message }), {
