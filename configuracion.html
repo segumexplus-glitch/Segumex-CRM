@@ -1894,6 +1894,12 @@ Equipo Segumex 🛡️</p>
         function sanitizarNombreArchivo(str) {
             return (str || 'sin_nombre').replace(/[\\/:*?"<>|]/g, '_').trim().substring(0, 60);
         }
+        function sanitizarNombrePDF(base, ext) {
+            // Sanitiza la parte base y re-añade la extensión para que no sea truncada
+            const extFinal = ext || '.pdf';
+            const maxBase  = 80 - extFinal.length;
+            return (base || 'documento').replace(/[\\/:*?"<>|]/g, '_').trim().substring(0, maxBase) + extFinal;
+        }
 
         function logBackup(msg) {
             const el = document.getElementById('backupLog');
@@ -2195,7 +2201,9 @@ Equipo Segumex 🛡️</p>
                                 const clienteDir = await pdfsDirHandle.getDirectoryHandle(clienteSanitizado, { create: true });
                                 const blob = await descargarPDF(pdf.path);
                                 if (blob) {
-                                    const nombreFinal = sanitizarNombreArchivo(`${pdf.poliza}_${pdf.nombre}`);
+                                    const pdfExt = (pdf.nombre || pdf.path || '').match(/\.[^./\\]+$/)?.[0]?.toLowerCase() || '.pdf';
+                                    const pdfBase = `${pdf.poliza}_${pdf.nombre}`.replace(/\.[^./\\]+$/, '');
+                                    const nombreFinal = sanitizarNombrePDF(pdfBase, pdfExt);
                                     await escribirArchivoEnCarpeta(clienteDir, nombreFinal, blob);
                                     pdfOk++;
                                     logBackup(`✅ ${pdf.poliza}/${pdf.nombre}`);
@@ -2220,7 +2228,9 @@ Equipo Segumex 🛡️</p>
                             const blob = await descargarPDF(pdf.path);
                             if (blob) {
                                 const clienteSanitizado = sanitizarNombreArchivo(pdf.cliente);
-                                const nombreFinal = sanitizarNombreArchivo(`${pdf.poliza}_${pdf.nombre}`);
+                                const pdfExt = (pdf.nombre || pdf.path || '').match(/\.[^./\\]+$/)?.[0]?.toLowerCase() || '.pdf';
+                                const pdfBase = `${pdf.poliza}_${pdf.nombre}`.replace(/\.[^./\\]+$/, '');
+                                const nombreFinal = sanitizarNombrePDF(pdfBase, pdfExt);
                                 pdfFolder.folder(clienteSanitizado).file(nombreFinal, blob);
                                 pdfOk++;
                             } else pdfErr++;
