@@ -7,22 +7,28 @@
     <title>Reportes - Segumex</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
-
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
-        rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <style>
+        input[type="month"] {
+            color-scheme: dark;
+            background: #1f242e;
+            border: 1px solid #2d3442;
+            border-radius: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+            color: white;
+            font-family: Inter, sans-serif;
+        }
+        input[type="month"]:focus { outline: none; border-color: #3b82f6; }
+    </style>
     <script>
-        // --- SCRIPT DE SEGURIDAD MODIFICADO ---
         (async function () {
             const { data: { session } } = await window.supabaseClient.auth.getSession();
-            if (!session) {
-                window.location.href = 'login.html';
-            }
+            if (!session) { window.location.href = 'login.html'; }
         })();
-
         tailwind.config = {
             darkMode: "class",
             theme: {
@@ -42,18 +48,15 @@
 </head>
 
 <body class="bg-background-dark font-display text-white overflow-hidden relative" onload="cargarReportes()">
-    <!-- Overlay Mobile -->
     <div id="sidebarOverlay" onclick="toggleMenu()"
         class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass transition-opacity"></div>
 
     <div class="flex h-screen w-full overflow-hidden">
-
         <aside id="sidebar"
             class="fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-[#2d3442] bg-[#161b22] flex-shrink-0 shadow-2xl md:shadow-none">
         </aside>
 
         <main class="flex-1 flex flex-col h-full overflow-hidden bg-background-dark relative w-full">
-            <!-- Mobile Header / Toggle -->
             <div class="md:hidden p-4 pb-0 flex items-center gap-3">
                 <button onclick="toggleMenu()" class="p-2 -ml-2 text-white hover:bg-white/10 rounded-lg">
                     <span class="material-symbols-outlined text-2xl">menu</span>
@@ -64,88 +67,223 @@
             <div class="flex-1 overflow-y-auto px-6 py-6 scroll-smooth">
                 <div class="max-w-[1600px] mx-auto flex flex-col gap-6">
 
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <div>
-                            <div class="flex items-center gap-2 text-sm text-[#94a3b8] mb-1">
-                                <span>Segumex</span> <span
-                                    class="material-symbols-outlined text-[12px]">chevron_right</span>
-                                <span>Inteligencia</span>
+                    <!-- ======= HEADER + FILTROS ======= -->
+                    <div class="flex flex-col gap-3">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div>
+                                <div class="flex items-center gap-2 text-sm text-[#94a3b8] mb-1">
+                                    <span>Segumex</span>
+                                    <span class="material-symbols-outlined text-[12px]">chevron_right</span>
+                                    <span>Inteligencia</span>
+                                </div>
+                                <h1 class="text-white text-3xl font-bold tracking-tight">Reportes y Analítica</h1>
+                                <p class="text-[#94a3b8] text-sm mt-1">Visualiza el rendimiento real de tu agencia.</p>
                             </div>
-                            <h1 class="text-white text-3xl font-bold tracking-tight">Reportes y Analítica</h1>
-                            <p class="text-[#94a3b8] text-sm mt-1">Visualiza el rendimiento real de tu agencia.</p>
+                            <!-- Tabs de modo -->
+                            <div class="flex bg-[#1f242e] border border-[#2d3442] rounded-lg p-1 flex-shrink-0">
+                                <button id="btnModoAnio" onclick="setModo('anio')"
+                                    class="px-4 py-1.5 rounded-md bg-[#2d3442] text-white text-xs font-bold shadow-sm transition-colors">Año</button>
+                                <button id="btnModoPeriodo" onclick="setModo('periodo')"
+                                    class="px-4 py-1.5 rounded-md text-[#94a3b8] hover:text-white text-xs font-medium transition-colors">Período</button>
+                                <button id="btnModoHistorico" onclick="setModo('historico')"
+                                    class="px-4 py-1.5 rounded-md text-[#94a3b8] hover:text-white text-xs font-medium transition-colors">Histórico</button>
+                            </div>
                         </div>
 
-                        <div class="flex bg-[#1f242e] border border-[#2d3442] rounded-lg p-1">
-                            <button id="btnPeriodo2026" onclick="cambiarPeriodo('2026')"
-                                class="px-4 py-1.5 rounded-md bg-[#2d3442] text-white text-xs font-bold shadow-sm transition-colors">2026</button>
-                            <button id="btnPeriodoHistorico" onclick="cambiarPeriodo('historico')"
-                                class="px-4 py-1.5 rounded-md text-[#94a3b8] hover:text-white text-xs font-medium transition-colors">Histórico</button>
+                        <!-- Filtros Año + Mes -->
+                        <div id="filtrosAnio" class="flex flex-wrap items-center gap-2">
+                            <select id="selAnio" onchange="onFiltroChange()"
+                                class="bg-[#1f242e] border border-[#2d3442] rounded-lg px-3 py-1.5 text-white text-xs font-medium focus:outline-none focus:border-primary">
+                                <option value="2026">2026</option>
+                                <option value="2025">2025</option>
+                                <option value="2024">2024</option>
+                                <option value="2023">2023</option>
+                            </select>
+                            <select id="selMes" onchange="onFiltroChange()"
+                                class="bg-[#1f242e] border border-[#2d3442] rounded-lg px-3 py-1.5 text-white text-xs font-medium focus:outline-none focus:border-primary">
+                                <option value="">Todos los meses</option>
+                                <option value="0">Enero</option>
+                                <option value="1">Febrero</option>
+                                <option value="2">Marzo</option>
+                                <option value="3">Abril</option>
+                                <option value="4">Mayo</option>
+                                <option value="5">Junio</option>
+                                <option value="6">Julio</option>
+                                <option value="7">Agosto</option>
+                                <option value="8">Septiembre</option>
+                                <option value="9">Octubre</option>
+                                <option value="10">Noviembre</option>
+                                <option value="11">Diciembre</option>
+                            </select>
+                        </div>
+
+                        <!-- Filtros Período personalizado -->
+                        <div id="filtrosPeriodo" style="display:none" class="flex flex-wrap items-center gap-3">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-[#94a3b8] font-medium">Desde</span>
+                                <input type="month" id="periodoDesde" onchange="onFiltroChange()" value="2026-01">
+                            </div>
+                            <span class="text-[#94a3b8]">→</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-[#94a3b8] font-medium">Hasta</span>
+                                <input type="month" id="periodoHasta" onchange="onFiltroChange()" value="2026-12">
+                            </div>
                         </div>
                     </div>
 
+                    <!-- ======= KPIs PÓLIZAS ======= -->
                     <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                         <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden">
-                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Prima Neta
-                                Total</p>
-                            <h2 class="text-xl font-bold text-white" id="kpiVentasNeta">$0.00</h2>
-                            <span class="text-green-500 text-[10px] font-bold flex items-center gap-1 mt-1">Ingreso
-                                Base</span>
+                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Prima Neta Total</p>
+                            <h2 class="text-xl font-bold text-white" id="kpiVentasNeta">$0</h2>
+                            <span class="text-green-500 text-[10px] font-bold">Ingreso Base</span>
                         </div>
-                        <div
-                            class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden border-l-4 border-l-primary">
-                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Prima Total
-                                (Bruta)</p>
-                            <h2 class="text-xl font-bold text-white" id="kpiVentasTotal">$0.00</h2>
-                            <span class="text-primary text-[10px] font-bold flex items-center gap-1 mt-1">Recaudación
-                                Final</span>
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden border-l-4 border-l-primary">
+                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Prima Total (Bruta)</p>
+                            <h2 class="text-xl font-bold text-white" id="kpiVentasTotal">$0</h2>
+                            <span class="text-primary text-[10px] font-bold">Recaudación Final</span>
                         </div>
                         <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden">
-                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Comisiones
-                                Est.</p>
-                            <h2 class="text-xl font-bold text-green-400" id="kpiComisiones">$0.00</h2>
-                            <span class="text-[#94a3b8] text-[10px] font-bold mt-1">Utilidad Proyectada</span>
+                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Comisiones Est.</p>
+                            <h2 class="text-xl font-bold text-green-400" id="kpiComisiones">$0</h2>
+                            <span class="text-[#94a3b8] text-[10px] font-bold">Utilidad Proyectada</span>
                         </div>
                         <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden">
-                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Total Pólizas
-                            </p>
+                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Total Pólizas</p>
                             <h2 class="text-xl font-bold text-white" id="kpiCount">0</h2>
-                            <span class="text-blue-500 text-[10px] font-bold flex items-center gap-1 mt-1">Cartera
-                                Activa</span>
+                            <span class="text-blue-500 text-[10px] font-bold">Cartera Activa</span>
                         </div>
                         <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden">
-                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Siniestralidad
-                            </p>
+                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Siniestralidad</p>
                             <h2 class="text-xl font-bold text-white" id="kpiSiniestralidad">0%</h2>
-                            <span class="text-yellow-500 text-[10px] font-bold mt-1">Ratio de Riesgo</span>
+                            <span class="text-yellow-500 text-[10px] font-bold">Ratio de Riesgo</span>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- ======= KPIs LEADS Y RENOVACIONES ======= -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5">
+                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Leads Totales</p>
+                            <h2 class="text-xl font-bold text-white" id="kpiLeadsTotal">0</h2>
+                            <span class="text-indigo-400 text-[10px] font-bold">Período seleccionado</span>
+                        </div>
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5 border-l-4 border-l-green-500">
+                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Conversión Leads</p>
+                            <h2 class="text-xl font-bold text-green-400" id="kpiConversion">0%</h2>
+                            <span class="text-[#94a3b8] text-[10px] font-bold" id="kpiConversionSub">0 de 0 ganados</span>
+                        </div>
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5">
+                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Renovaciones (30 días)</p>
+                            <h2 class="text-xl font-bold text-yellow-400" id="kpiRenovaciones">0</h2>
+                            <span class="text-yellow-500 text-[10px] font-bold">Pólizas por renovar</span>
+                        </div>
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5">
+                            <p class="text-[#94a3b8] text-[10px] font-bold uppercase tracking-wider mb-1">Por Vencer (60 días)</p>
+                            <h2 class="text-xl font-bold text-orange-400" id="kpiPorVencer">0</h2>
+                            <span class="text-orange-400 text-[10px] font-bold">Requieren atención</span>
+                        </div>
+                    </div>
 
+                    <!-- ======= CHARTS: Agentes + Aseguradoras ======= -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 shadow-lg">
                             <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2">
-                                <span class="material-symbols-outlined text-primary text-lg">engineering</span> Pólizas
-                                por Agente
+                                <span class="material-symbols-outlined text-primary text-lg">engineering</span> Pólizas por Agente
                             </h3>
                             <div class="relative h-64 w-full">
                                 <canvas id="chartAgentes"></canvas>
                             </div>
                         </div>
-
                         <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 shadow-lg">
                             <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2">
-                                <span class="material-symbols-outlined text-primary text-lg">apartment</span> Volumen
-                                por Aseguradora
+                                <span class="material-symbols-outlined text-primary text-lg">apartment</span> Volumen por Aseguradora
                             </h3>
                             <div class="relative h-64 w-full">
                                 <canvas id="chartAseguradoras"></canvas>
                             </div>
                         </div>
+                    </div>
 
+                    <!-- ======= COMPARATIVO AÑO ACTUAL VS AÑO ANTERIOR ======= -->
+                    <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 shadow-lg">
+                        <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-yellow-400 text-lg">compare_arrows</span>
+                            <span id="tituloComparativo">Comparativo 2026 vs 2025 — Prima Neta Mensual</span>
+                        </h3>
+                        <div class="relative h-72 w-full">
+                            <canvas id="chartComparativo"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- ======= LEADS POR MES + EMBUDO CONVERSIÓN ======= -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 shadow-lg">
                             <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2">
-                                <span class="material-symbols-outlined text-yellow-500 text-lg">star</span> Top Clientes
-                                (Más Pólizas)
+                                <span class="material-symbols-outlined text-indigo-400 text-lg">filter_alt</span>
+                                <span id="tituloLeads">Leads Generados por Mes (2026)</span>
+                            </h3>
+                            <div class="relative h-64 w-full">
+                                <canvas id="chartLeads"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 shadow-lg">
+                            <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-green-400 text-lg">conversion_path</span>
+                                Embudo de Conversión de Leads
+                            </h3>
+                            <div class="flex items-center justify-center gap-8 h-64">
+                                <div class="relative w-44 h-44 flex-shrink-0">
+                                    <canvas id="chartConversion"></canvas>
+                                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                        <span class="text-2xl font-bold text-white" id="kpiConversionCenter">0%</span>
+                                        <span class="text-[10px] text-[#94a3b8]">conversión</span>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-3">
+                                    <div>
+                                        <p class="text-[#94a3b8] text-[10px] uppercase font-bold">Total Leads</p>
+                                        <p class="text-white font-bold text-xl" id="convTotal">0</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[10px] uppercase font-bold text-green-400">✓ Ganados</p>
+                                        <p class="text-green-400 font-bold text-xl" id="convGanadas">0</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[10px] uppercase font-bold text-blue-400">◎ En Pipeline</p>
+                                        <p class="text-blue-400 font-bold text-xl" id="convPipeline">0</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[10px] uppercase font-bold text-red-400">✕ Perdidos</p>
+                                        <p class="text-red-400 font-bold text-xl" id="convPerdidas">0</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ======= RENOVACIONES POR MES ======= -->
+                    <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 shadow-lg">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-white font-bold text-sm flex items-center gap-2">
+                                <span class="material-symbols-outlined text-green-400 text-lg">autorenew</span>
+                                <span id="tituloRenovaciones">Renovaciones por Mes — Pólizas que vencen en 2026</span>
+                            </h3>
+                            <div class="flex items-center gap-3 text-[10px]">
+                                <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded bg-[#94a3b8]/50"></span> Pasado</span>
+                                <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded bg-yellow-400"></span> Este mes</span>
+                                <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded bg-green-500"></span> Próximos</span>
+                            </div>
+                        </div>
+                        <div class="relative h-56 w-full">
+                            <canvas id="chartRenovaciones"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- ======= TOP CLIENTES + DISTRIBUCIÓN POR RAMO ======= -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 shadow-lg">
+                            <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-yellow-500 text-lg">star</span> Top Clientes (Más Pólizas)
                             </h3>
                             <div class="overflow-hidden">
                                 <table class="w-full text-left text-sm">
@@ -156,29 +294,18 @@
                                             <th class="pb-2 font-medium text-right">Valor Cartera</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="tableTopClientes" class="divide-y divide-[#2d3442]">
-                                    </tbody>
+                                    <tbody id="tableTopClientes" class="divide-y divide-[#2d3442]"></tbody>
                                 </table>
                             </div>
                         </div>
-
                         <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 shadow-lg">
                             <h3 class="text-white font-bold text-sm mb-4 flex items-center gap-2">
-                                <span class="material-symbols-outlined text-green-500 text-lg">category</span>
-                                Distribución por Ramo
+                                <span class="material-symbols-outlined text-green-500 text-lg">category</span> Distribución por Ramo
                             </h3>
                             <div class="relative h-64 w-full flex justify-center">
                                 <canvas id="chartRamos"></canvas>
                             </div>
                         </div>
-
-                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 shadow-lg lg:col-span-2">
-                            <h3 class="text-white font-bold text-sm mb-4">Evolución de Ventas (Mensual)</h3>
-                            <div class="relative h-72 w-full">
-                                <canvas id="chartMensual"></canvas>
-                            </div>
-                        </div>
-
                     </div>
 
                 </div>
@@ -189,162 +316,317 @@
     <script src="menu.js"></script>
 
     <script>
-        let chartAseg = null, chartRam = null, chartMen = null, chartAge = null;
-        let _polizasAll = [], _siniestrosAll = [], _clientesAll = [];
-        let _periodoReporte = '2026';
+        let chartAseg = null, chartRam = null, chartAge = null;
+        let chartComparativo = null, chartLeads = null, chartConv = null, chartRen = null;
+        let _polizasAll = [], _siniestrosAll = [], _clientesAll = [], _leadsAll = [];
+        let _modoFiltro = 'anio';
+
+        const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
         Chart.defaults.color = '#94a3b8';
         Chart.defaults.borderColor = '#2d3442';
 
         async function cargarReportes() {
-            const { data: polizas } = await window.supabaseClient.from('polizas').select('*');
-            const { data: siniestros } = await window.supabaseClient.from('siniestros').select('*');
-            const { data: clientesRaw } = await window.supabaseClient.from('clientes').select('*');
-            _polizasAll = polizas || [];
-            _siniestrosAll = siniestros || [];
-            _clientesAll = clientesRaw || [];
+            const [polRes, sinRes, cliRes, leadRes] = await Promise.all([
+                window.supabaseClient.from('polizas').select('*'),
+                window.supabaseClient.from('siniestros').select('*'),
+                window.supabaseClient.from('clientes').select('*'),
+                window.supabaseClient.from('leads').select('*')
+            ]);
+            _polizasAll = polRes.data || [];
+            _siniestrosAll = sinRes.data || [];
+            _clientesAll = cliRes.data || [];
+            _leadsAll = leadRes.data || [];
             renderReportes();
         }
 
-        function cambiarPeriodo(periodo) {
-            _periodoReporte = periodo;
-            const activo = 'px-4 py-1.5 rounded-md bg-[#2d3442] text-white text-xs font-bold shadow-sm transition-colors';
-            const inactivo = 'px-4 py-1.5 rounded-md text-[#94a3b8] hover:text-white text-xs font-medium transition-colors';
-            document.getElementById('btnPeriodo2026').className = periodo === '2026' ? activo : inactivo;
-            document.getElementById('btnPeriodoHistorico').className = periodo === 'historico' ? activo : inactivo;
+        function setModo(modo) {
+            _modoFiltro = modo;
+            const clsA = 'px-4 py-1.5 rounded-md bg-[#2d3442] text-white text-xs font-bold shadow-sm transition-colors';
+            const clsI = 'px-4 py-1.5 rounded-md text-[#94a3b8] hover:text-white text-xs font-medium transition-colors';
+            document.getElementById('btnModoAnio').className = modo === 'anio' ? clsA : clsI;
+            document.getElementById('btnModoPeriodo').className = modo === 'periodo' ? clsA : clsI;
+            document.getElementById('btnModoHistorico').className = modo === 'historico' ? clsA : clsI;
+            document.getElementById('filtrosAnio').style.display = modo === 'anio' ? 'flex' : 'none';
+            document.getElementById('filtrosPeriodo').style.display = modo === 'periodo' ? 'flex' : 'none';
             renderReportes();
+        }
+
+        function onFiltroChange() { renderReportes(); }
+
+        function getAnioSel() {
+            return parseInt(document.getElementById('selAnio').value) || new Date().getFullYear();
+        }
+
+        function fechaEnFiltro(fechaStr) {
+            if (!fechaStr) return false;
+            const fecha = new Date(String(fechaStr).substring(0, 10) + 'T12:00:00');
+            if (isNaN(fecha)) return false;
+            if (_modoFiltro === 'historico') return true;
+            if (_modoFiltro === 'anio') {
+                const anio = getAnioSel();
+                const mesVal = document.getElementById('selMes').value;
+                if (fecha.getFullYear() !== anio) return false;
+                if (mesVal !== '' && fecha.getMonth() !== parseInt(mesVal)) return false;
+            }
+            if (_modoFiltro === 'periodo') {
+                const desdeVal = document.getElementById('periodoDesde').value;
+                const hastaVal = document.getElementById('periodoHasta').value;
+                if (desdeVal && fecha < new Date(desdeVal + '-01T00:00:00')) return false;
+                if (hastaVal && fecha > new Date(hastaVal + '-31T23:59:59')) return false;
+            }
+            return true;
+        }
+
+        function getPolizasFiltradas() {
+            const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
+            const esAdmin = sesion.rol === 'admin';
+            return _polizasAll.filter(p => {
+                if (p.estado === 'cancelada') return false;
+                if (!esAdmin && p.restringida === true) return false;
+                return fechaEnFiltro(p.finanzas?.inicio || p.vence);
+            });
+        }
+
+        function getLeadsFiltrados() {
+            if (_modoFiltro === 'historico') return _leadsAll;
+            return _leadsAll.filter(l => fechaEnFiltro(l.created_at));
         }
 
         function renderReportes() {
             const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
             const esAdmin = sesion.rol === 'admin';
-            const anioActual = new Date().getFullYear();
+            const polizasFiltradas = getPolizasFiltradas();
+            const leadsFiltrados = getLeadsFiltrados();
+            const anioSel = getAnioSel();
+            const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 
-            let polizasFiltradas = _polizasAll.filter(p => {
-                if (p.estado === 'cancelada') return false;
-                if (!esAdmin && p.restringida === true) return false;
-                if (_periodoReporte !== 'historico') {
-                    const fechaStr = p.finanzas?.inicio || p.vence;
-                    if (!fechaStr) return false;
-                    const anio = new Date(fechaStr).getFullYear();
-                    if (anio !== parseInt(_periodoReporte)) return false;
-                }
-                return true;
-            });
-
-            let totalNeta = 0, totalBruta = 0, totalComision = 0, countPolizas = 0;
+            // ===== KPIs Pólizas =====
+            let totalNeta = 0, totalBruta = 0, totalComision = 0;
             let aseguradorasMap = {}, ramosMap = {}, agentesMap = {}, clientesMap = {};
-            let ventasMensuales = new Array(12).fill(0);
-            let ventasAnuales = {};
 
             polizasFiltradas.forEach(p => {
                 const neta = parseFloat(p.finanzas?.primaNeta) || 0;
                 const bruta = parseFloat(p.prima) || parseFloat(p.finanzas?.primaTotal) || 0;
-                const comisionPct = parseFloat(p.finanzas?.comisionPct) || 10;
-
+                const comPct = parseFloat(p.finanzas?.comisionPct) || 10;
                 totalNeta += neta;
                 totalBruta += bruta;
-                totalComision += (neta * (comisionPct / 100));
-                countPolizas++;
-
-                const agente = p.agente || "Sin Asignar";
-                agentesMap[agente] = (agentesMap[agente] || 0) + 1;
-
-                const aseg = p.aseguradora || "Otra";
-                aseguradorasMap[aseg] = (aseguradorasMap[aseg] || 0) + 1;
-
-                const ramo = p.ramo || "Otro";
-                ramosMap[ramo] = (ramosMap[ramo] || 0) + 1;
-
+                totalComision += neta * (comPct / 100);
+                agentesMap[p.agente || 'Sin Asignar'] = (agentesMap[p.agente || 'Sin Asignar'] || 0) + 1;
+                aseguradorasMap[p.aseguradora || 'Otra'] = (aseguradorasMap[p.aseguradora || 'Otra'] || 0) + 1;
+                ramosMap[p.ramo || 'Otro'] = (ramosMap[p.ramo || 'Otro'] || 0) + 1;
                 const cId = p.cliente_id;
                 if (!clientesMap[cId]) clientesMap[cId] = { count: 0, valor: 0 };
-                clientesMap[cId].count += 1;
+                clientesMap[cId].count++;
                 clientesMap[cId].valor += neta;
-
-                const fechaStr = p.finanzas?.inicio || p.vence;
-                const fecha = new Date(fechaStr);
-                if (!isNaN(fecha)) {
-                    if (_periodoReporte === 'historico') {
-                        const yr = fecha.getFullYear().toString();
-                        ventasAnuales[yr] = (ventasAnuales[yr] || 0) + neta;
-                    } else {
-                        ventasMensuales[fecha.getMonth()] += neta;
-                    }
-                }
             });
 
-            const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
             document.getElementById('kpiVentasNeta').innerText = fmt.format(totalNeta);
             document.getElementById('kpiVentasTotal').innerText = fmt.format(totalBruta);
             document.getElementById('kpiComisiones').innerText = fmt.format(totalComision);
-            document.getElementById('kpiCount').innerText = countPolizas;
-            document.getElementById('kpiSiniestralidad').innerText = (countPolizas > 0 ? (_siniestrosAll.length / countPolizas) * 100 : 0).toFixed(1) + "%";
+            document.getElementById('kpiCount').innerText = polizasFiltradas.length;
+            document.getElementById('kpiSiniestralidad').innerText =
+                (polizasFiltradas.length > 0 ? (_siniestrosAll.length / polizasFiltradas.length) * 100 : 0).toFixed(1) + '%';
 
-            // TOP CLIENTES
-            const topClientesSorted = Object.keys(clientesMap)
+            // ===== KPIs Renovaciones (siempre sobre cartera completa) =====
+            const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+            const en30 = new Date(hoy); en30.setDate(en30.getDate() + 30);
+            const en60 = new Date(hoy); en60.setDate(en60.getDate() + 60);
+            let ren30 = 0, ven60 = 0;
+            _polizasAll.filter(p => p.estado !== 'cancelada' && (esAdmin || !p.restringida)).forEach(p => {
+                if (!p.vence) return;
+                const v = new Date(String(p.vence).substring(0, 10) + 'T12:00:00');
+                if (isNaN(v)) return;
+                if (v >= hoy && v <= en30) ren30++;
+                else if (v > en30 && v <= en60) ven60++;
+            });
+            document.getElementById('kpiRenovaciones').innerText = ren30;
+            document.getElementById('kpiPorVencer').innerText = ven60;
+
+            // ===== KPIs Leads =====
+            const leadsTotal = leadsFiltrados.length;
+            const leadsGanados = leadsFiltrados.filter(l => l.etapa === 'ganada').length;
+            const leadsPerdidos = leadsFiltrados.filter(l => l.etapa === 'perdida').length;
+            const leadsPipeline = Math.max(0, leadsTotal - leadsGanados - leadsPerdidos);
+            const tasaConv = leadsTotal > 0 ? ((leadsGanados / leadsTotal) * 100).toFixed(1) : '0.0';
+            document.getElementById('kpiLeadsTotal').innerText = leadsTotal;
+            document.getElementById('kpiConversion').innerText = tasaConv + '%';
+            document.getElementById('kpiConversionSub').innerText = `${leadsGanados} de ${leadsTotal} ganados`;
+            document.getElementById('kpiConversionCenter').innerText = tasaConv + '%';
+            document.getElementById('convTotal').innerText = leadsTotal;
+            document.getElementById('convGanadas').innerText = leadsGanados;
+            document.getElementById('convPipeline').innerText = leadsPipeline;
+            document.getElementById('convPerdidas').innerText = leadsPerdidos;
+
+            // ===== TOP CLIENTES =====
+            const topClientes = Object.keys(clientesMap)
                 .map(id => {
                     const c = _clientesAll.find(cli => cli.id == id);
-                    return { nombre: c ? `${c.nombre} ${c.apellido || ''}` : 'Desconocido', pols: clientesMap[id].count, valor: clientesMap[id].valor };
+                    return { nombre: c ? `${c.nombre} ${c.apellido || ''}`.trim() : 'Desconocido', pols: clientesMap[id].count, valor: clientesMap[id].valor };
                 })
                 .sort((a, b) => b.pols - a.pols).slice(0, 5);
-
-            const tableBody = document.getElementById('tableTopClientes');
-            tableBody.innerHTML = '';
-            topClientesSorted.forEach(item => {
-                tableBody.innerHTML += `<tr class="hover:bg-[#161b22] transition-colors">
+            const tb = document.getElementById('tableTopClientes');
+            tb.innerHTML = '';
+            topClientes.forEach(item => {
+                tb.innerHTML += `<tr class="hover:bg-[#161b22] transition-colors">
                     <td class="py-3 text-white font-medium">${item.nombre}</td>
                     <td class="py-3 text-center text-primary font-bold">${item.pols}</td>
                     <td class="py-3 text-right text-[#94a3b8]">${fmt.format(item.valor)}</td>
                 </tr>`;
             });
 
-            // GRÁFICAS
-            if (chartAseg) chartAseg.destroy();
-            if (chartRam) chartRam.destroy();
-            if (chartMen) chartMen.destroy();
-            if (chartAge) chartAge.destroy();
+            // ===== DESTRUIR GRÁFICAS ANTERIORES =====
+            [chartAseg, chartRam, chartAge, chartComparativo, chartLeads, chartConv, chartRen].forEach(c => { if (c) c.destroy(); });
 
+            // ===== CHART: Agentes =====
             chartAge = new Chart(document.getElementById('chartAgentes'), {
                 type: 'bar',
-                data: { labels: Object.keys(agentesMap), datasets: [{ label: 'Pólizas Asignadas', data: Object.values(agentesMap), backgroundColor: '#8b5cf6', borderRadius: 4 }] },
+                data: { labels: Object.keys(agentesMap), datasets: [{ label: 'Pólizas', data: Object.values(agentesMap), backgroundColor: '#8b5cf6', borderRadius: 4 }] },
                 options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
 
+            // ===== CHART: Aseguradoras =====
             chartAseg = new Chart(document.getElementById('chartAseguradoras'), {
                 type: 'bar',
-                data: { labels: Object.keys(aseguradorasMap), datasets: [{ label: 'Número de Pólizas', data: Object.values(aseguradorasMap), backgroundColor: '#3b82f6', borderRadius: 4 }] },
+                data: { labels: Object.keys(aseguradorasMap), datasets: [{ label: 'Pólizas', data: Object.values(aseguradorasMap), backgroundColor: '#3b82f6', borderRadius: 4 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
 
+            // ===== CHART: Ramos =====
             chartRam = new Chart(document.getElementById('chartRamos'), {
                 type: 'doughnut',
-                data: { labels: Object.keys(ramosMap).map(r => r.toUpperCase()), datasets: [{ data: Object.values(ramosMap), backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6'], borderWidth: 0 }] },
+                data: {
+                    labels: Object.keys(ramosMap).map(r => r.toUpperCase()),
+                    datasets: [{ data: Object.values(ramosMap), backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6', '#06b6d4', '#f97316'], borderWidth: 0 }]
+                },
                 options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } } }
             });
 
-            const ctxMes = document.getElementById('chartMensual').getContext('2d');
-            const gradient = ctxMes.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
-            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
-
-            const esHistorico = _periodoReporte === 'historico';
-            const labelsChart = esHistorico
-                ? Object.keys(ventasAnuales).sort()
-                : ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-            const dataChart = esHistorico
-                ? labelsChart.map(y => ventasAnuales[y])
-                : ventasMensuales;
-
-            chartMen = new Chart(ctxMes, {
-                type: 'line',
+            // ===== CHART: Comparativo año actual vs anterior =====
+            const anioComp = _modoFiltro === 'historico' ? new Date().getFullYear() : anioSel;
+            const anioAnt = anioComp - 1;
+            document.getElementById('tituloComparativo').textContent = `Comparativo ${anioComp} vs ${anioAnt} — Prima Neta Mensual`;
+            const compActual = new Array(12).fill(0);
+            const compAnterior = new Array(12).fill(0);
+            _polizasAll.filter(p => p.estado !== 'cancelada' && (esAdmin || !p.restringida)).forEach(p => {
+                const fStr = p.finanzas?.inicio || p.vence;
+                if (!fStr) return;
+                const f = new Date(String(fStr).substring(0, 10) + 'T12:00:00');
+                if (isNaN(f)) return;
+                const neta = parseFloat(p.finanzas?.primaNeta) || 0;
+                if (f.getFullYear() === anioComp) compActual[f.getMonth()] += neta;
+                else if (f.getFullYear() === anioAnt) compAnterior[f.getMonth()] += neta;
+            });
+            chartComparativo = new Chart(document.getElementById('chartComparativo'), {
+                type: 'bar',
                 data: {
-                    labels: labelsChart,
-                    datasets: [{ label: esHistorico ? 'Producción Histórica' : `Producción Neta ${_periodoReporte}`, data: dataChart, borderColor: '#3b82f6', backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 4 }]
+                    labels: MESES,
+                    datasets: [
+                        { label: String(anioAnt), data: compAnterior, backgroundColor: 'rgba(148,163,184,0.35)', borderColor: 'rgba(148,163,184,0.7)', borderWidth: 1, borderRadius: 4 },
+                        { label: String(anioComp), data: compActual, backgroundColor: 'rgba(59,130,246,0.7)', borderColor: '#3b82f6', borderWidth: 1, borderRadius: 4 }
+                    ]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true, grid: { color: '#2d3442' } }, x: { grid: { display: false } } },
-                    plugins: { legend: { display: false } }
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#2d3442' }, ticks: { callback: v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v) } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 12, padding: 16 } } }
+                }
+            });
+
+            // ===== CHART: Leads por mes =====
+            const anioLeads = _modoFiltro === 'historico' ? new Date().getFullYear() : anioSel;
+            document.getElementById('tituloLeads').textContent = `Leads Generados por Mes (${anioLeads})`;
+            const leadsPorMes = new Array(12).fill(0);
+            const leadsGanadosPorMes = new Array(12).fill(0);
+            _leadsAll.forEach(l => {
+                const f = new Date(l.created_at || '');
+                if (isNaN(f) || f.getFullYear() !== anioLeads) return;
+                leadsPorMes[f.getMonth()]++;
+                if (l.etapa === 'ganada') leadsGanadosPorMes[f.getMonth()]++;
+            });
+            chartLeads = new Chart(document.getElementById('chartLeads'), {
+                type: 'bar',
+                data: {
+                    labels: MESES,
+                    datasets: [
+                        { label: 'Total Leads', data: leadsPorMes, backgroundColor: 'rgba(99,102,241,0.55)', borderColor: '#6366f1', borderWidth: 1, borderRadius: 4 },
+                        { label: 'Ganados', data: leadsGanadosPorMes, backgroundColor: 'rgba(16,185,129,0.7)', borderColor: '#10b981', borderWidth: 1, borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#2d3442' }, ticks: { stepSize: 1 } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 12, padding: 12 } } }
+                }
+            });
+
+            // ===== CHART: Conversión (donut) =====
+            const hasLeads = leadsTotal > 0;
+            chartConv = new Chart(document.getElementById('chartConversion'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Ganados', 'En Pipeline', 'Perdidos'],
+                    datasets: [{
+                        data: hasLeads ? [leadsGanados, leadsPipeline, leadsPerdidos].map(v => Math.max(v, 0)) : [1],
+                        backgroundColor: hasLeads ? ['#10b981', '#3b82f6', '#ef4444'] : ['#2d3442'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, cutout: '72%',
+                    plugins: { legend: { display: false }, tooltip: { enabled: hasLeads } }
+                }
+            });
+
+            // ===== CHART: Renovaciones por mes =====
+            const anioRen = _modoFiltro === 'historico' ? new Date().getFullYear() : anioSel;
+            document.getElementById('tituloRenovaciones').textContent = `Renovaciones por Mes — Pólizas que vencen en ${anioRen}`;
+            const renPorMes = new Array(12).fill(0);
+            _polizasAll.filter(p => p.estado !== 'cancelada' && (esAdmin || !p.restringida)).forEach(p => {
+                if (!p.vence) return;
+                const v = new Date(String(p.vence).substring(0, 10) + 'T12:00:00');
+                if (isNaN(v) || v.getFullYear() !== anioRen) return;
+                renPorMes[v.getMonth()]++;
+            });
+            const mesActual = new Date().getMonth();
+            const anioActualReal = new Date().getFullYear();
+            const bgRen = renPorMes.map((_, i) => {
+                if (anioRen < anioActualReal || (anioRen === anioActualReal && i < mesActual)) return 'rgba(148,163,184,0.3)';
+                if (anioRen === anioActualReal && i === mesActual) return 'rgba(250,204,21,0.7)';
+                return 'rgba(16,185,129,0.6)';
+            });
+            const borderRen = renPorMes.map((_, i) => {
+                if (anioRen < anioActualReal || (anioRen === anioActualReal && i < mesActual)) return 'rgba(148,163,184,0.5)';
+                if (anioRen === anioActualReal && i === mesActual) return '#facc15';
+                return '#10b981';
+            });
+            chartRen = new Chart(document.getElementById('chartRenovaciones'), {
+                type: 'bar',
+                data: {
+                    labels: MESES,
+                    datasets: [{ label: 'Pólizas por renovar', data: renPorMes, backgroundColor: bgRen, borderColor: borderRen, borderWidth: 1, borderRadius: 4 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#2d3442' }, ticks: { stepSize: 1 } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: items => MESES[items[0].dataIndex] + ' ' + anioRen,
+                                label: item => ` ${item.raw} póliza(s) por renovar`
+                            }
+                        }
+                    }
                 }
             });
         }
