@@ -219,10 +219,11 @@ Deno.serve(async (req) => {
                 )
             `)
             .in('estado', ['activa', 'vigente'])
-            .or('domiciliada.is.null,domiciliada.eq.false');
+            .or('domiciliada.is.null,domiciliada.eq.false')
+            .or('excluir_recordatorios.is.null,excluir_recordatorios.eq.false');
 
         if (polizasError) throw new Error('Error cargando pólizas: ' + polizasError.message);
-        console.log(`📋 Total pólizas activas no domiciliadas: ${(todasPolizas || []).length}`);
+        console.log(`📋 Total pólizas activas no domiciliadas ni excluidas: ${(todasPolizas || []).length}`);
 
         // --------------------------------------------------------
         // 4. Por cada póliza, encontrar próximo pago no cubierto

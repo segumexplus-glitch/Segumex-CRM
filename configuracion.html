@@ -500,6 +500,52 @@ Equipo Segumex 🛡️</p>
                     Enviar bienvenida de prueba por WhatsApp
                 </button>
             </div>
+
+            <!-- ===== EXCLUSIONES DE COBRANZA AUTOMÁTICA ===== -->
+            <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-6">
+                <div class="flex items-center gap-3 mb-1">
+                    <span class="material-symbols-outlined text-red-400">notifications_off</span>
+                    <div>
+                        <h3 class="font-semibold text-white text-base">Exclusiones de Cobranza Automática</h3>
+                        <p class="text-[#9da6b9] text-sm">Pólizas a las que <strong class="text-white">no</strong> se enviarán recordatorios automáticos, aunque no sean domiciliadas.</p>
+                    </div>
+                </div>
+
+                <!-- Buscador para agregar exclusión -->
+                <div class="mt-5 mb-4">
+                    <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">Agregar póliza a la lista de exclusión</label>
+                    <div class="relative">
+                        <input type="text" id="excBuscarInput"
+                            placeholder="Buscar por número de póliza o nombre del cliente..."
+                            oninput="debounceExcBuscar(this.value)"
+                            autocomplete="off"
+                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white text-sm placeholder-[#475569] focus:outline-none focus:border-red-500/60">
+                        <div id="excDropdown"
+                            class="absolute top-full left-0 right-0 bg-[#1c1f27] border border-[#3b4354] rounded-lg mt-1 max-h-52 overflow-y-auto z-20 hidden shadow-2xl"></div>
+                    </div>
+                </div>
+
+                <!-- Lista de pólizas excluidas -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-xs font-bold text-[#9da6b9] uppercase tracking-wider">
+                            Pólizas excluidas actualmente
+                            <span id="excCount" class="ml-2 bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full text-[10px]">0</span>
+                        </p>
+                        <button onclick="cargarExclusiones()" class="text-[#9da6b9] hover:text-white text-xs flex items-center gap-1 transition-colors">
+                            <span class="material-symbols-outlined text-sm">refresh</span>
+                        </button>
+                    </div>
+
+                    <div id="excListaVacia" class="py-6 text-center text-[#9da6b9] text-sm border border-dashed border-[#3b4354] rounded-xl">
+                        <span class="material-symbols-outlined text-3xl block mb-1 text-[#3b4354]">notifications_active</span>
+                        No hay pólizas excluidas — todas reciben recordatorios automáticos
+                    </div>
+
+                    <div id="excLista" class="hidden space-y-2"></div>
+                </div>
+            </div>
+
         </div>
 
         <!-- ========== TAB: HISTORIAL ========== -->
@@ -1304,6 +1350,8 @@ Equipo Segumex 🛡️</p>
         let _resultadosBienvenida = [];
         let _timerCobranza = null;
         let _timerBienvenida = null;
+        let _timerExc = null;
+        let _resultadosExc = [];
 
         // Datos de ejemplo (fallback cuando no hay póliza seleccionada)
         const TEST_DATA_COB_DEFAULT = {
@@ -1329,10 +1377,10 @@ Equipo Segumex 🛡️</p>
             if (!query || query.length < 2) return [];
             const [r1, r2] = await Promise.all([
                 window.supabaseClient.from('polizas')
-                    .select('id, no_poliza, ramo, aseguradora, vence, prima, pagos_fechas, pagos_status, finanzas, domiciliada, clientes(nombre, telefono)')
+                    .select('id, no_poliza, ramo, aseguradora, vence, prima, pagos_fechas, pagos_status, finanzas, domiciliada, excluir_recordatorios, clientes(nombre, telefono)')
                     .ilike('no_poliza', `%${query}%`).limit(5),
                 window.supabaseClient.from('polizas')
-                    .select('id, no_poliza, ramo, aseguradora, vence, prima, pagos_fechas, pagos_status, finanzas, domiciliada, clientes!inner(nombre, telefono)')
+                    .select('id, no_poliza, ramo, aseguradora, vence, prima, pagos_fechas, pagos_status, finanzas, domiciliada, excluir_recordatorios, clientes!inner(nombre, telefono)')
                     .ilike('clientes.nombre', `%${query}%`).limit(5)
             ]);
             const all = [...(r1.data || []), ...(r2.data || [])];
@@ -1637,14 +1685,129 @@ Equipo Segumex 🛡️</p>
         // ============================================================
         // INIT
         // ============================================================
+        // ============================================================
+        // EXCLUSIONES DE COBRANZA
+        // ============================================================
+
+        async function cargarExclusiones() {
+            const { data, error } = await window.supabaseClient
+                .from('polizas')
+                .select('id, no_poliza, ramo, aseguradora, clientes(nombre)')
+                .eq('excluir_recordatorios', true)
+                .in('estado', ['activa', 'vigente']);
+
+            const lista = document.getElementById('excLista');
+            const vacia = document.getElementById('excListaVacia');
+            const count = document.getElementById('excCount');
+
+            if (error || !data || data.length === 0) {
+                lista.classList.add('hidden');
+                vacia.classList.remove('hidden');
+                count.textContent = '0';
+                return;
+            }
+
+            count.textContent = data.length;
+            lista.classList.remove('hidden');
+            vacia.classList.add('hidden');
+
+            lista.innerHTML = data.map(p => `
+                <div class="flex items-center justify-between gap-3 px-4 py-3 bg-[#111318] border border-[#3b4354] rounded-xl hover:border-red-500/30 transition-colors">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="material-symbols-outlined text-red-400 text-lg flex-shrink-0">notifications_off</span>
+                        <div class="min-w-0">
+                            <p class="text-white text-sm font-semibold truncate">${escapeHtml(p.clientes?.nombre || 'Cliente desconocido')}</p>
+                            <p class="text-[#9da6b9] text-xs truncate">${escapeHtml(p.no_poliza || 'S/N')} · ${escapeHtml(p.ramo || '')} · ${escapeHtml(p.aseguradora || '')}</p>
+                        </div>
+                    </div>
+                    <button onclick="quitarExclusion(${p.id})"
+                        class="flex-shrink-0 flex items-center gap-1 text-xs text-[#9da6b9] hover:text-green-400 hover:bg-green-500/10 px-2 py-1.5 rounded-lg transition-colors border border-transparent hover:border-green-500/30">
+                        <span class="material-symbols-outlined text-sm">notifications_active</span>
+                        <span class="hidden sm:inline">Reactivar</span>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function quitarExclusion(polizaId) {
+            const { error } = await window.supabaseClient
+                .from('polizas')
+                .update({ excluir_recordatorios: false })
+                .eq('id', polizaId);
+            if (!error) cargarExclusiones();
+            else alert('Error al reactivar: ' + error.message);
+        }
+
+        async function agregarExclusion(polizaId, noPoliza, clienteNombre) {
+            const { error } = await window.supabaseClient
+                .from('polizas')
+                .update({ excluir_recordatorios: true })
+                .eq('id', polizaId);
+            if (!error) {
+                document.getElementById('excBuscarInput').value = '';
+                document.getElementById('excDropdown').classList.add('hidden');
+                cargarExclusiones();
+            } else {
+                alert('Error al excluir: ' + error.message);
+            }
+        }
+
+        function debounceExcBuscar(val) {
+            clearTimeout(_timerExc);
+            const dd = document.getElementById('excDropdown');
+            if (!val || val.length < 2) { dd.classList.add('hidden'); return; }
+            dd.innerHTML = '<div class="px-4 py-3 text-[#9da6b9] text-xs flex items-center gap-2"><span class="material-symbols-outlined text-sm animate-spin">sync</span> Buscando...</div>';
+            dd.classList.remove('hidden');
+            _timerExc = setTimeout(async () => {
+                _resultadosExc = await buscarPolizas(val);
+                mostrarDropdownExc(_resultadosExc);
+            }, 350);
+        }
+
+        function mostrarDropdownExc(results) {
+            const dd = document.getElementById('excDropdown');
+            if (!results.length) {
+                dd.innerHTML = '<div class="px-4 py-3 text-[#9da6b9] text-xs">No se encontraron pólizas.</div>';
+                return;
+            }
+            dd.innerHTML = results.map((p, idx) => {
+                const yaExcluida = p.excluir_recordatorios === true;
+                return `
+                <button onclick="seleccionarExclusion(${idx})"
+                    class="w-full text-left px-4 py-3 hover:bg-[#111318] transition-colors border-b border-[#2d3442] last:border-0 ${yaExcluida ? 'opacity-50 pointer-events-none' : ''}">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="overflow-hidden">
+                            <p class="text-white text-sm font-medium truncate">${escapeHtml(p.clientes?.nombre || '—')}</p>
+                            <p class="text-[#9da6b9] text-xs truncate">${escapeHtml(p.no_poliza || '')} · ${escapeHtml(p.ramo || '')} · ${escapeHtml(p.aseguradora || '')}</p>
+                        </div>
+                        ${yaExcluida
+                            ? '<span class="text-[10px] text-red-400 bg-red-500/10 px-2 py-0.5 rounded flex-shrink-0">Ya excluida</span>'
+                            : '<span class="material-symbols-outlined text-red-400 text-sm flex-shrink-0">notifications_off</span>'}
+                    </div>
+                </button>`;
+            }).join('');
+        }
+
+        function seleccionarExclusion(idx) {
+            const p = _resultadosExc[idx];
+            if (!p) return;
+            agregarExclusion(p.id, p.no_poliza, p.clientes?.nombre || '');
+        }
+
+        // ============================================================
+        // INIT
+        // ============================================================
         document.addEventListener('DOMContentLoaded', () => {
             cargarMensajes();
+            cargarExclusiones();
             // Cerrar dropdowns al hacer click fuera
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('#testBuscarPolizaCobranza') && !e.target.closest('#dropdownCobranza'))
                     document.getElementById('dropdownCobranza')?.classList.add('hidden');
                 if (!e.target.closest('#testBuscarPolizaBienvenida') && !e.target.closest('#dropdownBienvenida'))
                     document.getElementById('dropdownBienvenida')?.classList.add('hidden');
+                if (!e.target.closest('#excBuscarInput') && !e.target.closest('#excDropdown'))
+                    document.getElementById('excDropdown')?.classList.add('hidden');
             });
         });
     </script>
