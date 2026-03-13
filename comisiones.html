@@ -194,8 +194,8 @@
 
         function renderFilaHtml(p, c, idx, m, esC) {
             const noPoliza       = p.no_poliza || p.numero || '---';
-            const fechaLimiteFmt = fmtFechaCom(p.pagos_fechas?.[idx]);
-            const fechaPagoFmt   = fmtFechaCom(p.pagos_fechas?.[idx]);
+            const fechaLimiteFmt = fmtFechaCom(p.finanzas?.pagos_detalle?.[idx]?.fecha); // fecha programada
+            const fechaPagoFmt   = fmtFechaCom(p.pagos_fechas?.[idx]);                   // fecha real de pago
             const nombreCli      = c ? c.nombre : 'Desc.';
             return `
             <div class="grid grid-cols-2 md:grid-cols-12 gap-2 md:gap-4 px-4 py-3 hover:bg-[#1a202a] border-b border-[#2d3442]/50 items-center rounded-lg mx-2">
