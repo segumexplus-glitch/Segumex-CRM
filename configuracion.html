@@ -8,6 +8,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
+    <!-- Backup libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
     <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
@@ -543,6 +546,79 @@ Equipo Segumex 🛡️</p>
                     </div>
 
                     <div id="excLista" class="hidden space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- ===== BACKUP GENERAL ===== -->
+            <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-6">
+                <div class="flex items-start justify-between gap-4 mb-5">
+                    <div class="flex items-center gap-3">
+                        <div class="size-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                            <span class="material-symbols-outlined text-emerald-400" style="font-variation-settings:'FILL' 1">cloud_download</span>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-white text-base">Backup General del Sistema</h3>
+                            <p class="text-[#9da6b9] text-sm">Genera un Excel completo con todos los datos + PDFs adjuntos organizados en carpeta.</p>
+                        </div>
+                    </div>
+                    <button onclick="iniciarBackup()" id="btnBackup"
+                        class="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl transition-colors text-sm flex-shrink-0">
+                        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">download</span>
+                        Generar Backup
+                    </button>
+                </div>
+
+                <!-- Info de carpeta seleccionada -->
+                <div id="backupCarpetaInfo" class="hidden mb-4 flex items-center gap-2 bg-[#111318] border border-[#3b4354] rounded-lg px-4 py-2.5">
+                    <span class="material-symbols-outlined text-emerald-400 text-[18px]">folder</span>
+                    <span class="text-[#9da6b9] text-sm">Carpeta: </span>
+                    <span id="backupCarpetaNombre" class="text-white text-sm font-medium truncate"></span>
+                    <button onclick="cambiarCarpetaBackup()" class="ml-auto text-[11px] text-[#9da6b9] hover:text-white underline flex-shrink-0">Cambiar</button>
+                </div>
+
+                <!-- Progreso -->
+                <div id="backupProgreso" class="hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-white font-medium" id="backupProgresoLabel">Preparando datos...</span>
+                        <span class="text-sm text-[#9da6b9]" id="backupPorcentaje">0%</span>
+                    </div>
+                    <div class="h-2 bg-[#2d3442] rounded-full overflow-hidden mb-3">
+                        <div id="backupBarraProgreso" class="h-full bg-emerald-500 rounded-full transition-all duration-300" style="width:0%"></div>
+                    </div>
+                    <div id="backupLog" class="bg-[#111318] rounded-lg p-3 text-[11px] text-[#9da6b9] font-mono max-h-32 overflow-y-auto space-y-0.5"></div>
+                </div>
+
+                <!-- Resultado -->
+                <div id="backupResultado" class="hidden mt-4 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="material-symbols-outlined text-emerald-400" style="font-variation-settings:'FILL' 1">check_circle</span>
+                        <span class="text-emerald-300 font-semibold">Backup completado exitosamente</span>
+                    </div>
+                    <div id="backupResumenStats" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+                </div>
+
+                <!-- Contenido del backup -->
+                <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="bg-[#111318] rounded-lg p-3 text-center border border-[#2d3442]">
+                        <span class="material-symbols-outlined text-blue-400 text-[20px] block mb-1">table_chart</span>
+                        <p class="text-white text-xs font-semibold">7 Pestañas Excel</p>
+                        <p class="text-[#9da6b9] text-[10px]">Clientes, Pólizas, Pagos...</p>
+                    </div>
+                    <div class="bg-[#111318] rounded-lg p-3 text-center border border-[#2d3442]">
+                        <span class="material-symbols-outlined text-red-400 text-[20px] block mb-1">picture_as_pdf</span>
+                        <p class="text-white text-xs font-semibold">PDFs Adjuntos</p>
+                        <p class="text-[#9da6b9] text-[10px]">Organizados por cliente</p>
+                    </div>
+                    <div class="bg-[#111318] rounded-lg p-3 text-center border border-[#2d3442]">
+                        <span class="material-symbols-outlined text-yellow-400 text-[20px] block mb-1">sync</span>
+                        <p class="text-white text-xs font-semibold">Sobreescribe anterior</p>
+                        <p class="text-[#9da6b9] text-[10px]">Sin acumulación de archivos</p>
+                    </div>
+                    <div class="bg-[#111318] rounded-lg p-3 text-center border border-[#2d3442]">
+                        <span class="material-symbols-outlined text-purple-400 text-[20px] block mb-1">folder_special</span>
+                        <p class="text-white text-xs font-semibold">Carpeta elegida por ti</p>
+                        <p class="text-[#9da6b9] text-[10px]">Se recuerda entre sesiones</p>
+                    </div>
                 </div>
             </div>
 
@@ -1798,6 +1874,415 @@ Equipo Segumex 🛡️</p>
             const p = _resultadosExc[idx];
             if (!p) return;
             agregarExclusion(p.id, p.no_poliza, p.clientes?.nombre || '');
+        }
+
+        // ============================================================
+        // BACKUP GENERAL
+        // ============================================================
+
+        let _backupDirHandle = null; // FileSystemDirectoryHandle guardado en memoria
+
+        const MESES_BACKUP = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+        function fmtFechaMXBackup(str) {
+            if (!str) return '—';
+            const [y, m, d] = String(str).substring(0, 10).split('-').map(Number);
+            if (isNaN(d)) return '—';
+            return `${d} ${MESES_BACKUP[m-1]} ${y}`;
+        }
+
+        function sanitizarNombreArchivo(str) {
+            return (str || 'sin_nombre').replace(/[\\/:*?"<>|]/g, '_').trim().substring(0, 60);
+        }
+
+        function logBackup(msg) {
+            const el = document.getElementById('backupLog');
+            if (!el) return;
+            const line = document.createElement('div');
+            line.textContent = `${new Date().toLocaleTimeString('es-MX')} — ${msg}`;
+            el.appendChild(line);
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function setProgreso(pct, label) {
+            document.getElementById('backupPorcentaje').textContent = Math.round(pct) + '%';
+            document.getElementById('backupBarraProgreso').style.width = pct + '%';
+            if (label) document.getElementById('backupProgresoLabel').textContent = label;
+        }
+
+        async function cambiarCarpetaBackup() {
+            try {
+                _backupDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                mostrarInfoCarpeta(_backupDirHandle.name);
+            } catch (e) { /* usuario canceló */ }
+        }
+
+        function mostrarInfoCarpeta(nombre) {
+            document.getElementById('backupCarpetaInfo').classList.remove('hidden');
+            document.getElementById('backupCarpetaNombre').textContent = nombre;
+        }
+
+        async function iniciarBackup() {
+            const btn = document.getElementById('btnBackup');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">sync</span> Generando...';
+
+            document.getElementById('backupProgreso').classList.remove('hidden');
+            document.getElementById('backupResultado').classList.add('hidden');
+            document.getElementById('backupLog').innerHTML = '';
+
+            const supportsFS = 'showDirectoryPicker' in window;
+
+            try {
+                // ── 1. Seleccionar carpeta (si aplica y no está guardada) ────
+                if (supportsFS && !_backupDirHandle) {
+                    try {
+                        logBackup('Selecciona la carpeta de backup...');
+                        _backupDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                        mostrarInfoCarpeta(_backupDirHandle.name);
+                    } catch (e) {
+                        logBackup('Selección de carpeta cancelada — se descargará como ZIP');
+                        _backupDirHandle = null;
+                    }
+                }
+
+                // ── 2. Cargar todos los datos ────────────────────────────────
+                setProgreso(5, 'Cargando datos de Supabase...');
+                logBackup('Consultando base de datos...');
+
+                const [
+                    { data: clientes },
+                    { data: polizas },
+                    { data: leads },
+                    { data: siniestros },
+                ] = await Promise.all([
+                    window.supabaseClient.from('clientes').select('*').order('nombre'),
+                    window.supabaseClient.from('polizas').select('*, clientes(nombre, apellido, telefono)').order('created_at', { ascending: false }),
+                    window.supabaseClient.from('leads').select('*').order('created_at', { ascending: false }),
+                    window.supabaseClient.from('siniestros').select('*').order('created_at', { ascending: false }).limit(500),
+                ]);
+
+                setProgreso(15, 'Datos cargados. Construyendo Excel...');
+                logBackup(`${clientes?.length||0} clientes, ${polizas?.length||0} pólizas, ${leads?.length||0} leads cargados.`);
+
+                // ── 3. Generar workbook ──────────────────────────────────────
+                const WB = XLSX.utils.book_new();
+                const hdrStyle = { font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 }, fill: { fgColor: { rgb: '135BEC' } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: { bottom: { style: 'thin', color: { rgb: '3B4354' } } } };
+                const hdrGreen  = { ...hdrStyle, fill: { fgColor: { rgb: '166534' } } };
+                const hdrOrange = { ...hdrStyle, fill: { fgColor: { rgb: '9A3412' } } };
+                const hdrYellow = { ...hdrStyle, fill: { fgColor: { rgb: '713F12' } } };
+                const hdrPurple = { ...hdrStyle, fill: { fgColor: { rgb: '4C1D95' } } };
+                const hdrTeal   = { ...hdrStyle, fill: { fgColor: { rgb: '134E4A' } } };
+                const hdrRed    = { ...hdrStyle, fill: { fgColor: { rgb: '7F1D1D' } } };
+
+                const rowAlt  = { fill: { fgColor: { rgb: '1C1F27' } } };
+                const rowNorm = { fill: { fgColor: { rgb: '111318' } } };
+                const cellBase = { font: { sz: 10 }, alignment: { vertical: 'center', wrapText: false } };
+
+                const verde   = { font: { bold: true, color: { rgb: '4ADE80' }, sz: 10 } };
+                const rojo    = { font: { bold: true, color: { rgb: 'F87171' }, sz: 10 } };
+                const amarillo = { font: { bold: true, color: { rgb: 'FBBF24' }, sz: 10 } };
+
+                function makeCell(v, s) { return { v: v ?? '', s: { ...cellBase, ...s } }; }
+                function addSheet(wb, sheetName, headers, rows, hdrS) {
+                    const data = [headers.map(h => ({ v: h, s: hdrS })), ...rows];
+                    const ws = XLSX.utils.aoa_to_sheet(data);
+                    ws['!cols'] = headers.map(() => ({ wch: 20 }));
+                    ws['!rows'] = [{ hpt: 24 }];
+                    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                    return ws;
+                }
+
+                const fechaHoy = new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'long', year:'numeric' });
+
+                // ─── HOJA 1: RESUMEN ─────────────────────────────────────
+                const polizasActivas = (polizas||[]).filter(p => p.estado !== 'cancelada');
+                const primaTotal = polizasActivas.reduce((s, p) => s + (parseFloat(p.prima) || 0), 0);
+                const wsRes = XLSX.utils.aoa_to_sheet([
+                    [{ v: 'SEGUMEX — BACKUP GENERAL', s: { font: { bold: true, sz: 18, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '135BEC' } }, alignment: { horizontal: 'center' } } }],
+                    [{ v: `Generado: ${fechaHoy}`, s: { font: { sz: 11, color: { rgb: '9DA6B9' } } } }],
+                    [],
+                    [{ v: 'INDICADOR', s: hdrStyle }, { v: 'VALOR', s: hdrStyle }],
+                    [makeCell('Total Clientes'), makeCell(clientes?.length||0, { font: { bold: true, sz: 14, color: { rgb: '60A5FA' } } })],
+                    [makeCell('Pólizas Activas'), makeCell(polizasActivas.length, { font: { bold: true, sz: 14, color: { rgb: '4ADE80' } } })],
+                    [makeCell('Pólizas Canceladas'), makeCell((polizas||[]).filter(p=>p.estado==='cancelada').length, { font: { bold: true, sz: 14, color: { rgb: 'F87171' } } })],
+                    [makeCell('Prima Total Activa'), makeCell(`$${primaTotal.toLocaleString('es-MX', {minimumFractionDigits:2})}`, { font: { bold: true, sz: 14, color: { rgb: 'FBBF24' } } })],
+                    [makeCell('Total Leads'), makeCell(leads?.length||0, { font: { bold: true, sz: 14, color: { rgb: 'C084FC' } } })],
+                    [makeCell('Total Siniestros'), makeCell(siniestros?.length||0, { font: { bold: true, sz: 14, color: { rgb: 'FB923C' } } })],
+                ]);
+                wsRes['!cols'] = [{ wch: 30 }, { wch: 25 }];
+                wsRes['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
+                XLSX.utils.book_append_sheet(WB, wsRes, '📊 Resumen');
+
+                // ─── HOJA 2: CLIENTES ─────────────────────────────────────
+                setProgreso(25, 'Generando pestaña Clientes...');
+                const hdrsClientes = ['#','Nombre','Apellido','Teléfono','Email','RFC','Fecha Nacimiento','Sexo','Estado','Ciudad','CP','Dirección','Ocupación','Notas','Fecha Registro'];
+                const rowsClientes = (clientes||[]).map((c, i) => {
+                    const bg = i % 2 === 0 ? rowAlt.fill : rowNorm.fill;
+                    const s = { fill: bg };
+                    return [
+                        makeCell(i+1, s), makeCell(c.nombre||'', s), makeCell(c.apellido||'', s),
+                        makeCell(c.telefono||'', s), makeCell(c.email||'', s), makeCell(c.rfc||'', s),
+                        makeCell(fmtFechaMXBackup(c.fecha_nacimiento), s), makeCell(c.sexo||'', s),
+                        makeCell(c.estado||'', s), makeCell(c.ciudad||'', s), makeCell(c.cp||'', s),
+                        makeCell(c.domicilio||'', s), makeCell(c.ocupacion||'', s), makeCell(c.notas||'', s),
+                        makeCell(fmtFechaMXBackup(c.created_at), s),
+                    ];
+                });
+                addSheet(WB, '👥 Clientes', hdrsClientes, rowsClientes, hdrGreen);
+
+                // ─── HOJA 3: PÓLIZAS ─────────────────────────────────────
+                setProgreso(35, 'Generando pestaña Pólizas...');
+                const hdrsPolizas = ['#','No. Póliza','Cliente','Aseguradora','Ramo','Estado','Prima Total','Inicio Vigencia','Fin Vigencia','Forma de Pago','Domiciliada','Agente','Fecha Registro'];
+                const FORMA_MAP = {'1':'Anual','2':'Semestral','3':'Trimestral','4':'Mensual'};
+                const rowsPolizas = (polizas||[]).map((p, i) => {
+                    const bg = i % 2 === 0 ? rowAlt.fill : rowNorm.fill;
+                    const s = { fill: bg };
+                    const estadoStyle = p.estado === 'cancelada' ? rojo : verde;
+                    return [
+                        makeCell(i+1, s),
+                        makeCell(p.no_poliza||'', s),
+                        makeCell(`${p.clientes?.nombre||''} ${p.clientes?.apellido||''}`.trim(), s),
+                        makeCell(p.aseguradora||'', s),
+                        makeCell(p.ramo||'', s),
+                        makeCell((p.estado||'vigente').toUpperCase(), estadoStyle),
+                        makeCell(parseFloat(p.prima)||0, { fill: bg, numFmt: '"$"#,##0.00' }),
+                        makeCell(fmtFechaMXBackup(p.finanzas?.inicio || p.inicio_vigencia), s),
+                        makeCell(fmtFechaMXBackup(p.vence), s),
+                        makeCell(FORMA_MAP[String(p.finanzas?.formaPago||'1')]||'Anual', s),
+                        makeCell(p.domiciliada ? 'Sí' : 'No', s),
+                        makeCell(p.agente||'', s),
+                        makeCell(fmtFechaMXBackup(p.created_at), s),
+                    ];
+                });
+                addSheet(WB, '📋 Pólizas', hdrsPolizas, rowsPolizas, hdrOrange);
+
+                // ─── HOJA 4: PLAN DE PAGOS ────────────────────────────────
+                setProgreso(45, 'Generando plan de pagos...');
+                const hdrsPagos = ['No. Póliza','Cliente','Aseguradora','Ramo','Pago #','Fecha Vence','Monto','Estado','Fecha Pago Real'];
+                const rowsPagos = [];
+                let filaIdx = 0;
+                (polizas||[]).forEach(p => {
+                    if (p.estado === 'cancelada') return;
+                    const f = p.finanzas || {};
+                    const numPagos = parseInt(f.formaPago) || 1;
+                    const primaNum = parseFloat(p.prima) || 0;
+                    const pagosDetalle = f.pagos_detalle || [];
+                    const pagosStatus = p.pagos_status || [];
+                    const pagosFechas = p.pagos_fechas || [];
+                    const nombreCli = `${p.clientes?.nombre||''} ${p.clientes?.apellido||''}`.trim();
+
+                    let fechaBase = f.inicio ? new Date(f.inicio + 'T12:00:00') : null;
+                    for (let i = 0; i < numPagos; i++) {
+                        const pagado = pagosStatus[i] === true;
+                        const montoBase = pagosDetalle[i]?.total ? parseFloat(pagosDetalle[i].total) : (primaNum / numPagos);
+                        let fechaVence = '';
+                        if (pagosDetalle[i]?.fecha) fechaVence = fmtFechaMXBackup(pagosDetalle[i].fecha);
+                        else if (fechaBase) { fechaVence = fmtFechaMXBackup(fechaBase.toISOString()); }
+
+                        let estadoPago, estadoStyle;
+                        if (pagado) { estadoPago = 'PAGADO'; estadoStyle = verde; }
+                        else {
+                            const hoy = new Date(); hoy.setHours(0,0,0,0);
+                            const fv = fechaBase ? new Date(fechaBase) : null;
+                            if (fv && fv < hoy) { estadoPago = 'VENCIDO'; estadoStyle = rojo; }
+                            else { estadoPago = 'PENDIENTE'; estadoStyle = amarillo; }
+                        }
+
+                        const bg = filaIdx % 2 === 0 ? rowAlt.fill : rowNorm.fill;
+                        const s = { fill: bg };
+                        rowsPagos.push([
+                            makeCell(p.no_poliza||'', s),
+                            makeCell(nombreCli, s),
+                            makeCell(p.aseguradora||'', s),
+                            makeCell(p.ramo||'', s),
+                            makeCell(`Pago ${i+1}/${numPagos}`, s),
+                            makeCell(fechaVence, s),
+                            makeCell(montoBase, { fill: bg, numFmt: '"$"#,##0.00' }),
+                            makeCell(estadoPago, estadoStyle),
+                            makeCell(pagado && pagosFechas[i] ? fmtFechaMXBackup(pagosFechas[i]) : '—', s),
+                        ]);
+                        filaIdx++;
+                        if (fechaBase) fechaBase.setMonth(fechaBase.getMonth() + (12/numPagos));
+                    }
+                });
+                addSheet(WB, '💰 Plan de Pagos', hdrsPagos, rowsPagos, hdrYellow);
+
+                // ─── HOJA 5: DOCUMENTOS PDF ───────────────────────────────
+                setProgreso(55, 'Indexando documentos PDF...');
+                const hdrsDoc = ['No. Póliza','Cliente','Aseguradora','Nombre Archivo','Tamaño','Ruta en Storage'];
+                const rowsDocs = [];
+                const pdfList = []; // para descargar después
+                (polizas||[]).forEach((p, i) => {
+                    const docs = p.documentos || [];
+                    const nombreCli = `${p.clientes?.nombre||''} ${p.clientes?.apellido||''}`.trim();
+                    docs.forEach(doc => {
+                        const bg = rowsDocs.length % 2 === 0 ? rowAlt.fill : rowNorm.fill;
+                        const s = { fill: bg };
+                        rowsDocs.push([
+                            makeCell(p.no_poliza||'', s), makeCell(nombreCli, s),
+                            makeCell(p.aseguradora||'', s), makeCell(doc.nombre||'', s),
+                            makeCell(doc.tamano ? `${(doc.tamano/1024).toFixed(1)} KB` : '—', s),
+                            makeCell(doc.path||'', s),
+                        ]);
+                        pdfList.push({ poliza: p.no_poliza, cliente: nombreCli, path: doc.path, nombre: doc.nombre });
+                    });
+                });
+                if (rowsDocs.length === 0) rowsDocs.push([makeCell('Sin documentos adjuntos')]);
+                addSheet(WB, '📎 Documentos PDF', hdrsDoc, rowsDocs, hdrPurple);
+
+                // ─── HOJA 6: LEADS ────────────────────────────────────────
+                setProgreso(62, 'Generando pestaña Leads...');
+                const hdrsLeads = ['#','Nombre','Teléfono','Email','Producto Interés','Etapa','Fuente','Agente','Fecha Registro','Notas'];
+                const rowsLeads = (leads||[]).map((l, i) => {
+                    const bg = i % 2 === 0 ? rowAlt.fill : rowNorm.fill;
+                    const s = { fill: bg };
+                    return [
+                        makeCell(i+1, s), makeCell(l.nombre||'', s), makeCell(l.telefono||'', s),
+                        makeCell(l.email||'', s), makeCell(l.producto||l.ramo||'', s),
+                        makeCell(l.etapa||l.estado||'', s), makeCell(l.fuente||'', s),
+                        makeCell(l.agente||'', s), makeCell(fmtFechaMXBackup(l.created_at), s),
+                        makeCell(l.notas||l.descripcion||'', s),
+                    ];
+                });
+                if (rowsLeads.length === 0) rowsLeads.push([makeCell('Sin leads registrados')]);
+                addSheet(WB, '🎯 Leads', hdrsLeads, rowsLeads, hdrTeal);
+
+                // ─── HOJA 7: SINIESTROS ───────────────────────────────────
+                setProgreso(68, 'Generando pestaña Siniestros...');
+                const hdrsSin = ['#','No. Siniestro','Póliza','Cliente','Fecha Reporte','Tipo','Estado','Descripción','Monto Reclamado'];
+                const rowsSin = (siniestros||[]).map((s2, i) => {
+                    const bg = i % 2 === 0 ? rowAlt.fill : rowNorm.fill;
+                    const s = { fill: bg };
+                    return [
+                        makeCell(i+1, s), makeCell(s2.numero_siniestro||s2.id||'', s),
+                        makeCell(s2.no_poliza||'', s), makeCell(s2.cliente||s2.nombre_cliente||'', s),
+                        makeCell(fmtFechaMXBackup(s2.fecha_reporte||s2.created_at), s),
+                        makeCell(s2.tipo||s2.ramo||'', s), makeCell(s2.estado||'', s),
+                        makeCell(s2.descripcion||s2.notas||'', s),
+                        makeCell(s2.monto_reclamado ? parseFloat(s2.monto_reclamado) : 0, { fill: bg, numFmt: '"$"#,##0.00' }),
+                    ];
+                });
+                if (rowsSin.length === 0) rowsSin.push([makeCell('Sin siniestros registrados')]);
+                addSheet(WB, '🚨 Siniestros', hdrsSin, rowsSin, hdrRed);
+
+                setProgreso(72, 'Excel listo. Descargando PDFs...');
+                logBackup(`Excel generado con 7 pestañas. Iniciando descarga de ${pdfList.length} PDFs...`);
+
+                // ── 4. Escribir archivos ──────────────────────────────────
+                const excelName = 'Segumex_Backup.xlsx';
+                const excelBuffer = XLSX.write(WB, { bookType: 'xlsx', type: 'array' });
+
+                if (_backupDirHandle && supportsFS) {
+                    // ---- File System Access API ----
+                    await escribirArchivoEnCarpeta(_backupDirHandle, excelName, new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+                    logBackup(`✅ ${excelName} guardado en carpeta.`);
+
+                    // Subcarpeta PDFs
+                    let pdfsDirHandle = null;
+                    try {
+                        pdfsDirHandle = await _backupDirHandle.getDirectoryHandle('PDFs', { create: true });
+                    } catch (e) { logBackup('⚠️ No se pudo crear subcarpeta PDFs: ' + e.message); }
+
+                    let pdfOk = 0, pdfErr = 0;
+                    if (pdfsDirHandle && pdfList.length > 0) {
+                        for (let i = 0; i < pdfList.length; i++) {
+                            const pdf = pdfList[i];
+                            const pct = 72 + ((i+1)/pdfList.length)*25;
+                            setProgreso(pct, `Descargando PDF ${i+1}/${pdfList.length}...`);
+                            try {
+                                const clienteSanitizado = sanitizarNombreArchivo(pdf.cliente);
+                                const clienteDir = await pdfsDirHandle.getDirectoryHandle(clienteSanitizado, { create: true });
+                                const blob = await descargarPDF(pdf.path);
+                                if (blob) {
+                                    const nombreFinal = sanitizarNombreArchivo(`${pdf.poliza}_${pdf.nombre}`);
+                                    await escribirArchivoEnCarpeta(clienteDir, nombreFinal, blob);
+                                    pdfOk++;
+                                    logBackup(`✅ ${pdf.poliza}/${pdf.nombre}`);
+                                } else { pdfErr++; logBackup(`⚠️ Sin URL: ${pdf.nombre}`); }
+                            } catch (e) { pdfErr++; logBackup(`❌ Error ${pdf.nombre}: ${e.message}`); }
+                        }
+                    }
+                    setProgreso(100, '¡Backup completado!');
+                    mostrarResultadoBackup(clientes, polizas, leads, pdfList.length, pdfOk, pdfErr);
+                } else {
+                    // ---- Fallback: descargar ZIP ----
+                    logBackup('Generando ZIP (modo Safari/fallback)...');
+                    const zip = new JSZip();
+                    zip.file(excelName, excelBuffer);
+                    const pdfFolder = zip.folder('PDFs');
+
+                    let pdfOk = 0, pdfErr = 0;
+                    for (let i = 0; i < pdfList.length; i++) {
+                        const pdf = pdfList[i];
+                        setProgreso(72 + ((i+1)/Math.max(pdfList.length,1))*23, `PDF ${i+1}/${pdfList.length}...`);
+                        try {
+                            const blob = await descargarPDF(pdf.path);
+                            if (blob) {
+                                const clienteSanitizado = sanitizarNombreArchivo(pdf.cliente);
+                                const nombreFinal = sanitizarNombreArchivo(`${pdf.poliza}_${pdf.nombre}`);
+                                pdfFolder.folder(clienteSanitizado).file(nombreFinal, blob);
+                                pdfOk++;
+                            } else pdfErr++;
+                        } catch (e) { pdfErr++; }
+                    }
+
+                    setProgreso(97, 'Comprimiendo ZIP...');
+                    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+                    descargarBlob(zipBlob, 'Segumex_Backup.zip');
+                    setProgreso(100, '¡Backup completado!');
+                    mostrarResultadoBackup(clientes, polizas, leads, pdfList.length, pdfOk, pdfErr);
+                }
+
+            } catch (err) {
+                console.error('Error en backup:', err);
+                logBackup('❌ Error crítico: ' + err.message);
+                alert('Error en el backup: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span class="material-symbols-outlined text-[18px]" style="font-variation-settings:\'FILL\' 1">download</span> Generar Backup';
+            }
+        }
+
+        async function escribirArchivoEnCarpeta(dirHandle, nombre, blob) {
+            const fileHandle = await dirHandle.getFileHandle(nombre, { create: true });
+            const writable   = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+        }
+
+        async function descargarPDF(path) {
+            if (!path) return null;
+            try {
+                const { data, error } = await window.supabaseClient.storage
+                    .from('documentos-polizas')
+                    .createSignedUrl(path, 120);
+                if (error || !data?.signedUrl) return null;
+                const res = await fetch(data.signedUrl);
+                if (!res.ok) return null;
+                return await res.blob();
+            } catch { return null; }
+        }
+
+        function descargarBlob(blob, nombre) {
+            const url = URL.createObjectURL(blob);
+            const a   = document.createElement('a');
+            a.href    = url; a.download = nombre;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+        }
+
+        function mostrarResultadoBackup(clientes, polizas, leads, totalPDFs, pdfOk, pdfErr) {
+            const resEl = document.getElementById('backupResultado');
+            resEl.classList.remove('hidden');
+            document.getElementById('backupResumenStats').innerHTML = `
+                <div class="bg-[#111318] rounded-lg p-3 text-center"><p class="text-2xl font-bold text-blue-400">${clientes?.length||0}</p><p class="text-[10px] text-[#9da6b9]">Clientes</p></div>
+                <div class="bg-[#111318] rounded-lg p-3 text-center"><p class="text-2xl font-bold text-green-400">${polizas?.length||0}</p><p class="text-[10px] text-[#9da6b9]">Pólizas</p></div>
+                <div class="bg-[#111318] rounded-lg p-3 text-center"><p class="text-2xl font-bold text-emerald-400">${pdfOk}/${totalPDFs}</p><p class="text-[10px] text-[#9da6b9]">PDFs descargados</p></div>
+                <div class="bg-[#111318] rounded-lg p-3 text-center"><p class="text-2xl font-bold text-purple-400">${leads?.length||0}</p><p class="text-[10px] text-[#9da6b9]">Leads</p></div>
+            `;
+            logBackup(`✅ Backup terminado — ${pdfOk} PDFs OK, ${pdfErr} errores.`);
         }
 
         // ============================================================
