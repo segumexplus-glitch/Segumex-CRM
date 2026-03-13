@@ -246,7 +246,7 @@
             const tel10 = extraerTel10(conv.platform_user_id || '');
             const cli = _clientesAll.find(c => c.telefono && c.telefono.replace(/\D/g, '').endsWith(tel10));
             if (cli) return `perfil_cliente.html?id=${cli.id}`;
-            if (conv.leads?.cliente_id) return `perfil_cliente.html?id=${conv.leads.cliente_id}`;
+            // leads no tiene cliente_id directo — solo usamos clientes match por tel
             return null;
         }
 
@@ -287,7 +287,7 @@
             const [{ data: convData, error }, { data: clientesData }] = await Promise.all([
                 window.supabaseClient
                     .from('comm_conversations')
-                    .select('*, leads(nombre, apellido, telefono, cliente_id)')
+                    .select('*, leads(nombre, telefono)')
                     .order('last_message_at', { ascending: false }),
                 window.supabaseClient
                     .from('clientes')
