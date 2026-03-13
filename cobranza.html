@@ -241,7 +241,7 @@
             const entry = logMap.get(String(polizaId));
             if (!entry) return '<span class="text-[9px] text-[#4b5563]">—</span>';
             const tipo = TIPO_CORTO_MSG[entry.tipo_mensaje] || entry.tipo_mensaje;
-            const fecha = new Date(entry.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+            const fecha = new Date(entry.enviado_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
             return `<span class="text-[9px] text-[#60a5fa] bg-blue-500/10 px-1.5 py-0.5 rounded leading-tight block text-center whitespace-nowrap">${tipo} · ${fecha}</span>`;
         }
 
@@ -253,8 +253,8 @@
             // Cargar historial de mensajes automáticos
             const { data: logs } = await window.supabaseClient
                 .from('mensajes_cobranza_log')
-                .select('poliza_id, tipo_mensaje, created_at')
-                .order('created_at', { ascending: false });
+                .select('poliza_id, tipo_mensaje, enviado_at')
+                .order('enviado_at', { ascending: false });
             logMap = new Map();
             (logs || []).forEach(l => {
                 if (l.poliza_id && !logMap.has(String(l.poliza_id))) {

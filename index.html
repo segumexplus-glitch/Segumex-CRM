@@ -225,7 +225,7 @@
             const [{ data: clientesData }, { data: polizasData }, { data: logsData }] = await Promise.all([
                 window.supabaseClient.from('clientes').select('*'),
                 window.supabaseClient.from('polizas').select('*'),
-                window.supabaseClient.from('mensajes_cobranza_log').select('poliza_id, tipo_mensaje, created_at').order('created_at', { ascending: false })
+                window.supabaseClient.from('mensajes_cobranza_log').select('poliza_id, tipo_mensaje, enviado_at').order('enviado_at', { ascending: false })
             ]);
             const dashLogMap = new Map();
             (logsData || []).forEach(l => {
@@ -292,7 +292,7 @@
             const e = logMap.get(String(polizaId));
             if (!e) return '';
             const tipo = DASH_TIPO_CORTO[e.tipo_mensaje] || e.tipo_mensaje;
-            const fecha = new Date(e.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+            const fecha = new Date(e.enviado_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
             return `<span class="text-[8px] text-[#60a5fa] bg-blue-500/10 px-1 py-0.5 rounded leading-tight">${tipo} · ${fecha}</span>`;
         }
 
