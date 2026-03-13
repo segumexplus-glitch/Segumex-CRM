@@ -335,11 +335,17 @@
             const q = document.getElementById('buscadorBuzon')?.value || '';
             renderLista(filtrarConvs(q));
 
-            // Pre-cargar avatares en background para todos los contactos visibles
+            // Pre-cargar avatares en background para todos los contactos
             _conversacionesAll.forEach(c => {
                 if (_avatarCache[c.platform_user_id] === undefined) {
                     cargarAvatar(c.platform_user_id).then(url => {
-                        if (url) renderLista(filtrarConvs(document.getElementById('buscadorBuzon')?.value || ''));
+                        if (url) {
+                            renderLista(filtrarConvs(document.getElementById('buscadorBuzon')?.value || ''));
+                            // Si esta conversación está abierta, actualizar también el header
+                            if (currentConv && currentConv.platform_user_id === c.platform_user_id) {
+                                document.getElementById('headerAvatarWrap').innerHTML = avatarHtml(currentConv._nombre, url, 'size-10');
+                            }
+                        }
                     });
                 }
             });
@@ -473,15 +479,15 @@
                 if (currentConversationId === conv.id) renderMessages(conv.id, conv.platform_user_id, true);
             }, 5000);
 
-            // Cargar avatar en background (sin bloquear UI)
-            if (_avatarCache[conv.platform_user_id] === undefined) {
-                cargarAvatar(conv.platform_user_id).then(url => {
-                    if (url) {
-                        document.getElementById('headerAvatarWrap').innerHTML = avatarHtml(nombre, url, 'size-10');
-                        renderLista(filtrarConvs(document.getElementById('buscadorBuzon')?.value || ''));
-                    }
-                });
-            }
+            // Cargar/actualizar avatar en header (cargarAvatar devuelve cache si ya existe)
+            cargarAvatar(conv.platform_user_id).then(url => {
+                if (currentConversationId === conv.id) {
+                    document.getElementById('headerAvatarWrap').innerHTML = avatarHtml(nombre, url, 'size-10');
+                }
+                if (url) {
+                    renderLista(filtrarConvs(document.getElementById('buscadorBuzon')?.value || ''));
+                }
+            });
         }
 
         async function recargarChat() {
