@@ -1051,8 +1051,8 @@ Equipo Segumex 🛡️</p>
             const { data: logs, error } = await window.supabaseClient
                 .from('mensajes_cobranza_log')
                 .select('*')
-                .order('enviado_at', { ascending: false })
-                .limit(100);
+                .order('created_at', { ascending: false })
+                .limit(200);
 
             if (error) {
                 document.getElementById('logTableBody').innerHTML = `<tr><td colspan="5" class="text-center py-8 text-red-400">Error: ${error.message}</td></tr>`;
@@ -1066,7 +1066,7 @@ Equipo Segumex 🛡️</p>
             let countHoy = 0, countSemana = 0, countError = 0;
 
             (logs || []).forEach(l => {
-                const fecha = new Date(l.enviado_at);
+                const fecha = new Date(l.created_at);
                 if (fecha.toDateString() === hoy) countHoy++;
                 if (fecha >= semanaAtras) countSemana++;
                 if (l.status === 'error') countError++;
@@ -1078,35 +1078,41 @@ Equipo Segumex 🛡️</p>
             document.getElementById('statError').textContent = countError;
 
             const TIPO_LABELS = {
-                cobranza_7_dias_antes: '7 días antes',
-                cobranza_1_dia_antes: '1 día antes',
-                cobranza_2_dias_despues: '2 días después',
-                cobranza_5_dias_despues: '5 días después',
-                cobranza_8_dias_despues: '8 días después (urgente)',
+                cobranza_7_dias_antes: 'Cobranza · 7 días antes',
+                cobranza_1_dia_antes: 'Cobranza · 1 día antes',
+                cobranza_2_dias_despues: 'Cobranza · 2 días después',
+                cobranza_5_dias_despues: 'Cobranza · 5 días después',
+                cobranza_8_dias_despues: 'Cobranza · 8 días después (urgente)',
+                bienvenida_cliente_nuevo: 'Bienvenida · Cliente Nuevo',
+                bienvenida_cliente_existente: 'Bienvenida · Cliente Existente',
             };
 
             if (!logs || logs.length === 0) {
                 document.getElementById('logTableBody').innerHTML = `
                     <tr><td colspan="5" class="text-center py-12 text-[#9da6b9]">
                         <span class="material-symbols-outlined text-3xl block mb-2">inbox</span>
-                        Aún no se han enviado mensajes de cobranza automáticos.
+                        Aún no se han enviado mensajes automáticos.
                     </td></tr>`;
                 return;
             }
 
             document.getElementById('logTableBody').innerHTML = logs.map(l => {
-                const fecha = new Date(l.enviado_at);
+                const fecha = new Date(l.created_at);
                 const fechaStr = fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const isBienvenida = l.tipo_mensaje?.startsWith('bienvenida');
                 const tipoLabel = TIPO_LABELS[l.tipo_mensaje] || l.tipo_mensaje;
                 const statusBadge = l.status === 'error'
                     ? `<span class="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 text-xs">Error</span>`
                     : `<span class="px-2 py-0.5 rounded-full bg-green-500/20 text-green-300 text-xs">Enviado</span>`;
 
+                const tipoBadge = isBienvenida
+                    ? `<span class="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-xs">${tipoLabel}</span>`
+                    : `<span class="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-xs">${tipoLabel}</span>`;
                 return `<tr class="border-b border-[#2d3442] hover:bg-[#1f242e] transition-colors">
                     <td class="px-4 py-3 text-[#9da6b9] text-xs">${fechaStr}</td>
                     <td class="px-4 py-3 text-white text-sm">${l.cliente_nombre || l.telefono}</td>
                     <td class="px-4 py-3 text-[#9da6b9] text-xs">${l.numero_poliza || '—'}</td>
-                    <td class="px-4 py-3 text-[#9da6b9] text-xs">${tipoLabel}</td>
+                    <td class="px-4 py-3">${tipoBadge}</td>
                     <td class="px-4 py-3">${statusBadge}</td>
                 </tr>`;
             }).join('');

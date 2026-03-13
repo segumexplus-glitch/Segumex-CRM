@@ -225,11 +225,42 @@
     <script>
         let recibosGlobales = [];
         let diasFiltro = 7;
+        let logMap = new Map();
+
+        const TIPO_CORTO_MSG = {
+            cobranza_7_dias_antes: '7d antes',
+            cobranza_1_dia_antes: '1d antes',
+            cobranza_2_dias_despues: '2d después',
+            cobranza_5_dias_despues: '5d después',
+            cobranza_8_dias_despues: '8d después',
+            bienvenida_cliente_nuevo: 'Bienvenida',
+            bienvenida_cliente_existente: 'Bienvenida',
+        };
+
+        function ultimoMensajeChip(polizaId) {
+            const entry = logMap.get(String(polizaId));
+            if (!entry) return '<span class="text-[9px] text-[#4b5563]">—</span>';
+            const tipo = TIPO_CORTO_MSG[entry.tipo_mensaje] || entry.tipo_mensaje;
+            const fecha = new Date(entry.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+            return `<span class="text-[9px] text-[#60a5fa] bg-blue-500/10 px-1.5 py-0.5 rounded leading-tight block text-center whitespace-nowrap">${tipo} · ${fecha}</span>`;
+        }
 
         async function cargarPayTracker() {
             // --- CONSULTA SUPABASE ---
             const { data: polizas } = await window.supabaseClient.from('polizas').select('*');
             const { data: clientes } = await window.supabaseClient.from('clientes').select('*');
+
+            // Cargar historial de mensajes automáticos
+            const { data: logs } = await window.supabaseClient
+                .from('mensajes_cobranza_log')
+                .select('poliza_id, tipo_mensaje, created_at')
+                .order('created_at', { ascending: false });
+            logMap = new Map();
+            (logs || []).forEach(l => {
+                if (l.poliza_id && !logMap.has(String(l.poliza_id))) {
+                    logMap.set(String(l.poliza_id), l);
+                }
+            });
 
             recibosGlobales = [];
             let totalPorCobrar30 = 0;
@@ -360,10 +391,12 @@
                 <div class="col-span-2 text-xs text-[#94a3b8] font-medium">${r.aseguradora}</div>
                 <div class="col-span-2 text-right font-mono text-sm text-white font-bold">${formatoMoneda(r.monto)}</div>
                 <div class="col-span-2"><div class="flex flex-col"><span class="text-white text-xs font-medium">${fechaFmt}</span><span class="text-[10px] ${colorDias}">En ${r.diffDias} días</span></div></div>
-                <div class="col-span-2 flex justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                    <button onclick='cobrarRecibo("${r.polizaIdReal}", ${r.idPago})' class="p-1.5 rounded bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all"><span class="material-symbols-outlined text-[18px]">payments</span></button>
-                    <button onclick='gestionarWhatsapp("${r.polizaIdReal}", ${r.idPago}, ${datosStr})' class="p-1.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all"><span class="material-symbols-outlined text-[18px]">send</span></button>
-                    <button onclick='descargarReciboPDF(${datosStr}, "${r.estatus}")' class="p-1.5 rounded bg-[#2d3442] text-[#94a3b8] hover:bg-red-500 hover:text-white transition-all" title="Descargar PDF"><span class="material-symbols-outlined text-[18px]">picture_as_pdf</span></button>
+                <div class="col-span-2 flex flex-col items-center gap-1">
+                    <div class="flex justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                        <button onclick='cobrarRecibo("${r.polizaIdReal}", ${r.idPago})' class="p-1.5 rounded bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all"><span class="material-symbols-outlined text-[18px]">payments</span></button>
+                        <button onclick='descargarReciboPDF(${datosStr}, "${r.estatus}")' class="p-1.5 rounded bg-[#2d3442] text-[#94a3b8] hover:bg-red-500 hover:text-white transition-all" title="Descargar PDF"><span class="material-symbols-outlined text-[18px]">picture_as_pdf</span></button>
+                    </div>
+                    ${ultimoMensajeChip(r.polizaIdReal)}
                 </div>
             </div>`;
         }
@@ -407,10 +440,12 @@
                     <span class="${r.domiciliada ? 'text-purple-400' : 'text-red-400'} font-mono font-bold text-sm">${formatoMoneda(r.monto)}</span>
                 </div>
                 <div class="flex items-center justify-between mt-2">
-                    <div class="text-[10px] ${r.domiciliada ? 'text-purple-300 bg-purple-500/10 border-purple-500/10' : 'text-red-300 bg-red-500/10 border-red-500/10'} px-2 py-0.5 rounded border">${r.domiciliada ? '🏦 Domiciliada' : `Vencido hace ${Math.abs(r.diffDias)} días`}</div>
+                    <div class="flex flex-col gap-1">
+                        <div class="text-[10px] ${r.domiciliada ? 'text-purple-300 bg-purple-500/10 border-purple-500/10' : 'text-red-300 bg-red-500/10 border-red-500/10'} px-2 py-0.5 rounded border">${r.domiciliada ? '🏦 Domiciliada' : `Vencido hace ${Math.abs(r.diffDias)} días`}</div>
+                        ${ultimoMensajeChip(r.polizaIdReal)}
+                    </div>
                     <div class="flex gap-1">
                         <button onclick='descargarReciboPDF(${datosStr}, "${r.estatus}")' class="p-1.5 rounded-md bg-[#2d3442] hover:bg-red-600 text-[#94a3b8] hover:text-white" title="Descargar PDF"><span class="material-symbols-outlined text-[16px]">picture_as_pdf</span></button>
-                        <button onclick='gestionarWhatsapp("${r.polizaIdReal}", ${r.idPago}, ${datosStr})' class="p-1.5 rounded-md bg-[#2d3442] hover:bg-green-600 text-[#94a3b8] hover:text-white"><span class="material-symbols-outlined text-[16px]">chat</span></button>
                         <button onclick='cobrarRecibo("${r.polizaIdReal}", ${r.idPago})' class="p-1.5 rounded-md bg-[#2d3442] hover:bg-blue-600 text-[#94a3b8] hover:text-white"><span class="material-symbols-outlined text-[16px]">check</span></button>
                     </div>
                 </div>
@@ -441,12 +476,6 @@
         }
 
         function filtrarGlobal() { renderProximos(); renderVencidos(); }
-
-        function gestionarWhatsapp(idReal, pagoIndex, datos) {
-            const mensaje = `Hola ${datos.cliente}, recordatorio de su pago de ${formatoMoneda(datos.monto)} para la póliza ${datos.poliza}. ¡Saludos!`;
-            const url = `https://wa.me/52${datos.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(mensaje)}`;
-            window.open(url, '_blank');
-        }
 
         function descargarReciboPDF(datos, estatus) {
             window.SegumexPDF.generarRecibo(datos, estatus);

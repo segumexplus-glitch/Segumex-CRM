@@ -222,8 +222,17 @@
             }
 
             // --- LLAMADAS A SUPABASE ---
-            const { data: clientesData } = await window.supabaseClient.from('clientes').select('*');
-            const { data: polizasData } = await window.supabaseClient.from('polizas').select('*');
+            const [{ data: clientesData }, { data: polizasData }, { data: logsData }] = await Promise.all([
+                window.supabaseClient.from('clientes').select('*'),
+                window.supabaseClient.from('polizas').select('*'),
+                window.supabaseClient.from('mensajes_cobranza_log').select('poliza_id, tipo_mensaje, created_at').order('created_at', { ascending: false })
+            ]);
+            const dashLogMap = new Map();
+            (logsData || []).forEach(l => {
+                if (l.poliza_id && !dashLogMap.has(String(l.poliza_id))) {
+                    dashLogMap.set(String(l.poliza_id), l);
+                }
+            });
 
             // --- FILTRO DE SEGURIDAD (Restringidos) ---
             const sesion = JSON.parse(localStorage.getItem('segumex_sesion')) || {};
@@ -266,10 +275,28 @@
             });
             document.getElementById('kpiComisiones').innerText = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(totalComisiones);
 
-            renderTablasOperativas(clientes || [], polizasActivas);
+            renderTablasOperativas(clientes || [], polizasActivas, dashLogMap);
         }
 
-        function renderTablasOperativas(clientes, polizasActivas) {
+        const DASH_TIPO_CORTO = {
+            cobranza_7_dias_antes: '7d antes',
+            cobranza_1_dia_antes: '1d antes',
+            cobranza_2_dias_despues: '2d después',
+            cobranza_5_dias_despues: '5d después',
+            cobranza_8_dias_despues: '8d después',
+            bienvenida_cliente_nuevo: 'Bienvenida',
+            bienvenida_cliente_existente: 'Bienvenida',
+        };
+
+        function dashUltimoMsg(logMap, polizaId) {
+            const e = logMap.get(String(polizaId));
+            if (!e) return '';
+            const tipo = DASH_TIPO_CORTO[e.tipo_mensaje] || e.tipo_mensaje;
+            const fecha = new Date(e.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+            return `<span class="text-[8px] text-[#60a5fa] bg-blue-500/10 px-1 py-0.5 rounded leading-tight">${tipo} · ${fecha}</span>`;
+        }
+
+        function renderTablasOperativas(clientes, polizasActivas, logMap = new Map()) {
             const hoyObj = new Date(); hoyObj.setHours(0, 0, 0, 0);
             let htmlProxReg = '', htmlProxDom = '', htmlVencReg = '', htmlVencDom = '', htmlRenov = '';
 
@@ -299,7 +326,7 @@
                             const diffDias = window.SegumexDate.diffDays(fechaIterada);
                             const fechaStr = window.SegumexDate.toShortDisplay(fechaIterada);
 
-                            const itemHtml = `<div class="p-3 border-b border-[#3b4354] hover:bg-white/5 transition-colors flex justify-between items-center group"><div class="overflow-hidden pr-2"><p class="text-white text-[11px] font-bold truncate">${nombreCli}${badgeDom}</p><p class="text-[#9da6b9] text-[10px]">${p.no_poliza || p.numero || 'S/N'} • $${montoPago.toFixed(2)}</p></div><div class="flex flex-col items-end gap-1 shrink-0"><span class="text-[10px] font-mono ${diffDias < 0 ? 'text-red-500 font-bold' : 'text-blue-400'}">${fechaStr}</span><button onclick="enviarWhatsApp('${telCli}', 'cobranza', '${nombreCli}', '${p.no_poliza || p.numero || 'S/N'}', '${montoPago.toFixed(2)}', ${diffDias})" class="opacity-0 group-hover:opacity-100 transition-opacity text-green-500 hover:scale-110"><span class="material-symbols-outlined text-sm">chat</span></button></div></div>`;
+                            const itemHtml = `<div class="p-3 border-b border-[#3b4354] hover:bg-white/5 transition-colors flex justify-between items-center"><div class="overflow-hidden pr-2"><p class="text-white text-[11px] font-bold truncate">${nombreCli}${badgeDom}</p><p class="text-[#9da6b9] text-[10px]">${p.no_poliza || p.numero || 'S/N'} • $${montoPago.toFixed(2)}</p></div><div class="flex flex-col items-end gap-1 shrink-0"><span class="text-[10px] font-mono ${diffDias < 0 ? 'text-red-500 font-bold' : 'text-blue-400'}">${fechaStr}</span>${dashUltimoMsg(logMap, p.id)}</div></div>`;
 
                             if (diffDias < 0) { if (esDomiciliada) htmlVencDom += itemHtml; else htmlVencReg += itemHtml; }
                             else if (diffDias <= 7) { if (esDomiciliada) htmlProxDom += itemHtml; else htmlProxReg += itemHtml; }
@@ -314,7 +341,7 @@
                     const fechaVenceStr = window.SegumexDate.toDisplay(p.vence);
 
                     if (diffDiasRenov >= 0 && diffDiasRenov <= 45) {
-                        htmlRenov += `<div class="p-3 border-b border-[#3b4354] hover:bg-white/5 transition-colors flex justify-between items-center group"><div class="overflow-hidden pr-2"><p class="text-white text-[11px] font-bold truncate">${nombreCli}</p><p class="text-[#9da6b9] text-[10px]">${p.no_poliza || p.numero || 'S/N'} • ${p.aseguradora || 'Aseguradora'}</p></div><div class="flex flex-col items-end gap-1 shrink-0"><span class="text-[10px] font-mono text-purple-400">${fechaVenceStr}</span><button onclick="enviarWhatsApp('${telCli}', 'renovacion', '${nombreCli}', '${p.no_poliza || p.numero || 'S/N'}')" class="opacity-0 group-hover:opacity-100 transition-opacity text-green-500 hover:scale-110"><span class="material-symbols-outlined text-sm">chat</span></button></div></div>`;
+                        htmlRenov += `<div class="p-3 border-b border-[#3b4354] hover:bg-white/5 transition-colors flex justify-between items-center"><div class="overflow-hidden pr-2"><p class="text-white text-[11px] font-bold truncate">${nombreCli}</p><p class="text-[#9da6b9] text-[10px]">${p.no_poliza || p.numero || 'S/N'} • ${p.aseguradora || 'Aseguradora'}</p></div><div class="flex flex-col items-end gap-1 shrink-0"><span class="text-[10px] font-mono text-purple-400">${fechaVenceStr}</span>${dashUltimoMsg(logMap, p.id)}</div></div>`;
                     }
                 }
             });
@@ -342,14 +369,6 @@
             actualizarDashboard();
         });
 
-        function enviarWhatsApp(tel, tipo, nombre, poliza, monto = "", diffDias = 0) {
-            if (!tel) { alert("El cliente no tiene teléfono registrado."); return; }
-            const num = tel.replace(/\D/g, '');
-            let msg = (tipo === 'cobranza')
-                ? (diffDias < 0 ? `Hola ${nombre}, tu pago de $${monto} (Póliza ${poliza}) venció. ¿Nos confirmas si ya lo realizaste?` : `Hola ${nombre}, te recordamos tu próximo pago de $${monto} (Póliza ${poliza}).`)
-                : `Hola ${nombre}, tu póliza ${poliza} vence pronto. ¿Iniciamos la renovación?`;
-            window.open(`https://wa.me/52${num}?text=${encodeURIComponent(msg)}`, '_blank');
-        }
     </script>
 </body>
 

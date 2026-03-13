@@ -261,6 +261,26 @@ Deno.serve(async (req) => {
             throw new Error(`Green API Error: ${dataText.errorMessage || dataText.error}`);
         }
 
+        // 8. Registrar en historial de mensajes
+        const tipoMensaje = isNewClient ? 'bienvenida_cliente_nuevo' : 'bienvenida_cliente_existente';
+        try {
+            await supabase.from('mensajes_cobranza_log').insert({
+                poliza_id: record.id || null,
+                cliente_nombre: cliente.nombre || '',
+                telefono: phone,
+                tipo_mensaje: tipoMensaje,
+                numero_poliza: record.no_poliza || '',
+                fecha_vencimiento: record.vence || null,
+                prima: record.prima ? Number(record.prima) : null,
+                numero_pago: null,
+                status: 'enviado',
+                respuesta_api: JSON.stringify(dataText)
+            });
+            console.log(`📋 Registrado en historial: ${tipoMensaje}`);
+        } catch (logErr: any) {
+            console.warn('⚠️ No se pudo guardar en historial:', logErr.message);
+        }
+
         return new Response(JSON.stringify({
             success: true,
             is_new_client: isNewClient,
