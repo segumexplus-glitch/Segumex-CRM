@@ -174,16 +174,24 @@
                     labelMes = `${MESES_LARGO[parseInt(m)-1]} ${y}`;
                 }
 
-                // Separador de mes
+                // Separador de mes (desplegable)
+                const grupoId = 'grupo-' + clave;
                 html += `
-                <div class="flex items-center gap-3 px-4 py-2 mt-2 first:mt-0">
-                    <div class="h-px flex-1 bg-[#2d3442]"></div>
-                    <span class="text-[11px] font-bold text-[#94a3b8] uppercase tracking-widest whitespace-nowrap">${labelMes}</span>
-                    <span class="text-[11px] font-bold text-blue-400 whitespace-nowrap">${formatoMoneda(totalMes)}</span>
-                    <div class="h-px flex-1 bg-[#2d3442]"></div>
-                </div>`;
+                <div class="flex items-center gap-3 px-4 py-2 mt-2 cursor-pointer select-none group/mes"
+                     onclick="toggleGrupo('${grupoId}', this)">
+                    <div class="h-px flex-1 bg-[#2d3442] group-hover/mes:bg-[#3b4354] transition-colors"></div>
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[14px] text-[#94a3b8] transition-transform duration-200" style="font-variation-settings:'FILL' 1" data-icon>expand_less</span>
+                        <span class="text-[11px] font-bold text-[#94a3b8] uppercase tracking-widest whitespace-nowrap group-hover/mes:text-white transition-colors">${labelMes}</span>
+                        <span class="text-[11px] font-bold text-blue-400 whitespace-nowrap">${formatoMoneda(totalMes)}</span>
+                        <span class="text-[10px] text-[#94a3b8] whitespace-nowrap">(${grupo.length})</span>
+                    </div>
+                    <div class="h-px flex-1 bg-[#2d3442] group-hover/mes:bg-[#3b4354] transition-colors"></div>
+                </div>
+                <div id="${grupoId}">`;
 
                 grupo.forEach(f => { html += renderFilaHtml(f.p, f.cli, f.idx, f.montoReal, f.esC); });
+                html += `</div>`;
             });
 
             document.getElementById('listaComisiones').innerHTML = html;
@@ -252,6 +260,15 @@
                     alert("Error al guardar la conciliación: " + (e.message || "Error desconocido"));
                 }
             }
+        }
+
+        function toggleGrupo(id, headerEl) {
+            const grupo = document.getElementById(id);
+            if (!grupo) return;
+            const collapsed = grupo.style.display === 'none';
+            grupo.style.display = collapsed ? '' : 'none';
+            const icon = headerEl.querySelector('[data-icon]');
+            if (icon) icon.style.transform = collapsed ? '' : 'rotate(180deg)';
         }
 
         function cambiarTab(t) { vistaActual = t; cargarComisiones(); }
