@@ -497,22 +497,48 @@ FORMATO DE SALIDA (JSON obligatorio):
                     );
 
                 // Enviar encuesta via Green API
-                const pollRes = await fetch(`${greenBaseUrl}/sendPoll/${GREEN_API_TOKEN}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chatId,
-                        message: '¿Cuál de tus pólizas necesitas? Puedes seleccionar una o varias 👇',
-                        options: opciones.map(o => ({ optionName: o.label })),
-                        multipleAnswers: true
-                    })
-                });
+                let pollEnviado = false;
+                try {
+                    const pollRes = await fetch(`${greenBaseUrl}/sendPoll/${GREEN_API_TOKEN}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chatId,
+                            message: '¿Cuál de tus pólizas necesitas? Puedes seleccionar una o varias 👇',
+                            options: opciones.map(o => ({ optionName: o.label })),
+                            multipleAnswers: true
+                        })
+                    });
 
-                const pollData = await pollRes.json();
-                if (!pollRes.ok) {
-                    console.error('❌ Error enviando poll:', pollData);
-                } else {
-                    console.log(`📊 Encuesta enviada a ${chatId} con ${opciones.length} opciones`);
+                    const pollData = await pollRes.json();
+                    if (!pollRes.ok) {
+                        console.error('❌ Error enviando poll:', pollData);
+                    } else {
+                        console.log(`📊 Encuesta enviada a ${chatId} con ${opciones.length} opciones`);
+                        pollEnviado = true;
+                    }
+                } catch (pollErr) {
+                    console.error('❌ Excepción enviando poll:', pollErr);
+                }
+
+                // Fallback: si la encuesta falló, enviar todos los PDFs directamente
+                if (!pollEnviado) {
+                    console.log('⚠️ Poll falló, enviando PDFs directamente como fallback');
+                    await supabase.from('ai_poll_pending').delete().eq('chat_id', chatId);
+
+                    await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chatId,
+                            message: `Aquí te mando tus ${polizasCliente.length} pólizas activas 📄`
+                        })
+                    });
+
+                    for (const poliza of polizasCliente) {
+                        await enviarPdfPoliza(greenBaseUrl, GREEN_API_TOKEN, chatId, poliza);
+                        await new Promise(r => setTimeout(r, 600));
+                    }
                 }
             }
         }
