@@ -322,6 +322,101 @@ Equipo Segumex 🛡️</p>
                     </div>
                 </div>
             </div>
+
+            <!-- Mensaje de Cumpleaños -->
+            <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl overflow-hidden">
+                <div class="flex items-center justify-between px-5 py-4 border-b border-[#3b4354] cursor-pointer hover:bg-[#1f242e] transition-colors"
+                     onclick="toggleMensaje('cumpleanos_mensaje')">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-pink-400" style="font-variation-settings:'FILL' 1">cake</span>
+                        <div>
+                            <p class="font-semibold text-white text-sm">Felicitación de Cumpleaños</p>
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 font-medium">Automático por RFC · variable: <code>{nombre}</code></span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span id="estado-cumpleanos_mensaje" class="text-xs text-[#9da6b9]">Sin cambios</span>
+                        <span id="chevron-cumpleanos_mensaje" class="material-symbols-outlined text-[#9da6b9] transition-transform">expand_more</span>
+                    </div>
+                </div>
+                <div id="body-cumpleanos_mensaje" class="hidden px-5 py-4">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs text-[#9da6b9] uppercase font-bold tracking-wider block mb-2">Mensaje</label>
+                            <textarea id="textarea-cumpleanos_mensaje" rows="10"
+                                oninput="onCumpleanosChange()"
+                                class="w-full bg-[#111318] border border-[#3b4354] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500 resize-y font-mono leading-relaxed"
+                                placeholder="Escribe el mensaje de cumpleaños..."></textarea>
+                            <p class="text-xs text-[#475569] mt-1"><span id="chars-cumpleanos_mensaje">0</span> caracteres</p>
+                        </div>
+                        <div>
+                            <label class="text-xs text-[#9da6b9] uppercase font-bold tracking-wider block mb-2">Vista previa WhatsApp</label>
+                            <div class="bg-[#0d1117] rounded-xl p-4 border border-[#2d3442]">
+                                <div class="flex items-center gap-2 mb-3 pb-3 border-b border-[#2d3442]">
+                                    <div class="w-8 h-8 rounded-full bg-pink-500/20 flex items-center justify-center text-xs font-bold text-pink-400">SX</div>
+                                    <div><p class="text-white text-xs font-semibold">Segumex</p><p class="text-[#9da6b9] text-[10px]">en línea</p></div>
+                                </div>
+                                <div id="preview-cumpleanos_mensaje" class="text-[#e9edef] text-sm whitespace-pre-wrap leading-relaxed max-h-52 overflow-y-auto scrollbar-hide">
+                                    <span class="text-[#475569] italic">Sin contenido...</span>
+                                </div>
+                                <p class="text-[#475569] text-xs mt-2 text-right">10:30 ✓✓</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-[#3b4354]">
+                        <button onclick="restaurarCumpleanos()"
+                            class="px-4 py-2 text-sm text-[#9da6b9] hover:text-white border border-[#3b4354] rounded-lg transition-colors">
+                            Restaurar original
+                        </button>
+                        <button onclick="guardarCumpleanos()"
+                            class="px-5 py-2 bg-pink-600 hover:bg-pink-500 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2">
+                            <span class="material-symbols-outlined text-sm">save</span>
+                            Guardar mensaje
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Imagen de Cumpleaños -->
+            <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-6">
+                <h3 class="font-semibold text-white mb-1 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-pink-400">image</span>
+                    Imagen de Cumpleaños
+                </h3>
+                <p class="text-[#9da6b9] text-sm mb-5">
+                    Esta imagen se envía junto con el mensaje de cumpleaños. (JPG o PNG, máx. 2MB)
+                </p>
+
+                <div id="cumpleanosImgPreviewContainer" class="mb-5 hidden">
+                    <p class="text-xs text-[#9da6b9] uppercase font-bold tracking-wider mb-2">Imagen actual</p>
+                    <div class="relative inline-block">
+                        <img id="cumpleanosImgPreview" src="" alt="Imagen cumpleaños" class="max-w-xs rounded-xl border border-[#3b4354] shadow-lg" />
+                        <button onclick="eliminarImagenCumpleanos()"
+                            class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white rounded-full w-7 h-7 flex items-center justify-center transition-colors shadow">
+                            <span class="material-symbols-outlined text-sm">close</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="cumpleanosUploadZone"
+                    class="border-2 border-dashed border-[#3b4354] hover:border-pink-500 rounded-xl p-8 text-center cursor-pointer transition-colors"
+                    onclick="document.getElementById('inputImagenCumpleanos').click()"
+                    ondragover="event.preventDefault(); this.classList.add('border-pink-500','bg-pink-500/5')"
+                    ondragleave="this.classList.remove('border-pink-500','bg-pink-500/5')"
+                    ondrop="handleDropCumpleanos(event)">
+                    <span class="material-symbols-outlined text-4xl text-[#475569] mb-3 block">add_photo_alternate</span>
+                    <p class="text-white font-medium mb-1">Haz clic o arrastra una imagen aquí</p>
+                    <p class="text-[#9da6b9] text-sm">JPG, PNG o WEBP · Máximo 2MB</p>
+                    <input type="file" id="inputImagenCumpleanos" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="handleImagenCumpleanosUpload(event)" />
+                </div>
+
+                <div id="cumpleanosUploadProgress" class="hidden mt-4">
+                    <div class="flex items-center gap-3 text-sm text-[#9da6b9]">
+                        <span class="material-symbols-outlined animate-spin text-pink-500">sync</span>
+                        Subiendo imagen...
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- ========== TAB: CONTROL Y PRUEBAS ========== -->
@@ -501,6 +596,51 @@ Equipo Segumex 🛡️</p>
                     class="w-full md:w-auto px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold text-sm rounded-lg flex items-center gap-2 transition-colors">
                     <span class="material-symbols-outlined text-sm">waving_hand</span>
                     Enviar bienvenida de prueba por WhatsApp
+                </button>
+            </div>
+
+            <!-- Panel de prueba: Cumpleaños -->
+            <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl p-6">
+                <div class="flex items-center gap-3 mb-5">
+                    <span class="material-symbols-outlined text-pink-400" style="font-variation-settings:'FILL' 1">cake</span>
+                    <div>
+                        <h3 class="font-semibold text-white text-base">Probar Mensaje de Cumpleaños</h3>
+                        <p class="text-[#9da6b9] text-sm">Envía un mensaje de cumpleaños de prueba para verificar cómo llega al cliente.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                    <div>
+                        <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">Teléfono destino</label>
+                        <input type="tel" id="testCumpleanosTelefono" maxlength="10"
+                            placeholder="10 dígitos (ej. 3312345678)"
+                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white text-sm placeholder-[#475569]">
+                    </div>
+                </div>
+
+                <!-- Preview -->
+                <div class="mb-5">
+                    <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-2">Vista previa</label>
+                    <div class="bg-[#0d1117] rounded-xl p-4 border border-[#2d3442]">
+                        <div class="flex items-center gap-2 mb-3 pb-3 border-b border-[#2d3442]">
+                            <div class="w-8 h-8 rounded-full bg-pink-500/20 flex items-center justify-center text-xs font-bold text-pink-400">SX</div>
+                            <div><p class="text-white text-xs font-semibold">Segumex</p><p class="text-[#9da6b9] text-[10px]">en línea</p></div>
+                        </div>
+                        <div class="bg-[#1c1f27] rounded-xl rounded-tl-none px-3 py-2 max-w-xs">
+                            <div id="testCumpleanosPreviewMsg" class="text-[#e9edef] text-sm whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto scrollbar-hide">
+                                <span class="text-[#475569] italic">Cargando preview...</span>
+                            </div>
+                            <p class="text-[#475569] text-xs mt-1 text-right">10:30 ✓✓</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="testCumpleanosResultado" class="hidden mb-4 p-3 rounded-lg text-sm border"></div>
+
+                <button onclick="enviarPruebaCumpleanos()" id="btnEnviarPruebaCumpleanos"
+                    class="w-full md:w-auto px-6 py-3 bg-pink-600 hover:bg-pink-500 text-white font-bold text-sm rounded-lg flex items-center gap-2 transition-colors">
+                    <span class="material-symbols-outlined text-sm">cake</span>
+                    Enviar cumpleaños de prueba por WhatsApp
                 </button>
             </div>
 
@@ -718,7 +858,7 @@ Equipo Segumex 🛡️</p>
                 }
             });
             if (tab === 'log') cargarLog();
-            if (tab === 'control') { cargarToggle(); actualizarPreviewPrueba(); actualizarPreviewBienvenida(); }
+            if (tab === 'control') { cargarToggle(); actualizarPreviewPrueba(); actualizarPreviewBienvenida(); actualizarPreviewCumpleanos(); }
             if (tab === 'bienvenida') renderBienvenidaMensajes();
         }
 
@@ -784,6 +924,11 @@ Equipo Segumex 🛡️</p>
             // Imagen bienvenida actual
             if (_configData['bienvenida_imagen_url']?.contenido) {
                 mostrarImagenBienvenidaActual(_configData['bienvenida_imagen_url'].contenido);
+            }
+
+            // Imagen cumpleaños actual
+            if (_configData['cumpleanos_imagen_url']?.contenido) {
+                mostrarImagenCumpleanosActual(_configData['cumpleanos_imagen_url'].contenido);
             }
 
             // Auto-migrar plantillas de bienvenida que no tienen las variables nuevas
@@ -1170,6 +1315,7 @@ Equipo Segumex 🛡️</p>
                 cobranza_8_dias_despues: 'Cobranza · 8 días después (urgente)',
                 bienvenida_cliente_nuevo: 'Bienvenida · Cliente Nuevo',
                 bienvenida_cliente_existente: 'Bienvenida · Cliente Existente',
+                cumpleanos: 'Cumpleaños 🎂',
             };
 
             if (!logs || logs.length === 0) {
@@ -1185,12 +1331,15 @@ Equipo Segumex 🛡️</p>
                 const fecha = new Date(l.enviado_at);
                 const fechaStr = fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 const isBienvenida = l.tipo_mensaje?.startsWith('bienvenida');
+                const isCumpleanos = l.tipo_mensaje === 'cumpleanos';
                 const tipoLabel = TIPO_LABELS[l.tipo_mensaje] || l.tipo_mensaje;
                 const statusBadge = l.status === 'error'
                     ? `<span class="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 text-xs">Error</span>`
                     : `<span class="px-2 py-0.5 rounded-full bg-green-500/20 text-green-300 text-xs">Enviado</span>`;
 
-                const tipoBadge = isBienvenida
+                const tipoBadge = isCumpleanos
+                    ? `<span class="px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 text-xs">${tipoLabel}</span>`
+                    : isBienvenida
                     ? `<span class="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-xs">${tipoLabel}</span>`
                     : `<span class="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-xs">${tipoLabel}</span>`;
                 return `<tr class="border-b border-[#2d3442] hover:bg-[#1f242e] transition-colors">
@@ -1283,6 +1432,7 @@ Equipo Segumex 🛡️</p>
             }
 
             document.getElementById('bienvenidaContainer').innerHTML = html;
+            renderCumpleanosMensaje();
         }
 
         function onBienvenidaChange(clave) {
@@ -1370,6 +1520,145 @@ Equipo Segumex 🛡️</p>
             document.getElementById('bienvenidaImgPreviewContainer').classList.add('hidden');
             document.getElementById('bienvenidaImgPreview').src = '';
             mostrarSaveStatus();
+        }
+
+        // ============================================================
+        // CUMPLEAÑOS — Mensaje e imagen
+        // ============================================================
+        const DEFAULT_CUMPLEANOS = `¡Hola, *{nombre}*! 👋🔵\n\nEn *SEGUMEX* no queríamos dejar pasar este día tan especial. Te enviamos un afectuoso saludo y nuestros mejores deseos en tu cumpleaños.\n\n¡Que pases un día extraordinario rodeado de tus seres queridos! 🎂🎉\n\n— *Equipo Segumex* 🛡️`;
+
+        function renderCumpleanosMensaje() {
+            const clave = 'cumpleanos_mensaje';
+            const contenido = _configData[clave]?.contenido || DEFAULT_CUMPLEANOS;
+            const ta = document.getElementById(`textarea-${clave}`);
+            const chars = document.getElementById(`chars-${clave}`);
+            const preview = document.getElementById(`preview-${clave}`);
+            if (ta) { ta.value = contenido; }
+            if (chars) chars.textContent = contenido.length;
+            if (preview) preview.innerHTML = renderWhatsappPreview(contenido);
+        }
+
+        function onCumpleanosChange() {
+            const ta = document.getElementById('textarea-cumpleanos_mensaje');
+            const preview = document.getElementById('preview-cumpleanos_mensaje');
+            const chars = document.getElementById('chars-cumpleanos_mensaje');
+            const estado = document.getElementById('estado-cumpleanos_mensaje');
+            if (preview) preview.innerHTML = renderWhatsappPreview(ta.value);
+            if (chars) chars.textContent = ta.value.length;
+            if (estado) { estado.textContent = '● Cambios sin guardar'; estado.className = 'text-xs text-yellow-400'; }
+        }
+
+        async function guardarCumpleanos() {
+            const ta = document.getElementById('textarea-cumpleanos_mensaje');
+            const estado = document.getElementById('estado-cumpleanos_mensaje');
+            const contenido = ta.value;
+            const { error } = await window.supabaseClient
+                .from('configuracion_mensajes')
+                .upsert({ clave: 'cumpleanos_mensaje', titulo: 'Felicitación de Cumpleaños', contenido, updated_at: new Date().toISOString() }, { onConflict: 'clave' });
+            if (error) { alert('Error al guardar: ' + error.message); return; }
+            _configData['cumpleanos_mensaje'] = { titulo: 'Felicitación de Cumpleaños', contenido };
+            if (estado) { estado.textContent = '✓ Guardado'; estado.className = 'text-xs text-green-400'; }
+            mostrarSaveStatus();
+        }
+
+        function restaurarCumpleanos() {
+            if (!confirm('¿Restaurar el mensaje original? Los cambios sin guardar se perderán.')) return;
+            const ta = document.getElementById('textarea-cumpleanos_mensaje');
+            if (ta) { ta.value = DEFAULT_CUMPLEANOS; onCumpleanosChange(); }
+        }
+
+        // ---- Imagen Cumpleaños ----
+        function handleDropCumpleanos(event) {
+            event.preventDefault();
+            document.getElementById('cumpleanosUploadZone').classList.remove('border-pink-500', 'bg-pink-500/5');
+            const file = event.dataTransfer.files[0];
+            if (file) subirImagenCumpleanos(file);
+        }
+
+        function handleImagenCumpleanosUpload(event) {
+            const file = event.target.files[0];
+            if (file) subirImagenCumpleanos(file);
+        }
+
+        async function subirImagenCumpleanos(file) {
+            if (!file.type.startsWith('image/')) { alert('Solo se aceptan archivos de imagen.'); return; }
+            if (file.size > 2 * 1024 * 1024) { alert('La imagen no debe superar 2MB.'); return; }
+            document.getElementById('cumpleanosUploadProgress').classList.remove('hidden');
+
+            const ext = file.name.split('.').pop();
+            const path = `CUMPLEANOS.${ext}`;
+
+            const { error: uploadError } = await window.supabaseClient.storage
+                .from('marketing').upload(path, file, { upsert: true, contentType: file.type });
+
+            document.getElementById('cumpleanosUploadProgress').classList.add('hidden');
+
+            if (uploadError) { alert('Error al subir imagen: ' + uploadError.message); return; }
+
+            const { data: urlData } = window.supabaseClient.storage.from('marketing').getPublicUrl(path);
+            const publicUrl = urlData.publicUrl;
+
+            await window.supabaseClient.from('configuracion_mensajes')
+                .upsert({ clave: 'cumpleanos_imagen_url', titulo: 'URL imagen de cumpleaños', contenido: publicUrl, updated_at: new Date().toISOString() }, { onConflict: 'clave' });
+            _configData['cumpleanos_imagen_url'] = { titulo: 'URL imagen de cumpleaños', contenido: publicUrl };
+            mostrarImagenCumpleanosActual(publicUrl);
+            mostrarSaveStatus();
+        }
+
+        function mostrarImagenCumpleanosActual(url) {
+            if (!url) return;
+            document.getElementById('cumpleanosImgPreview').src = url;
+            document.getElementById('cumpleanosImgPreviewContainer').classList.remove('hidden');
+        }
+
+        async function eliminarImagenCumpleanos() {
+            if (!confirm('¿Eliminar la imagen de cumpleaños?')) return;
+            await window.supabaseClient.from('configuracion_mensajes')
+                .upsert({ clave: 'cumpleanos_imagen_url', titulo: 'URL imagen de cumpleaños', contenido: '', updated_at: new Date().toISOString() }, { onConflict: 'clave' });
+            _configData['cumpleanos_imagen_url'] = { titulo: 'URL imagen de cumpleaños', contenido: '' };
+            document.getElementById('cumpleanosImgPreviewContainer').classList.add('hidden');
+            document.getElementById('cumpleanosImgPreview').src = '';
+            mostrarSaveStatus();
+        }
+
+        // ---- Preview y envío: Cumpleaños ----
+        function actualizarPreviewCumpleanos() {
+            const clave = 'cumpleanos_mensaje';
+            const template = _configData[clave]?.contenido || DEFAULT_CUMPLEANOS;
+            const preview = document.getElementById('testCumpleanosPreviewMsg');
+            if (!preview) return;
+            let msg = template.replaceAll('{nombre}', 'María García');
+            preview.innerHTML = renderWhatsappPreview(msg);
+        }
+
+        async function enviarPruebaCumpleanos() {
+            const telefono = document.getElementById('testCumpleanosTelefono').value.replace(/\D/g, '');
+            const resultado = document.getElementById('testCumpleanosResultado');
+            const btn = document.getElementById('btnEnviarPruebaCumpleanos');
+            if (!telefono || telefono.length !== 10) {
+                resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-300';
+                resultado.textContent = '⚠️ Ingresa un número de teléfono válido de 10 dígitos.';
+                resultado.classList.remove('hidden');
+                return;
+            }
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Enviando...';
+            resultado.classList.add('hidden');
+            try {
+                const { data, error } = await window.supabaseClient.functions.invoke('send-test-message', {
+                    body: { tipo_mensaje: 'cumpleanos_mensaje', telefono }
+                });
+                if (error || !data?.success) throw new Error(data?.error || error?.message || 'Error desconocido');
+                resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-green-500/10 border-green-500/30 text-green-300';
+                resultado.innerHTML = `✅ Aceptado por Green API · chatId: <strong>${data.chatId}</strong> · idMessage: <code class="bg-black/20 px-1 rounded text-xs">${data.wa_response?.idMessage || 'null'}</code><br><span class="text-xs opacity-75">método: <strong>${data.send_method || 'sendMessage'}</strong></span>`;
+            } catch (err) {
+                resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-300';
+                resultado.textContent = '❌ Error al enviar: ' + err.message;
+            } finally {
+                resultado.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = '<span class="material-symbols-outlined text-sm">cake</span> Enviar cumpleaños de prueba por WhatsApp';
+            }
         }
 
         // ============================================================

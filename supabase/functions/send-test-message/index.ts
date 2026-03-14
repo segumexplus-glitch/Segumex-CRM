@@ -36,8 +36,11 @@ const TEST_DATA_BIENVENIDA: Record<string, string> = {
     domiciliada: '\n\n💳 *Póliza domiciliada:* Tus pagos se cargarán automáticamente a tu tarjeta en cada fecha programada. No tienes que hacer nada. ✅'
 };
 
-const ES_BIENVENIDA = (tipo: string) =>
-    tipo === 'bienvenida_cliente_nuevo' || tipo === 'bienvenida_cliente_existente';
+const ES_BIENVENIDA  = (tipo: string) => tipo === 'bienvenida_cliente_nuevo' || tipo === 'bienvenida_cliente_existente';
+const ES_CUMPLEANOS  = (tipo: string) => tipo === 'cumpleanos_mensaje';
+
+// Datos de ejemplo para mensaje de cumpleaños
+const TEST_DATA_CUMPLEANOS: Record<string, string> = { nombre: 'María García' };
 
 function greenBaseUrl(): string {
     if (GREEN_INSTANCE_ID.startsWith('7107')) {
@@ -87,10 +90,12 @@ Deno.serve(async (req) => {
         }
 
         // Seleccionar clave de imagen según tipo de mensaje
-        const esBienvenida = ES_BIENVENIDA(tipo_mensaje);
+        const esBienvenida  = ES_BIENVENIDA(tipo_mensaje);
+        const esCumpleanos  = ES_CUMPLEANOS(tipo_mensaje);
         const esVencida = ['cobranza_2_dias_despues', 'cobranza_5_dias_despues', 'cobranza_8_dias_despues'].includes(tipo_mensaje);
-        const imgClave = esBienvenida ? 'bienvenida_imagen_url'
-            : esVencida ? 'cobranza_vencida_imagen_url'
+        const imgClave = esBienvenida  ? 'bienvenida_imagen_url'
+            : esCumpleanos ? 'cumpleanos_imagen_url'
+            : esVencida    ? 'cobranza_vencida_imagen_url'
             : 'cobranza_imagen_url';
 
         const { data: imgConfig } = await supabase
@@ -103,7 +108,8 @@ Deno.serve(async (req) => {
 
         // Fallback a URL firmada si no hay URL guardada
         if (!imagenUrl && !esBienvenida) {
-            const bucketPath = esVencida ? 'cobranza/imagen_cobranza_vencida.png' : 'cobranza/imagen_cobranza.png';
+            const bucketPath = esCumpleanos ? 'cumpleanos/imagen_cumpleanos.png'
+                : esVencida ? 'cobranza/imagen_cobranza_vencida.png' : 'cobranza/imagen_cobranza.png';
             const { data: signedData } = await supabase.storage
                 .from('documentos-polizas')
                 .createSignedUrl(bucketPath, 3600);
@@ -114,7 +120,7 @@ Deno.serve(async (req) => {
         }
 
         // Usar data_real si se provee (datos de póliza real), de lo contrario usar datos de ejemplo
-        const testData = data_real || (esBienvenida ? TEST_DATA_BIENVENIDA : TEST_DATA_COBRANZA);
+        const testData = data_real || (esBienvenida ? TEST_DATA_BIENVENIDA : esCumpleanos ? TEST_DATA_CUMPLEANOS : TEST_DATA_COBRANZA);
         const mensaje = aplicarPlantilla(config.contenido, testData);
         // Green API México usa 521XXXXXXXXXX para móviles (confirmado por chatId del webhook entrante)
         const chatId = `521${digits}@c.us`;
