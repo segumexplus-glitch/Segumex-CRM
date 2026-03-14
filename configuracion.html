@@ -924,14 +924,23 @@ Equipo Segumex 🛡️</p>
         // ============================================================
         // GUARDAR / RESTAURAR
         // ============================================================
+        const TITULO_LABELS = {
+            cobranza_7_dias_antes:    'Recordatorio 7 días antes',
+            cobranza_1_dia_antes:     'Recordatorio 1 día antes',
+            cobranza_2_dias_despues:  'Aviso 2 días después',
+            cobranza_5_dias_despues:  'Aviso 5 días después',
+            cobranza_8_dias_despues:  'Aviso urgente 8 días después',
+        };
+
         async function guardarMensaje(clave) {
             const ta = document.getElementById(`textarea-${clave}`);
             const estado = document.getElementById(`estado-${clave}`);
             const contenido = ta.value;
+            const titulo = (_configData[clave]?.titulo) || TITULO_LABELS[clave] || clave;
 
             const { error } = await window.supabaseClient
                 .from('configuracion_mensajes')
-                .upsert({ clave, contenido, updated_at: new Date().toISOString() }, { onConflict: 'clave' });
+                .upsert({ clave, titulo, contenido, updated_at: new Date().toISOString() }, { onConflict: 'clave' });
 
             if (error) {
                 alert('Error al guardar: ' + error.message);
