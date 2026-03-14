@@ -125,6 +125,13 @@
                                 <div><label class="text-[#9da6b9] text-xs block mb-1">Email</label>
                                     <p id="emailCliente" class="text-white font-medium">...</p>
                                 </div>
+                                <div id="cumpleañosWrap" class="hidden">
+                                    <label class="text-[#9da6b9] text-xs block mb-1">Cumpleaños</label>
+                                    <p id="cumpleañosCliente" class="text-white font-medium flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-pink-400 text-base" style="font-variation-settings:'FILL' 1">cake</span>
+                                        <span id="cumpleañosTexto"></span>
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -337,6 +344,20 @@
             document.getElementById('telefonoCliente').innerText = clienteActual.telefono || '---';
             document.getElementById('emailCliente').innerText = clienteActual.email || '---';
 
+            // Cumpleaños desde RFC
+            const cumple = cumpleañosDesdeRFC(clienteActual.rfc);
+            const cumpleWrap = document.getElementById('cumpleañosWrap');
+            if (cumple) {
+                const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+                const hoy   = new Date();
+                const esCumple = hoy.getDate() === cumple.dia && (hoy.getMonth() + 1) === cumple.mes;
+                const edad  = hoy.getFullYear() - cumple.anio - ((hoy.getMonth() + 1 < cumple.mes || (hoy.getMonth() + 1 === cumple.mes && hoy.getDate() < cumple.dia)) ? 1 : 0);
+                document.getElementById('cumpleañosTexto').textContent = `${cumple.dia} de ${MESES[cumple.mes - 1]} de ${cumple.anio} (${edad} años)${esCumple ? ' 🎂' : ''}`;
+                cumpleWrap.classList.remove('hidden');
+            } else {
+                cumpleWrap.classList.add('hidden');
+            }
+
             const avatarContainer = document.getElementById('avatarContainer');
             if (clienteActual.imagen_url) {
                 avatarContainer.innerHTML = `<img src="${clienteActual.imagen_url}" class="size-24 rounded-full object-cover border-4 border-[#1c1f27] shadow-lg">`;
@@ -467,6 +488,17 @@
                 cerrarModalEditar();
                 await cargarDatosPerfil();
             }
+        }
+
+        function cumpleañosDesdeRFC(rfc) {
+            if (!rfc || rfc.length < 10) return null;
+            const m = rfc.toUpperCase().match(/^[A-Z]{4}(\d{2})(\d{2})(\d{2})/);
+            if (!m) return null;
+            const yy = parseInt(m[1]), mm = parseInt(m[2]), dd = parseInt(m[3]);
+            if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+            const currentYY = new Date().getFullYear() % 100;
+            const anio = yy > currentYY ? 1900 + yy : 2000 + yy;
+            return { dia: dd, mes: mm, anio };
         }
 
         function contactar(metodo) {
