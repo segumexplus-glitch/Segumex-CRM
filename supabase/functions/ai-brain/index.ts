@@ -16,17 +16,16 @@ const corsHeaders = {
 
 // ============================================================
 // Extrae 10 dígitos locales del platform_user_id de Green API
-// Formatos: "524494296226@c.us" (12 díg) o "5214494296226@c.us" (13 díg)
 // ============================================================
 function extraerTelefono10(platformUserId: string): string {
     let tel = platformUserId.replace('@c.us', '').replace(/\D/g, '');
-    if (tel.length === 13 && tel.startsWith('521')) tel = tel.slice(3); // quitar 521
-    else if (tel.length === 12 && tel.startsWith('52')) tel = tel.slice(2); // quitar 52
-    return tel; // retorna 10 dígitos
+    if (tel.length === 13 && tel.startsWith('521')) tel = tel.slice(3);
+    else if (tel.length === 12 && tel.startsWith('52')) tel = tel.slice(2);
+    return tel;
 }
 
 // ============================================================
-// Busca cliente en tabla clientes por teléfono (cualquier formato)
+// Busca cliente en tabla clientes por teléfono
 // ============================================================
 async function buscarClientePorTelefono(tel10: string) {
     const { data, error } = await supabase
@@ -48,7 +47,7 @@ async function obtenerPolizasCliente(clienteId: number) {
         .eq('cliente_id', clienteId)
         .in('estado', ['activa', 'vigente'])
         .order('vence', { ascending: true })
-        .limit(5);
+        .limit(12);
     return data || [];
 }
 
@@ -66,21 +65,78 @@ async function generarUrlFirmada(path: string): Promise<string | null> {
     return data.signedUrl;
 }
 
+// ============================================================
+// Construye la base URL de Green API según el instance ID
+// ============================================================
+function buildGreenBaseUrl(instanceId: string): string {
+    if (instanceId.startsWith('7107')) {
+        return `https://7107.api.greenapi.com/waInstance${instanceId}`;
+    }
+    return `https://api.green-api.com/waInstance${instanceId}`;
+}
+
+// ============================================================
+// Envía un PDF por WhatsApp vía Green API
+// ============================================================
+async function enviarPdfPoliza(
+    greenBaseUrl: string,
+    token: string,
+    chatId: string,
+    poliza: any
+): Promise<boolean> {
+    const docs: any[] = poliza.documentos || [];
+    const doc = docs.find((d: any) => d.tipo === 'poliza' && d.path);
+
+    if (!doc) {
+        await fetch(`${greenBaseUrl}/sendMessage/${token}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chatId,
+                message: `⚠️ La póliza *${poliza.no_poliza || 'S/N'}* no tiene documento digital disponible aún. Tu asesor te la hará llegar pronto.`
+            })
+        });
+        return false;
+    }
+
+    const signedUrl = await generarUrlFirmada(doc.path);
+    if (!signedUrl) return false;
+
+    const res = await fetch(`${greenBaseUrl}/sendFileByUrl/${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chatId,
+            urlFile: signedUrl,
+            fileName: `${doc.nombre || poliza.no_poliza || 'Poliza'}.pdf`,
+            caption: `📄 Póliza *${poliza.no_poliza || 'S/N'}* · ${poliza.aseguradora || ''}`
+        })
+    });
+
+    const data = await res.json();
+    if (!res.ok) { console.error('Error enviando PDF:', data); return false; }
+    console.log(`✅ PDF enviado: ${poliza.no_poliza}`);
+    return true;
+}
+
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
 
-    const GREEN_INSTANCE_ID = Deno.env.get('GREEN_INSTANCE_ID');
-    const GREEN_API_TOKEN = Deno.env.get('GREEN_API_TOKEN');
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')?.trim();
+    const GREEN_INSTANCE_ID = Deno.env.get('GREEN_INSTANCE_ID') ?? '';
+    const GREEN_API_TOKEN   = Deno.env.get('GREEN_API_TOKEN') ?? '';
+    const GEMINI_API_KEY    = Deno.env.get('GEMINI_API_KEY')?.trim() ?? '';
+
+    const greenBaseUrl = buildGreenBaseUrl(GREEN_INSTANCE_ID);
 
     let aiData;
 
     try {
-        const { conversation_id, user_message, action, agent_message } = await req.json();
+        const body = await req.json();
+        const { conversation_id, user_message, action, agent_message, selected_options, poll_chat_id } = body;
 
-        // 1. Obtener conversación y lead vinculado
+        // 1. Obtener conversación
         const { data: conversation } = await supabase
             .from('comm_conversations')
             .select('*, leads(*)')
@@ -88,6 +144,69 @@ Deno.serve(async (req) => {
             .single();
 
         if (!conversation) throw new Error("Conversación no encontrada");
+
+        // --------------------------------------------------------
+        // MODO 3: RESPUESTA DE ENCUESTA DE PÓLIZAS
+        // --------------------------------------------------------
+        if (action === 'poll_response') {
+            const chatId = poll_chat_id || conversation.platform_user_id;
+
+            // Buscar estado de encuesta pendiente
+            const { data: pendingPoll } = await supabase
+                .from('ai_poll_pending')
+                .select('*')
+                .eq('chat_id', chatId)
+                .maybeSingle();
+
+            if (!pendingPoll) {
+                console.log('⚠️ poll_response: no hay encuesta pendiente para', chatId);
+                return new Response(JSON.stringify({ success: true, note: 'no pending poll' }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+            }
+
+            // Eliminar encuesta pendiente (el usuario ya eligió)
+            await supabase.from('ai_poll_pending').delete().eq('id', pendingPoll.id);
+
+            const opciones: any[] = pendingPoll.opciones || [];
+            const seleccionadas = opciones.filter((o: any) =>
+                (selected_options as string[]).includes(o.label)
+            );
+
+            console.log(`📊 Poll respondido: ${seleccionadas.length} póliza(s) seleccionada(s)`);
+
+            if (seleccionadas.length === 0) {
+                return new Response(JSON.stringify({ success: true, note: 'no options matched' }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+            }
+
+            // Enviar PDF de cada póliza seleccionada
+            let enviados = 0;
+            for (const opcion of seleccionadas) {
+                const ok = await enviarPdfPoliza(greenBaseUrl, GREEN_API_TOKEN, chatId, opcion);
+                if (ok) enviados++;
+                await new Promise(r => setTimeout(r, 500)); // pequeña pausa entre archivos
+            }
+
+            // Mensaje de confirmación si se enviaron todos
+            if (enviados === seleccionadas.length && enviados > 0) {
+                await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chatId,
+                        message: enviados === 1
+                            ? '✅ Listo, ya te envié tu póliza. Si necesitas algo más, con gusto te ayudo. 🛡️'
+                            : `✅ Listo, ya te envié las ${enviados} pólizas seleccionadas. Si necesitas algo más, con gusto te ayudo. 🛡️`
+                    })
+                });
+            }
+
+            return new Response(JSON.stringify({ success: true, enviados }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+        }
 
         let textToSend = "";
         let aiResponseAction: any = { reply: "", create_lead: false, send_pdf: false };
@@ -125,7 +244,6 @@ Deno.serve(async (req) => {
                     polizasCliente = await obtenerPolizasCliente(clienteIdentificado.id);
                     console.log(`✅ Cliente: ${clienteIdentificado.nombre} (ID: ${clienteIdentificado.id}), Pólizas: ${polizasCliente.length}`);
 
-                    // Vincular lead si existe y la conversación no tiene lead aún
                     if (!conversation.lead_id) {
                         const { data: leadExistente } = await supabase
                             .from('leads')
@@ -173,7 +291,7 @@ FORMATO DE SALIDA (JSON obligatorio):
                 systemInstruction += `\nNO le pidas datos que ya tenemos (nombre, teléfono).`;
 
                 if (polizasCliente.length > 0) {
-                    systemInstruction += `\n\nSUS PÓLIZAS ACTIVAS:\n`;
+                    systemInstruction += `\n\nSUS PÓLIZAS ACTIVAS (${polizasCliente.length}):\n`;
                     polizasCliente.forEach(p => {
                         const fechaVence = p.vence
                             ? new Date(p.vence).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
@@ -182,19 +300,21 @@ FORMATO DE SALIDA (JSON obligatorio):
                         systemInstruction += `- Póliza ${p.no_poliza || 'S/N'}: ${(p.ramo || '').toUpperCase()} con ${p.aseguradora || 'N/D'} · Vence: ${fechaVence} · Prima: ${prima}\n`;
                     });
                     systemInstruction += `\nResponde dudas sobre sus pólizas con esta info. Para detalles profundos, dile que su asesor se lo confirma.`;
+
+                    if (polizasCliente.length > 1) {
+                        systemInstruction += `\n\n⚠️ MÚLTIPLES PÓLIZAS — REGLA ESPECIAL: Si el cliente pide su póliza o documentos (send_pdf: true), en tu "reply" dile únicamente: "Tienes ${polizasCliente.length} pólizas activas con nosotros. Te mando ahora una encuesta para que elijas cuál necesitas 📋". No listes las pólizas en el reply. El sistema enviará la encuesta automáticamente.`;
+                    }
                 } else {
                     systemInstruction += `\nEl cliente NO tiene pólizas activas. Si le interesa contratar una, ayúdale a cotizar.`;
                 }
 
             } else if (conversation.leads) {
-                // Lead vinculado sin cuenta de cliente
                 systemInstruction += `\nEstás hablando con ${conversation.leads.nombre} ${conversation.leads.apellido || ''}.`;
             } else {
-                // Número desconocido
                 systemInstruction += `\nEl usuario que escribe NO es un cliente registrado. Sé amable, intenta obtener su nombre y si muestra interés en cotizar, marca create_lead: true.`;
             }
 
-            // 5. Inyectar base de conocimiento: productos
+            // 5. Base de conocimiento: productos
             const { data: products } = await supabase
                 .from('products')
                 .select('name, description, price, requirements')
@@ -207,7 +327,7 @@ FORMATO DE SALIDA (JSON obligatorio):
                 });
             }
 
-            // 6. Inyectar base de conocimiento: documentos PDF
+            // 6. Base de conocimiento: documentos PDF
             const { data: docs } = await supabase
                 .from('knowledge_docs')
                 .select('title, extracted_text')
@@ -237,7 +357,6 @@ FORMATO DE SALIDA (JSON obligatorio):
                     parts: [{ text: msg.content }]
                 }));
 
-            // Asegurar que el mensaje actual está presente
             if (chatHistory.length === 0 || (chatHistory[chatHistory.length - 1].role === 'model' && user_message)) {
                 chatHistory.push({ role: 'user', parts: [{ text: user_message }] });
             } else if (chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'user') {
@@ -289,7 +408,7 @@ FORMATO DE SALIDA (JSON obligatorio):
                 textToSend = "Disculpa, no entendí eso. Un asesor te contactará.";
             }
 
-            // 9. Crear lead (solo si es usuario desconocido con intención de compra)
+            // 9. Crear lead
             if (aiResponseAction.create_lead && !conversation.lead_id && !clienteIdentificado) {
                 console.log("🎯 Creando lead por intención de compra...");
                 const phoneNumber = tel10 || conversation.platform_user_id.replace(/\D/g, '');
@@ -334,81 +453,67 @@ FORMATO DE SALIDA (JSON obligatorio):
         } // fin else IA
 
         // --------------------------------------------------------
-        // 10. ENVIAR POR WHATSAPP (Green API)
+        // 10. ENVIAR TEXTO POR WHATSAPP (Green API)
         // --------------------------------------------------------
         let waData, waRes;
 
-        let greenBaseUrl = `https://api.green-api.com/waInstance${GREEN_INSTANCE_ID}`;
-        if (GREEN_INSTANCE_ID?.startsWith('7107')) {
-            greenBaseUrl = `https://7107.api.greenapi.com/waInstance${GREEN_INSTANCE_ID}`;
-        }
-
         if (textToSend && conversation.platform_user_id && GREEN_INSTANCE_ID && GREEN_API_TOKEN) {
-            const url = `${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`;
-
-            waRes = await fetch(url, {
+            waRes = await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ chatId: conversation.platform_user_id, message: textToSend })
             });
-
             waData = await waRes.json();
             if (!waRes.ok) console.error("Error Green API:", waData);
         }
 
         // --------------------------------------------------------
-        // 11. ENVIAR PDF DE PÓLIZA (si Gemini lo solicitó)
+        // 11. ENVIAR PÓLIZA(S) — con encuesta si hay más de una
         // --------------------------------------------------------
         if (aiResponseAction?.send_pdf && clienteIdentificado && polizasCliente.length > 0 && GREEN_INSTANCE_ID && GREEN_API_TOKEN) {
-            // Buscar la primera póliza que tenga documento con tipo 'poliza'
-            let docEncontrado: any = null;
-            let polizaDelDoc: any = null;
 
-            for (const poliza of polizasCliente) {
-                const docs: any[] = poliza.documentos || [];
-                const doc = docs.find((d: any) => d.tipo === 'poliza' && d.path);
-                if (doc) {
-                    docEncontrado = doc;
-                    polizaDelDoc = poliza;
-                    break;
-                }
-            }
+            const chatId = conversation.platform_user_id;
 
-            if (docEncontrado) {
-                const signedUrl = await generarUrlFirmada(docEncontrado.path);
-                if (signedUrl) {
-                    const urlPdf = `${greenBaseUrl}/sendFileByUrl/${GREEN_API_TOKEN}`;
-                    const nombreArchivo = `${docEncontrado.nombre || 'Poliza'}.pdf`;
+            if (polizasCliente.length === 1) {
+                // ── Póliza única → enviar directamente ──────────────
+                await enviarPdfPoliza(greenBaseUrl, GREEN_API_TOKEN, chatId, polizasCliente[0]);
 
-                    const pdfRes = await fetch(urlPdf, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            chatId: conversation.platform_user_id,
-                            urlFile: signedUrl,
-                            fileName: nombreArchivo,
-                            caption: `📄 Póliza ${polizaDelDoc.no_poliza || ''} · ${polizaDelDoc.aseguradora || ''}`
-                        })
-                    });
-
-                    const pdfData = await pdfRes.json();
-                    if (!pdfRes.ok) console.error("Error enviando PDF:", pdfData);
-                    else console.log("✅ PDF enviado por WhatsApp:", nombreArchivo);
-                } else {
-                    console.warn("No se pudo generar URL firmada para el PDF");
-                }
             } else {
-                console.warn("Cliente no tiene documento PDF tipo 'poliza' adjunto");
-                // Notificar al cliente que no hay PDF disponible aún
-                const urlMsg = `${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`;
-                await fetch(urlMsg, {
+                // ── Múltiples pólizas → enviar encuesta WhatsApp ────
+                const opciones = polizasCliente.map(p => ({
+                    label: `${p.aseguradora || 'S/A'} · ${p.ramo || 'S/R'} (${p.no_poliza || 'S/N'})`,
+                    poliza_id: p.id,
+                    no_poliza: p.no_poliza,
+                    ramo: p.ramo,
+                    aseguradora: p.aseguradora,
+                    documentos: p.documentos || []
+                }));
+
+                // Guardar estado de encuesta pendiente
+                await supabase.from('ai_poll_pending')
+                    .upsert(
+                        { chat_id: chatId, conversation_id, opciones },
+                        { onConflict: 'chat_id' }
+                    );
+
+                // Enviar encuesta via Green API
+                const pollRes = await fetch(`${greenBaseUrl}/sendPoll/${GREEN_API_TOKEN}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        chatId: conversation.platform_user_id,
-                        message: "⚠️ Aún no tenemos tu póliza en formato digital. Tu asesor te la hará llegar pronto."
+                        chatId,
+                        message: '¿Cuál de tus pólizas necesitas? Puedes seleccionar una o varias 👇',
+                        options: opciones.map(o => ({ optionName: o.label })),
+                        multipleAnswers: true
                     })
                 });
+
+                const pollData = await pollRes.json();
+                if (!pollRes.ok) {
+                    console.error('❌ Error enviando poll:', pollData);
+                } else {
+                    console.log(`📊 Encuesta enviada a ${chatId} con ${opciones.length} opciones`);
+                }
             }
         }
 
