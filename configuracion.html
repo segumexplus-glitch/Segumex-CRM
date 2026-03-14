@@ -609,6 +609,28 @@ Equipo Segumex 🛡️</p>
                     </div>
                 </div>
 
+                <!-- Selector de cliente -->
+                <div class="mb-4">
+                    <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">
+                        Cliente de referencia <span class="normal-case text-[#475569] font-normal">(opcional — usa el nombre real del cliente)</span>
+                    </label>
+                    <div class="relative">
+                        <input type="text" id="testBuscarClienteCumpleanos"
+                            placeholder="Buscar por nombre del cliente..."
+                            oninput="debounceBuscarClienteCumpleanos(this.value)"
+                            autocomplete="off"
+                            class="w-full bg-[#111318] border border-[#3b4354] rounded-lg p-2.5 text-white text-sm placeholder-[#475569] focus:outline-none focus:border-pink-500">
+                        <div id="dropdownClienteCumpleanos" class="absolute top-full left-0 right-0 bg-[#1c1f27] border border-[#3b4354] rounded-lg mt-1 max-h-52 overflow-y-auto z-20 hidden shadow-2xl"></div>
+                    </div>
+                    <div id="clienteCumpleanosTag" class="hidden mt-2 flex items-center gap-2 px-3 py-2 bg-pink-500/10 border border-pink-500/20 rounded-lg text-xs">
+                        <span class="material-symbols-outlined text-pink-400 text-sm">person</span>
+                        <span id="clienteCumpleanosTagText" class="text-pink-300 flex-1 truncate"></span>
+                        <button onclick="limpiarClienteCumpleanos()" class="text-[#9da6b9] hover:text-white transition-colors flex-shrink-0">
+                            <span class="material-symbols-outlined text-sm">close</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
                     <div>
                         <label class="block text-xs font-medium text-[#9da6b9] uppercase tracking-wider mb-1.5">Teléfono destino</label>
@@ -632,6 +654,7 @@ Equipo Segumex 🛡️</p>
                             </div>
                             <p class="text-[#475569] text-xs mt-1 text-right">10:30 ✓✓</p>
                         </div>
+                        <p id="notaCumpleanos" class="text-[#475569] text-xs mt-3">* Selecciona un cliente arriba para usar su nombre real. Sin selección se usa "María García".</p>
                     </div>
                 </div>
 
@@ -1621,14 +1644,77 @@ Equipo Segumex 🛡️</p>
             mostrarSaveStatus();
         }
 
+        // ---- Búsqueda de clientes para Cumpleaños ----
+        let _clienteCumpleanos = null;
+        let _resultadosClienteCumpleanos = [];
+        let _timerClienteCumpleanos = null;
+
+        function debounceBuscarClienteCumpleanos(val) {
+            clearTimeout(_timerClienteCumpleanos);
+            const dd = document.getElementById('dropdownClienteCumpleanos');
+            if (!val || val.length < 2) { dd.classList.add('hidden'); return; }
+            dd.innerHTML = '<div class="px-4 py-3 text-[#9da6b9] text-xs flex items-center gap-2"><span class="material-symbols-outlined text-sm animate-spin">sync</span> Buscando...</div>';
+            dd.classList.remove('hidden');
+            _timerClienteCumpleanos = setTimeout(async () => {
+                const { data } = await window.supabaseClient
+                    .from('clientes')
+                    .select('id, nombre, telefono')
+                    .ilike('nombre', `%${val}%`)
+                    .limit(8);
+                _resultadosClienteCumpleanos = data || [];
+                const dd2 = document.getElementById('dropdownClienteCumpleanos');
+                if (!_resultadosClienteCumpleanos.length) {
+                    dd2.innerHTML = '<div class="px-4 py-3 text-[#9da6b9] text-xs">No se encontraron clientes.</div>';
+                    return;
+                }
+                dd2.innerHTML = _resultadosClienteCumpleanos.map((c, idx) => `
+                    <button onclick="seleccionarClienteCumpleanos(${idx})"
+                        class="w-full text-left px-4 py-3 hover:bg-[#111318] transition-colors border-b border-[#2d3442] last:border-0">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-pink-400 text-sm">person</span>
+                            <div>
+                                <p class="text-white text-sm font-medium">${escapeHtml(c.nombre)}</p>
+                                <p class="text-[#9da6b9] text-xs">${c.telefono || 'Sin teléfono'}</p>
+                            </div>
+                        </div>
+                    </button>`).join('');
+            }, 350);
+        }
+
+        function seleccionarClienteCumpleanos(idx) {
+            const cliente = _resultadosClienteCumpleanos[idx];
+            if (!cliente) return;
+            _clienteCumpleanos = cliente;
+            document.getElementById('testBuscarClienteCumpleanos').value = cliente.nombre;
+            document.getElementById('dropdownClienteCumpleanos').classList.add('hidden');
+            document.getElementById('clienteCumpleanosTagText').textContent = cliente.nombre;
+            document.getElementById('clienteCumpleanosTag').classList.remove('hidden');
+            actualizarPreviewCumpleanos();
+        }
+
+        function limpiarClienteCumpleanos() {
+            _clienteCumpleanos = null;
+            document.getElementById('testBuscarClienteCumpleanos').value = '';
+            document.getElementById('dropdownClienteCumpleanos').classList.add('hidden');
+            document.getElementById('clienteCumpleanosTag').classList.add('hidden');
+            actualizarPreviewCumpleanos();
+        }
+
         // ---- Preview y envío: Cumpleaños ----
         function actualizarPreviewCumpleanos() {
             const clave = 'cumpleanos_mensaje';
             const template = _configData[clave]?.contenido || DEFAULT_CUMPLEANOS;
             const preview = document.getElementById('testCumpleanosPreviewMsg');
+            const nota = document.getElementById('notaCumpleanos');
             if (!preview) return;
-            let msg = template.replaceAll('{nombre}', 'María García');
+            const nombre = _clienteCumpleanos?.nombre || 'María García';
+            let msg = template.replaceAll('{nombre}', nombre);
             preview.innerHTML = renderWhatsappPreview(msg);
+            if (nota) {
+                nota.innerHTML = _clienteCumpleanos
+                    ? `* Datos reales: <strong class="text-white">${escapeHtml(_clienteCumpleanos.nombre)}</strong>`
+                    : '* Selecciona un cliente arriba para usar su nombre real. Sin selección se usa "María García".';
+            }
         }
 
         async function enviarPruebaCumpleanos() {
@@ -1645,12 +1731,13 @@ Equipo Segumex 🛡️</p>
             btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> Enviando...';
             resultado.classList.add('hidden');
             try {
-                const { data, error } = await window.supabaseClient.functions.invoke('send-test-message', {
-                    body: { tipo_mensaje: 'cumpleanos_mensaje', telefono }
-                });
+                const body = { tipo_mensaje: 'cumpleanos_mensaje', telefono };
+                if (_clienteCumpleanos) body.data_real = { nombre: _clienteCumpleanos.nombre };
+                const { data, error } = await window.supabaseClient.functions.invoke('send-test-message', { body });
                 if (error || !data?.success) throw new Error(data?.error || error?.message || 'Error desconocido');
+                const quien = _clienteCumpleanos ? escapeHtml(_clienteCumpleanos.nombre) : 'datos de ejemplo';
                 resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-green-500/10 border-green-500/30 text-green-300';
-                resultado.innerHTML = `✅ Aceptado por Green API · chatId: <strong>${data.chatId}</strong> · idMessage: <code class="bg-black/20 px-1 rounded text-xs">${data.wa_response?.idMessage || 'null'}</code><br><span class="text-xs opacity-75">método: <strong>${data.send_method || 'sendMessage'}</strong></span>`;
+                resultado.innerHTML = `✅ Aceptado por Green API · chatId: <strong>${data.chatId}</strong> · idMessage: <code class="bg-black/20 px-1 rounded text-xs">${data.wa_response?.idMessage || 'null'}</code><br><span class="text-xs opacity-75">método: <strong>${data.send_method || 'sendMessage'}</strong> · datos de: <strong>${quien}</strong></span>`;
             } catch (err) {
                 resultado.className = 'mb-4 p-3 rounded-lg text-sm border bg-red-500/10 border-red-500/30 text-red-300';
                 resultado.textContent = '❌ Error al enviar: ' + err.message;
