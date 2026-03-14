@@ -146,66 +146,63 @@ Deno.serve(async (req) => {
         if (!conversation) throw new Error("Conversación no encontrada");
 
         // --------------------------------------------------------
-        // MODO 3: RESPUESTA DE ENCUESTA DE PÓLIZAS
+        // MODO 3: SELECCIÓN DE PÓLIZA POR NÚMERO (menú de texto)
         // --------------------------------------------------------
-        if (action === 'poll_response') {
-            const chatId = poll_chat_id || conversation.platform_user_id;
+        const chatId = conversation.platform_user_id;
 
-            // Buscar estado de encuesta pendiente
-            const { data: pendingPoll } = await supabase
+        if (!action && user_message) {
+            const { data: pendingMenu } = await supabase
                 .from('ai_poll_pending')
                 .select('*')
                 .eq('chat_id', chatId)
                 .maybeSingle();
 
-            if (!pendingPoll) {
-                console.log('⚠️ poll_response: no hay encuesta pendiente para', chatId);
-                return new Response(JSON.stringify({ success: true, note: 'no pending poll' }), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-                });
+            if (pendingMenu) {
+                const opciones: any[] = pendingMenu.opciones || [];
+                const numInput = parseInt(user_message.trim(), 10);
+
+                if (!isNaN(numInput) && numInput >= 1 && numInput <= opciones.length) {
+                    // El usuario eligió una póliza válida
+                    await supabase.from('ai_poll_pending').delete().eq('id', pendingMenu.id);
+
+                    const polizaElegida = opciones[numInput - 1];
+                    const ok = await enviarPdfPoliza(greenBaseUrl, GREEN_API_TOKEN, chatId, polizaElegida);
+
+                    const confirmMsg = ok
+                        ? '✅ Listo, ya te envié tu póliza. Si necesitas algo más, con gusto te ayudo. 🛡️'
+                        : '⚠️ No se encontró el documento digital de esa póliza. Tu asesor te la hará llegar pronto.';
+
+                    await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ chatId, message: confirmMsg })
+                    });
+
+                    await supabase.from('comm_messages').insert({
+                        conversation_id,
+                        sender_type: 'ai',
+                        content: confirmMsg
+                    });
+
+                    return new Response(JSON.stringify({ success: true, pdf_sent: ok }), {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                    });
+
+                } else if (/^\d+$/.test(user_message.trim())) {
+                    // Número fuera de rango
+                    const rangoMsg = `Por favor responde con un número del 1 al ${opciones.length}.`;
+                    await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ chatId, message: rangoMsg })
+                    });
+                    return new Response(JSON.stringify({ success: true, note: 'out of range' }), {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                    });
+                }
+                // Si no es número, el usuario cambió de tema → borrar menú pendiente y continuar con IA
+                await supabase.from('ai_poll_pending').delete().eq('id', pendingMenu.id);
             }
-
-            // Eliminar encuesta pendiente (el usuario ya eligió)
-            await supabase.from('ai_poll_pending').delete().eq('id', pendingPoll.id);
-
-            const opciones: any[] = pendingPoll.opciones || [];
-            const seleccionadas = opciones.filter((o: any) =>
-                (selected_options as string[]).includes(o.label)
-            );
-
-            console.log(`📊 Poll respondido: ${seleccionadas.length} póliza(s) seleccionada(s)`);
-
-            if (seleccionadas.length === 0) {
-                return new Response(JSON.stringify({ success: true, note: 'no options matched' }), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-                });
-            }
-
-            // Enviar PDF de cada póliza seleccionada
-            let enviados = 0;
-            for (const opcion of seleccionadas) {
-                const ok = await enviarPdfPoliza(greenBaseUrl, GREEN_API_TOKEN, chatId, opcion);
-                if (ok) enviados++;
-                await new Promise(r => setTimeout(r, 500)); // pequeña pausa entre archivos
-            }
-
-            // Mensaje de confirmación si se enviaron todos
-            if (enviados === seleccionadas.length && enviados > 0) {
-                await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chatId,
-                        message: enviados === 1
-                            ? '✅ Listo, ya te envié tu póliza. Si necesitas algo más, con gusto te ayudo. 🛡️'
-                            : `✅ Listo, ya te envié las ${enviados} pólizas seleccionadas. Si necesitas algo más, con gusto te ayudo. 🛡️`
-                    })
-                });
-            }
-
-            return new Response(JSON.stringify({ success: true, enviados }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
         }
 
         let textToSend = "";
@@ -302,7 +299,7 @@ FORMATO DE SALIDA (JSON obligatorio):
                     systemInstruction += `\nResponde dudas sobre sus pólizas con esta info. Para detalles profundos, dile que su asesor se lo confirma.`;
 
                     if (polizasCliente.length > 1) {
-                        systemInstruction += `\n\n⚠️ MÚLTIPLES PÓLIZAS — REGLA ESPECIAL: Si el cliente pide su póliza o documentos (send_pdf: true), en tu "reply" dile únicamente: "Tienes ${polizasCliente.length} pólizas activas con nosotros. Te mando ahora una encuesta para que elijas cuál necesitas 📋". No listes las pólizas en el reply. El sistema enviará la encuesta automáticamente.`;
+                        systemInstruction += `\n\n⚠️ MÚLTIPLES PÓLIZAS — REGLA ESPECIAL: Si el cliente pide su póliza o documentos (send_pdf: true), en tu "reply" dile únicamente: "Tienes ${polizasCliente.length} pólizas activas con nosotros. ¿Cuál necesitas? Te mando el menú para que elijas 👇". No listes las pólizas en el reply. El sistema enviará el menú automáticamente.`;
                     }
                 } else {
                     systemInstruction += `\nEl cliente NO tiene pólizas activas. Si le interesa contratar una, ayúdale a cotizar.`;
@@ -468,78 +465,41 @@ FORMATO DE SALIDA (JSON obligatorio):
         }
 
         // --------------------------------------------------------
-        // 11. ENVIAR PÓLIZA(S) — con encuesta si hay más de una
+        // 11. ENVIAR PÓLIZA(S)
         // --------------------------------------------------------
         if (aiResponseAction?.send_pdf && clienteIdentificado && polizasCliente.length > 0 && GREEN_INSTANCE_ID && GREEN_API_TOKEN) {
-
-            const chatId = conversation.platform_user_id;
-
+            // chatId ya definido arriba (const chatId = conversation.platform_user_id)
             if (polizasCliente.length === 1) {
                 // ── Póliza única → enviar directamente ──────────────
                 await enviarPdfPoliza(greenBaseUrl, GREEN_API_TOKEN, chatId, polizasCliente[0]);
 
             } else {
-                // ── Múltiples pólizas → enviar encuesta WhatsApp ────
-                const opciones = polizasCliente.map(p => ({
-                    label: `${p.aseguradora || 'S/A'} · ${p.ramo || 'S/R'} (${p.no_poliza || 'S/N'})`,
-                    poliza_id: p.id,
-                    no_poliza: p.no_poliza,
-                    ramo: p.ramo,
-                    aseguradora: p.aseguradora,
-                    documentos: p.documentos || []
-                }));
+                // ── Múltiples pólizas → menú numerado por texto ─────
+                const numeros = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+                const lineas = polizasCliente.map((p, i) => {
+                    const emoji = numeros[i] || `${i + 1}.`;
+                    const ramo = (p.ramo || 'S/R').toUpperCase();
+                    const aseg = p.aseguradora || 'S/A';
+                    const num = p.no_poliza || 'S/N';
+                    return `${emoji} ${aseg} · ${ramo} (${num})`;
+                });
 
-                // Guardar estado de encuesta pendiente
+                const menuMsg = `¿Cuál de tus pólizas necesitas?\n\n${lineas.join('\n')}\n\nResponde con el número de tu elección.`;
+
+                // Guardar selección pendiente
                 await supabase.from('ai_poll_pending')
                     .upsert(
-                        { chat_id: chatId, conversation_id, opciones },
+                        { chat_id: chatId, conversation_id, opciones: polizasCliente },
                         { onConflict: 'chat_id' }
                     );
 
-                // Enviar encuesta via Green API
-                let pollEnviado = false;
-                try {
-                    const pollRes = await fetch(`${greenBaseUrl}/sendPoll/${GREEN_API_TOKEN}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            chatId,
-                            message: '¿Cuál de tus pólizas necesitas? Puedes seleccionar una o varias 👇',
-                            options: opciones.map(o => ({ optionName: o.label })),
-                            multipleAnswers: true
-                        })
-                    });
+                await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chatId, message: menuMsg })
+                });
 
-                    const pollData = await pollRes.json();
-                    if (!pollRes.ok) {
-                        console.error('❌ Error enviando poll:', pollData);
-                    } else {
-                        console.log(`📊 Encuesta enviada a ${chatId} con ${opciones.length} opciones`);
-                        pollEnviado = true;
-                    }
-                } catch (pollErr) {
-                    console.error('❌ Excepción enviando poll:', pollErr);
-                }
-
-                // Fallback: si la encuesta falló, enviar todos los PDFs directamente
-                if (!pollEnviado) {
-                    console.log('⚠️ Poll falló, enviando PDFs directamente como fallback');
-                    await supabase.from('ai_poll_pending').delete().eq('chat_id', chatId);
-
-                    await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            chatId,
-                            message: `Aquí te mando tus ${polizasCliente.length} pólizas activas 📄`
-                        })
-                    });
-
-                    for (const poliza of polizasCliente) {
-                        await enviarPdfPoliza(greenBaseUrl, GREEN_API_TOKEN, chatId, poliza);
-                        await new Promise(r => setTimeout(r, 600));
-                    }
-                }
+                console.log(`📋 Menú de ${polizasCliente.length} pólizas enviado a ${chatId}`);
             }
         }
 
