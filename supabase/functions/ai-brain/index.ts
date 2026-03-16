@@ -165,6 +165,13 @@ Deno.serve(async (req) => {
                     // El usuario eligió una póliza válida
                     await supabase.from('ai_poll_pending').delete().eq('id', pendingMenu.id);
 
+                    // Guardar mensaje del usuario en historial
+                    await supabase.from('comm_messages').insert({
+                        conversation_id,
+                        sender_type: 'user',
+                        content: user_message
+                    });
+
                     const polizaElegida = opciones[numInput - 1];
                     const ok = await enviarPdfPoliza(greenBaseUrl, GREEN_API_TOKEN, chatId, polizaElegida);
 
@@ -486,12 +493,11 @@ FORMATO DE SALIDA (JSON obligatorio):
 
                 const menuMsg = `¿Cuál de tus pólizas necesitas?\n\n${lineas.join('\n')}\n\nResponde con el número de tu elección.`;
 
-                // Guardar selección pendiente
-                await supabase.from('ai_poll_pending')
-                    .upsert(
-                        { chat_id: chatId, conversation_id, opciones: polizasCliente },
-                        { onConflict: 'chat_id' }
-                    );
+                // Guardar selección pendiente (delete+insert para evitar problemas de constraint)
+                await supabase.from('ai_poll_pending').delete().eq('chat_id', chatId);
+                const { error: insertPollErr } = await supabase.from('ai_poll_pending')
+                    .insert({ chat_id: chatId, conversation_id, opciones: polizasCliente });
+                if (insertPollErr) console.error('❌ Error guardando menú pendiente:', insertPollErr.message);
 
                 await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
                     method: 'POST',

@@ -212,6 +212,7 @@ Deno.serve(async (req) => {
                 domiciliada,
                 finanzas,
                 pagos_status,
+                pagos_fechas,
                 clientes (
                     nombre,
                     apellido,
@@ -219,8 +220,7 @@ Deno.serve(async (req) => {
                 )
             `)
             .in('estado', ['activa', 'vigente'])
-            .or('domiciliada.is.null,domiciliada.eq.false')
-            .or('excluir_recordatorios.is.null,excluir_recordatorios.eq.false');
+            .or('domiciliada.is.null,domiciliada.eq.false');
 
         if (polizasError) throw new Error('Error cargando pólizas: ' + polizasError.message);
         console.log(`📋 Total pólizas activas no domiciliadas ni excluidas: ${(todasPolizas || []).length}`);
@@ -238,16 +238,31 @@ Deno.serve(async (req) => {
             const finanzas = (poliza as any).finanzas || {};
             const pagosDetalle: any[] = finanzas.pagos_detalle || [];
             const pagosStatus: boolean[] = (poliza as any).pagos_status || [];
+            const pagasFechas: string[] = (poliza as any).pagos_fechas || [];
 
-            // Sin calendario de pagos — no se puede procesar
-            if (pagosDetalle.length === 0) {
-                console.log(`⚠️ Póliza ${(poliza as any).no_poliza}: sin pagos_detalle, omitiendo.`);
+            // Construir calendario: prioridad pagos_detalle, fallback pagos_fechas
+            let calendario: Array<{ fecha: string; total: number; numero: number }> = [];
+
+            if (pagosDetalle.length > 0) {
+                calendario = pagosDetalle.map((p: any, i: number) => ({
+                    fecha: String(p.fecha).substring(0, 10),
+                    total: Number(p.total) || Number((poliza as any).prima) || 0,
+                    numero: Number(p.numero || (i + 1))
+                }));
+            } else if (pagasFechas.length > 0) {
+                calendario = pagasFechas.map((f: string, i: number) => ({
+                    fecha: String(f).substring(0, 10),
+                    total: Number((poliza as any).prima) || 0,
+                    numero: i + 1
+                }));
+            } else {
+                console.log(`⚠️ Póliza ${(poliza as any).no_poliza}: sin calendario de pagos, omitiendo.`);
                 continue;
             }
 
             // Encontrar primer pago no pagado
             let proximoIdx = -1;
-            for (let i = 0; i < pagosDetalle.length; i++) {
+            for (let i = 0; i < calendario.length; i++) {
                 if (!pagosStatus[i]) {
                     proximoIdx = i;
                     break;
@@ -260,10 +275,10 @@ Deno.serve(async (req) => {
                 continue;
             }
 
-            const proximoPago = pagosDetalle[proximoIdx];
-            const fechaStr = String(proximoPago.fecha).substring(0, 10); // YYYY-MM-DD
-            const montoPago = Number(proximoPago.total) || 0;
-            const numeroPago = Number(proximoPago.numero || (proximoIdx + 1));
+            const proximoPago = calendario[proximoIdx];
+            const fechaStr = proximoPago.fecha;
+            const montoPago = proximoPago.total;
+            const numeroPago = proximoPago.numero;
 
             // Calcular diferencia de días: positivo = faltan días, negativo = días vencido
             const fechaPagoDate = new Date(fechaStr + 'T12:00:00');
