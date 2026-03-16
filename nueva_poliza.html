@@ -698,6 +698,11 @@
                 alert('Error al subir el archivo: ' + error.message);
             } else {
                 documentosGuardados[idx] = { nombre, tamano: (file.size / 1024).toFixed(1) + ' KB', path: data.path, tipo };
+                // Merge portada si es PDF de póliza
+                if (tipo === 'poliza') {
+                    const ramo = document.getElementById('ramoSelect')?.value || '';
+                    invocarMergePortada(data.path, ramo);
+                }
             }
             renderizarDocumentos();
 
@@ -733,6 +738,16 @@
                     ${deleteBtn}
                 </div>`;
             });
+        }
+
+        function invocarMergePortada(policyPath, ramo) {
+            window.supabaseClient.functions.invoke('merge-policy-pdf', {
+                body: { policy_path: policyPath, ramo }
+            }).then(({ data, error }) => {
+                if (error) console.warn('merge-policy-pdf error:', error.message);
+                else if (data?.merged) console.log(`✅ Portada merged (${data.portada_pages}p + ${data.policy_pages}p)`);
+                else console.log('ℹ️ Sin portada para ramo:', ramo, data?.reason);
+            }).catch(e => console.warn('merge-policy-pdf exception:', e));
         }
 
         async function eliminarDocumento(index) {
@@ -1016,6 +1031,8 @@
                             const newDoc = { nombre: nombreAuto, tamano: (_scanFile.size / 1024).toFixed(1) + ' KB', path: upData.path, tipo: 'poliza' };
                             const updatedDocs = [...documentosGuardados, newDoc];
                             await window.supabaseClient.from('polizas').update({ documentos: updatedDocs }).eq('id', newId);
+                            // Merge portada al PDF escaneado
+                            invocarMergePortada(upData.path, pData.ramo || '');
                         }
                     } catch (errScan) {
                         console.error('Error al auto-guardar PDF escaneado:', errScan);
