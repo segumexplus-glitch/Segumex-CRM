@@ -16,6 +16,9 @@ SELECT cron.unschedule('payment-reminders-daily') WHERE EXISTS (
 SELECT cron.unschedule('birthday-wishes-daily') WHERE EXISTS (
     SELECT 1 FROM cron.job WHERE jobname = 'birthday-wishes-daily'
 );
+SELECT cron.unschedule('cron-notifications-daily') WHERE EXISTS (
+    SELECT 1 FROM cron.job WHERE jobname = 'cron-notifications-daily'
+);
 
 -- 4. Recordatorios de cobranza: todos los días a las 9:00 AM (hora México = UTC-6 → 15:00 UTC)
 SELECT cron.schedule(
@@ -43,6 +46,19 @@ SELECT cron.schedule(
     $$
 );
 
--- 6. Verificar que quedaron registrados
+-- 6. Notificaciones de pólizas por vencer: todos los días a las 9:00 AM
+SELECT cron.schedule(
+    'cron-notifications-daily',
+    '0 15 * * *',
+    $$
+    SELECT http_post(
+        'https://mmhdpbygdvdyujiktvqa.supabase.co/functions/v1/cron-notifications',
+        '{}',
+        'application/json'
+    );
+    $$
+);
+
+-- 7. Verificar que quedaron registrados
 SELECT jobname, schedule, active FROM cron.job
-WHERE jobname IN ('payment-reminders-daily', 'birthday-wishes-daily');
+WHERE jobname IN ('payment-reminders-daily', 'birthday-wishes-daily', 'cron-notifications-daily');

@@ -132,6 +132,7 @@ Deno.serve(async (req) => {
 
                 // C. Guardar mensaje del usuario
                 if (conversation) {
+                    const isNewConversation = conversation.id === (conversation as any)._isNew;
                     await supabase.from('comm_messages').insert({
                         conversation_id: conversation.id,
                         sender_type: 'user',
@@ -139,16 +140,47 @@ Deno.serve(async (req) => {
                         metadata: body
                     });
 
-                    // D. Invocar ai-brain
+                    // D. Invocar ai-brain o notificar al agente según estado
                     if (conversation.status === 'ai_handling') {
                         console.log("Invocando AI Brain...");
                         const aiPromise = supabase.functions.invoke('ai-brain', {
                             body: { conversation_id: conversation.id, user_message: text }
                         });
-
                         // @ts-ignore
-                        if (typeof EdgeRuntime !== 'undefined') {
-                            EdgeRuntime.waitUntil(aiPromise);
+                        if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(aiPromise);
+                    } else {
+                        // Agente maneja manualmente → notificar push
+                        const pushPromise = supabase.functions.invoke('push-sender', {
+                            body: {
+                                notify_all: true,
+                                title: `💬 Mensaje de ${senderName}`,
+                                body: text.substring(0, 100),
+                                data: { url: 'buzon.html' }
+                            }
+                        });
+                        // @ts-ignore
+                        if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(pushPromise);
+                    }
+
+                    // E. Si es conversación NUEVA → notificar al agente
+                    if (!channel || conversation.status === 'ai_handling') {
+                        // Solo notificar en primer mensaje de conversación nueva
+                        const { count } = await supabase
+                            .from('comm_messages')
+                            .select('id', { count: 'exact', head: true })
+                            .eq('conversation_id', conversation.id)
+                            .eq('sender_type', 'user');
+                        if ((count ?? 0) <= 1) {
+                            const newMsgPush = supabase.functions.invoke('push-sender', {
+                                body: {
+                                    notify_all: true,
+                                    title: `📲 Nuevo contacto WA`,
+                                    body: `${senderName}: ${text.substring(0, 80)}`,
+                                    data: { url: 'buzon.html' }
+                                }
+                            });
+                            // @ts-ignore
+                            if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(newMsgPush);
                         }
                     }
                 }

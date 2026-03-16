@@ -30,30 +30,44 @@ Deno.serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
 
-        const { user_id, title, body, data } = await req.json()
+        const { user_id, notify_all, title, body, data } = await req.json()
 
-        console.log(`Sending push to user ${user_id}: ${title}`);
+        // Resolver qué usuarios notificar
+        let targetUserIds: string[] = [];
+        if (notify_all) {
+            const { data: allSubs } = await supabaseClient
+                .from('push_subscriptions')
+                .select('user_id');
+            targetUserIds = [...new Set((allSubs || []).map((s: any) => s.user_id as string))];
+            console.log(`Sending push to ALL users (${targetUserIds.length}): ${title}`);
+        } else if (user_id) {
+            targetUserIds = [user_id];
+            console.log(`Sending push to user ${user_id}: ${title}`);
+        }
 
-        // 1. Obtener suscripciones del usuario
+        if (targetUserIds.length === 0) {
+            return new Response(JSON.stringify({ message: 'No subscriptions found' }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+        }
+
+        // 1. Obtener suscripciones de los usuarios objetivo
         const { data: subs, error } = await supabaseClient
             .from('push_subscriptions')
             .select('*')
-            .eq('user_id', user_id)
+            .in('user_id', targetUserIds);
 
         if (error || !subs || subs.length === 0) {
-            console.log("No subscriptions found for user");
+            console.log("No subscriptions found");
             return new Response(JSON.stringify({ message: 'No subscriptions' }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            })
+            });
         }
 
-        // 2. Guardar en Historial
-        await supabaseClient.from('notifications_history').insert({
-            user_id,
-            title,
-            body,
-            data
-        });
+        // 2. Guardar en Historial (una entrada por usuario único)
+        await Promise.all(targetUserIds.map(uid =>
+            supabaseClient.from('notifications_history').insert({ user_id: uid, title, body, data })
+        ));
 
         // 3. Enviar a todos los dispositivos del usuario
         const results = await Promise.all(subs.map(sub => {

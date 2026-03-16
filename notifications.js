@@ -97,9 +97,9 @@ async function syncSubscription(sub) {
         user_agent: navigator.userAgent
     };
 
-    const { error } = await window.supabaseClient
-        .from('push_subscriptions')
-        .upsert(payload, { onConflict: 'endpoint' });
+    // delete+insert para evitar problemas de constraint
+    await window.supabaseClient.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+    const { error } = await window.supabaseClient.from('push_subscriptions').insert(payload);
 
     if (error) console.error("Error guardando sub en DB:", error);
 }

@@ -208,6 +208,20 @@ Deno.serve(async (req) => {
             await new Promise(r => setTimeout(r, 500));
         }
 
+        // Notificar al agente con resumen del proceso
+        if (resultados.length > 0) {
+            const nombres = resultados.slice(0, 3).map((r: any) => r.cliente).join(', ');
+            const extra = resultados.length > 3 ? ` y ${resultados.length - 3} más` : '';
+            await supabase.functions.invoke('push-sender', {
+                body: {
+                    notify_all: true,
+                    title: `🎂 ${resultados.length} felicitación${resultados.length > 1 ? 'es' : ''} de cumpleaños enviada${resultados.length > 1 ? 's' : ''}`,
+                    body: `${nombres}${extra}`,
+                    data: { url: 'clientes.html' }
+                }
+            });
+        }
+
         return new Response(JSON.stringify({
             success: true,
             fecha_proceso: `${diaHoy}/${mesHoy}/${anioHoy}`,

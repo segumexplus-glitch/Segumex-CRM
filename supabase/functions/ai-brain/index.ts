@@ -426,18 +426,32 @@ FORMATO DE SALIDA (JSON obligatorio):
                 let leadId = existingLead?.id;
 
                 if (!leadId) {
+                    const leadNombre = aiResponseAction.lead_data?.nombre || 'Prospecto WhatsApp';
+                    const leadInteres = aiResponseAction.lead_data?.interes || 'General';
                     const { data: newLead } = await supabase
                         .from('leads')
                         .insert({
-                            nombre: aiResponseAction.lead_data?.nombre || 'Prospecto WhatsApp',
+                            nombre: leadNombre,
                             telefono: phoneNumber,
                             origen: 'whatsapp_ai',
                             estado: 'nuevo',
-                            interes: aiResponseAction.lead_data?.interes || 'General'
+                            interes: leadInteres
                         })
                         .select('id')
                         .single();
                     leadId = newLead?.id;
+
+                    if (leadId) {
+                        // Notificar al agente del nuevo lead
+                        await supabase.functions.invoke('push-sender', {
+                            body: {
+                                notify_all: true,
+                                title: '🎯 Nuevo Lead',
+                                body: `${leadNombre} interesado en ${leadInteres} vía WhatsApp`,
+                                data: { url: `leads.html` }
+                            }
+                        });
+                    }
                 }
 
                 if (leadId) {

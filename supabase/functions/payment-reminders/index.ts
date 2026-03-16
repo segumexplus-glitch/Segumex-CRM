@@ -369,6 +369,22 @@ Deno.serve(async (req) => {
             await new Promise(r => setTimeout(r, 500));
         }
 
+        // Notificar al agente con resumen del proceso
+        if (resultados.length > 0) {
+            const lineas = resultados.slice(0, 3).map((r: any) =>
+                `• ${r.cliente} (${r.poliza}) — ${r.tipo.replace('cobranza_', '').replace(/_/g, ' ')}`
+            );
+            if (resultados.length > 3) lineas.push(`… y ${resultados.length - 3} más`);
+            await supabase.functions.invoke('push-sender', {
+                body: {
+                    notify_all: true,
+                    title: `💳 ${resultados.length} recordatorio${resultados.length > 1 ? 's' : ''} de cobranza enviado${resultados.length > 1 ? 's' : ''}`,
+                    body: lineas.join('\n'),
+                    data: { url: 'cobranza.html' }
+                }
+            });
+        }
+
         return new Response(JSON.stringify({
             success: true,
             fecha_proceso: hoy.toISOString().split('T')[0],
