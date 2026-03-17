@@ -97,6 +97,10 @@
                 class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-[#9da6b9] hover:text-white whitespace-nowrap transition-colors">
                 Portadas de Pólizas
             </button>
+            <button onclick="switchTab('comisiones')" id="tab-comisiones"
+                class="px-5 py-3 text-sm font-medium border-b-2 border-transparent text-[#9da6b9] hover:text-white whitespace-nowrap transition-colors">
+                Distribución de Comisiones
+            </button>
         </div>
 
         <!-- ========== TAB: MENSAJES ========== -->
@@ -391,6 +395,78 @@ Equipo Segumex 🛡️</p>
                     </div>
                 </div>
 
+            </div>
+        </div>
+
+        <!-- ========== TAB: COMISIONES (Distribución) ========== -->
+        <div id="view-comisiones" class="hidden">
+            <div class="max-w-2xl flex flex-col gap-6">
+
+                <!-- Info -->
+                <div class="bg-[#1c2030] border border-[#2d3442] rounded-xl p-4 flex gap-3 items-start">
+                    <span class="material-symbols-outlined text-purple-400 mt-0.5 flex-shrink-0">account_balance_wallet</span>
+                    <div class="text-sm text-[#9da6b9]">
+                        <p class="font-semibold text-white mb-1">Columnas de distribución de comisiones</p>
+                        <p>Define cómo se distribuyen las comisiones entre los diferentes beneficiarios. Cada columna calcula un porcentaje del monto de comisión por pago. Los porcentajes son independientes entre sí.</p>
+                    </div>
+                </div>
+
+                <!-- Lista de columnas -->
+                <div class="bg-[#1c1f27] border border-[#3b4354] rounded-xl overflow-hidden">
+                    <div class="flex items-center justify-between px-5 py-4 border-b border-[#3b4354]">
+                        <h3 class="font-semibold text-white">Columnas configuradas</h3>
+                        <button onclick="abrirModalNuevaColumna()"
+                            class="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors">
+                            <span class="material-symbols-outlined text-sm">add</span>
+                            Agregar columna
+                        </button>
+                    </div>
+                    <!-- Header tabla -->
+                    <div class="grid grid-cols-12 px-5 py-2 text-[10px] uppercase font-bold text-[#9da6b9] bg-[#111318] border-b border-[#3b4354]">
+                        <div class="col-span-1 text-center">Activa</div>
+                        <div class="col-span-1 text-center">Orden</div>
+                        <div class="col-span-4">Nombre</div>
+                        <div class="col-span-2 text-right">Porcentaje</div>
+                        <div class="col-span-4 text-right">Acciones</div>
+                    </div>
+                    <div id="comisionesColumnasList">
+                        <div class="text-center py-8 text-[#9da6b9] text-sm">
+                            <span class="material-symbols-outlined animate-pulse block text-3xl mb-2">sync</span>
+                            Cargando...
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Modal Nueva/Editar Columna -->
+        <div id="modalColumnaComision" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-[#1c1f27] border border-[#3b4354] rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+                <h3 id="modalColumnaTitle" class="font-bold text-white text-lg mb-5">Nueva columna</h3>
+                <input type="hidden" id="modalColumnaId" value="" />
+                <div class="flex flex-col gap-4">
+                    <div>
+                        <label class="block text-xs text-[#9da6b9] font-bold mb-2">Nombre del beneficiario</label>
+                        <input id="modalColumnaNombre" type="text" placeholder="Ej: Gilberto"
+                            class="w-full bg-[#111318] border border-[#3b4354] rounded-xl p-3 text-white text-sm focus:outline-none focus:border-primary" />
+                    </div>
+                    <div>
+                        <label class="block text-xs text-[#9da6b9] font-bold mb-2">Porcentaje (%)</label>
+                        <input id="modalColumnaPct" type="number" min="0" max="100" step="0.01" placeholder="25"
+                            class="w-full bg-[#111318] border border-[#3b4354] rounded-xl p-3 text-white text-sm focus:outline-none focus:border-primary" />
+                    </div>
+                </div>
+                <div class="flex gap-3 mt-6">
+                    <button onclick="cerrarModalColumna()"
+                        class="flex-1 px-4 py-2 border border-[#3b4354] text-[#9da6b9] rounded-xl text-sm hover:bg-[#2d3442] transition-colors">
+                        Cancelar
+                    </button>
+                    <button onclick="guardarColumna()"
+                        class="flex-1 px-4 py-2 bg-primary text-white rounded-xl text-sm font-bold hover:bg-blue-600 transition-colors">
+                        Guardar
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -1009,7 +1085,7 @@ Equipo Segumex 🛡️</p>
         // TABS
         // ============================================================
         function switchTab(tab) {
-            ['mensajes', 'bienvenida', 'imagen', 'control', 'log', 'portadas'].forEach(t => {
+            ['mensajes', 'bienvenida', 'imagen', 'control', 'log', 'portadas', 'comisiones'].forEach(t => {
                 document.getElementById(`view-${t}`).classList.toggle('hidden', t !== tab);
                 const btn = document.getElementById(`tab-${t}`);
                 if (t === tab) {
@@ -1024,6 +1100,7 @@ Equipo Segumex 🛡️</p>
             if (tab === 'control') { cargarToggle(); actualizarPreviewPrueba(); actualizarPreviewBienvenida(); actualizarPreviewCumpleanos(); }
             if (tab === 'bienvenida') renderBienvenidaMensajes();
             if (tab === 'portadas') verificarPortadas();
+            if (tab === 'comisiones') cargarColumnasComisiones();
         }
 
         // ============================================================
@@ -2822,6 +2899,138 @@ Equipo Segumex 🛡️</p>
         }
 
         // ============================================================
+        // ============================================================
+        // DISTRIBUCIÓN DE COMISIONES
+        // ============================================================
+        let _colEditId = null;
+
+        async function cargarColumnasComisiones() {
+            const { data, error } = await window.supabaseClient
+                .from('comisiones_columnas')
+                .select('*')
+                .order('orden');
+
+            const container = document.getElementById('comisionesColumnasList');
+            if (error || !data || data.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-[#9da6b9] text-sm">Sin columnas configuradas. Agrega la primera.</div>`;
+                return;
+            }
+
+            container.innerHTML = data.map(col => `
+                <div class="grid grid-cols-12 px-5 py-3.5 border-b border-[#3b4354]/50 items-center hover:bg-[#111318]/50 transition-colors">
+                    <div class="col-span-1 flex justify-center">
+                        <button onclick="toggleColumnaActiva(${col.id}, ${col.activa})"
+                            class="w-10 h-5 rounded-full transition-colors flex items-center px-0.5 ${col.activa ? 'bg-primary' : 'bg-[#3b4354]'}">
+                            <span class="w-4 h-4 rounded-full bg-white shadow transition-transform ${col.activa ? 'translate-x-5' : 'translate-x-0'}"></span>
+                        </button>
+                    </div>
+                    <div class="col-span-1 text-center">
+                        <div class="flex items-center justify-center gap-1">
+                            <button onclick="moverColumna(${col.id}, 'up')" class="text-[#9da6b9] hover:text-white p-0.5 transition-colors">
+                                <span class="material-symbols-outlined text-sm">arrow_upward</span>
+                            </button>
+                            <button onclick="moverColumna(${col.id}, 'down')" class="text-[#9da6b9] hover:text-white p-0.5 transition-colors">
+                                <span class="material-symbols-outlined text-sm">arrow_downward</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-span-4 text-sm text-white font-medium ${col.activa ? '' : 'opacity-50 line-through'}">${col.nombre}</div>
+                    <div class="col-span-2 text-right text-sm font-bold ${col.activa ? 'text-purple-300' : 'text-[#9da6b9] opacity-50'}">${col.porcentaje}%</div>
+                    <div class="col-span-4 flex items-center justify-end gap-2">
+                        <button onclick="abrirModalEditarColumna(${col.id}, '${col.nombre.replace(/'/g,"\\'")}', ${col.porcentaje})"
+                            class="px-3 py-1.5 bg-[#2d3442] text-[#9da6b9] rounded-lg text-xs font-medium hover:bg-[#3b4354] hover:text-white transition-colors flex items-center gap-1">
+                            <span class="material-symbols-outlined text-sm">edit</span> Editar
+                        </button>
+                        <button onclick="eliminarColumna(${col.id}, '${col.nombre.replace(/'/g,"\\'")}' )"
+                            class="px-3 py-1.5 bg-red-500/10 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/30 transition-colors flex items-center gap-1">
+                            <span class="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                    </div>
+                </div>`).join('');
+        }
+
+        function abrirModalNuevaColumna() {
+            _colEditId = null;
+            document.getElementById('modalColumnaTitle').innerText = 'Nueva columna';
+            document.getElementById('modalColumnaId').value = '';
+            document.getElementById('modalColumnaNombre').value = '';
+            document.getElementById('modalColumnaPct').value = '';
+            document.getElementById('modalColumnaComision').classList.remove('hidden');
+        }
+
+        function abrirModalEditarColumna(id, nombre, pct) {
+            _colEditId = id;
+            document.getElementById('modalColumnaTitle').innerText = 'Editar columna';
+            document.getElementById('modalColumnaId').value = id;
+            document.getElementById('modalColumnaNombre').value = nombre;
+            document.getElementById('modalColumnaPct').value = pct;
+            document.getElementById('modalColumnaComision').classList.remove('hidden');
+        }
+
+        function cerrarModalColumna() {
+            document.getElementById('modalColumnaComision').classList.add('hidden');
+            _colEditId = null;
+        }
+
+        async function guardarColumna() {
+            const nombre = document.getElementById('modalColumnaNombre').value.trim();
+            const pct    = parseFloat(document.getElementById('modalColumnaPct').value);
+            if (!nombre) { alert('El nombre es requerido.'); return; }
+            if (isNaN(pct) || pct < 0) { alert('El porcentaje debe ser un número válido.'); return; }
+
+            if (_colEditId) {
+                await window.supabaseClient.from('comisiones_columnas')
+                    .update({ nombre, porcentaje: pct })
+                    .eq('id', _colEditId);
+            } else {
+                // Obtener el orden máximo actual
+                const { data: maxData } = await window.supabaseClient
+                    .from('comisiones_columnas')
+                    .select('orden')
+                    .order('orden', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                const nuevoOrden = (maxData?.orden || 0) + 1;
+                await window.supabaseClient.from('comisiones_columnas')
+                    .insert({ nombre, porcentaje: pct, activa: true, orden: nuevoOrden });
+            }
+            cerrarModalColumna();
+            await cargarColumnasComisiones();
+            mostrarSaveStatus();
+        }
+
+        async function toggleColumnaActiva(id, activa) {
+            await window.supabaseClient.from('comisiones_columnas')
+                .update({ activa: !activa })
+                .eq('id', id);
+            await cargarColumnasComisiones();
+            mostrarSaveStatus();
+        }
+
+        async function eliminarColumna(id, nombre) {
+            if (!confirm(`¿Eliminar la columna "${nombre}"?`)) return;
+            await window.supabaseClient.from('comisiones_columnas').delete().eq('id', id);
+            await cargarColumnasComisiones();
+            mostrarSaveStatus();
+        }
+
+        async function moverColumna(id, direccion) {
+            const { data: todas } = await window.supabaseClient
+                .from('comisiones_columnas')
+                .select('id, orden')
+                .order('orden');
+            if (!todas) return;
+            const idx = todas.findIndex(c => c.id === id);
+            const swapIdx = direccion === 'up' ? idx - 1 : idx + 1;
+            if (swapIdx < 0 || swapIdx >= todas.length) return;
+
+            const ordenA = todas[idx].orden;
+            const ordenB = todas[swapIdx].orden;
+            await window.supabaseClient.from('comisiones_columnas').update({ orden: ordenB }).eq('id', todas[idx].id);
+            await window.supabaseClient.from('comisiones_columnas').update({ orden: ordenA }).eq('id', todas[swapIdx].id);
+            await cargarColumnasComisiones();
+        }
+
         // ============================================================
         // PORTADAS DE PÓLIZAS
         // ============================================================

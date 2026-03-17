@@ -10,149 +10,311 @@
     <script src="finanzas.js"></script>
 
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
-        rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <script>
-        // --- SCRIPT DE SEGURIDAD MODIFICADO ---
         (async function () {
             const { data: { session } } = await window.supabaseClient.auth.getSession();
-            if (!session) {
-                window.location.href = 'login.html';
-            }
+            if (!session) { window.location.href = 'login.html'; }
         })();
 
         tailwind.config = {
             darkMode: "class",
             theme: {
                 extend: {
-                    colors: { "primary": "#3b82f6", "background-dark": "#0f111a", "surface-dark": "#161b22", "surface-card": "#1f242e", "text-secondary": "#94a3b8" }
+                    colors: {
+                        "primary": "#3b82f6",
+                        "background-dark": "#0f111a",
+                        "surface-dark": "#161b22",
+                        "surface-card": "#1f242e",
+                        "text-secondary": "#94a3b8"
+                    }
                 },
             },
         }
     </script>
+    <style>
+        .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #2d3442; border-radius: 2px; }
+    </style>
 </head>
 
-<body class="bg-background-dark font-display text-white overflow-hidden relative" onload="cargarComisiones()">
-    <!-- Overlay Mobile -->
+<body class="bg-background-dark font-display text-white overflow-hidden relative" onload="init()">
     <div id="sidebarOverlay" onclick="toggleMenu()"
-        class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass transition-opacity"></div>
+        class="fixed inset-0 bg-black/50 z-40 hidden md:hidden transition-opacity"></div>
 
     <div class="flex h-screen w-full overflow-hidden">
         <aside id="sidebar"
             class="fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-[#2d3442] bg-[#161b22] flex-shrink-0 shadow-2xl md:shadow-none">
         </aside>
-        <main class="flex-1 flex flex-col h-full relative w-full">
-            <!-- Mobile Header / Toggle -->
+
+        <main class="flex-1 flex flex-col h-full relative w-full overflow-hidden">
+            <!-- Mobile header -->
             <div class="md:hidden p-4 pb-0 flex items-center gap-3 bg-[#161b22]">
                 <button onclick="toggleMenu()" class="p-2 -ml-2 text-white hover:bg-white/10 rounded-lg">
                     <span class="material-symbols-outlined text-2xl">menu</span>
                 </button>
                 <span class="font-bold text-lg">Segumex</span>
             </div>
+
             <header class="h-16 border-b border-[#2d3442] bg-[#161b22] flex items-center justify-between px-6 shrink-0">
                 <h1 class="text-xl font-bold text-white flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">payments</span> Conciliación de Comisiones
+                    <span class="material-symbols-outlined text-primary">payments</span>
+                    Conciliación de Comisiones
                 </h1>
             </header>
 
-            <div class="flex-1 overflow-y-auto p-6 custom-scroll">
-                <div class="max-w-[1600px] mx-auto h-full flex flex-col gap-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 shrink-0">
-                        <div
-                            class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden group">
+            <div class="flex-1 overflow-y-auto p-4 md:p-6 custom-scroll">
+                <div class="max-w-[1800px] mx-auto flex flex-col gap-5">
+
+                    <!-- KPIs -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-4">
                             <p class="text-[#94a3b8] text-xs font-bold mb-1">Comisiones Ganadas</p>
-                            <h2 class="text-3xl font-bold text-white" id="kpiGanadas">$0.00</h2>
+                            <h2 class="text-2xl font-bold text-white" id="kpiGanadas">$0.00</h2>
                         </div>
-                        <div
-                            class="bg-surface-card border border-[#2d3442] rounded-xl p-5 relative overflow-hidden group border-l-4 border-l-green-500">
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-4 border-l-4 border-l-green-500">
                             <p class="text-[#94a3b8] text-xs font-bold mb-1">Comisiones Cobradas</p>
-                            <h2 class="text-3xl font-bold text-green-400" id="kpiCobradas">$0.00</h2>
+                            <h2 class="text-2xl font-bold text-green-400" id="kpiCobradas">$0.00</h2>
+                        </div>
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-4 border-l-4 border-l-yellow-500">
+                            <p class="text-[#94a3b8] text-xs font-bold mb-1">En Aclaración</p>
+                            <h2 class="text-2xl font-bold text-yellow-400" id="kpiAclaracion">$0.00</h2>
+                        </div>
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-4 border-l-4 border-l-blue-500">
+                            <p class="text-[#94a3b8] text-xs font-bold mb-1">Por Conciliar</p>
+                            <h2 class="text-2xl font-bold text-blue-400" id="kpiPendientes">$0.00</h2>
                         </div>
                     </div>
 
-                    <div class="flex border-b border-[#2d3442]">
+                    <!-- Tabs -->
+                    <div class="flex border-b border-[#2d3442] shrink-0">
                         <button id="tabPendientes" onclick="cambiarTab('pendientes')"
-                            class="px-6 py-3 text-sm font-bold border-b-2 border-primary text-primary">Por
-                            Conciliar</button>
+                            class="px-6 py-3 text-sm font-bold border-b-2 border-primary text-primary">
+                            Por Conciliar
+                        </button>
                         <button id="tabFinalizadas" onclick="cambiarTab('finalizadas')"
-                            class="px-6 py-3 text-sm font-medium text-[#94a3b8]">Historial Cobrado</button>
+                            class="px-6 py-3 text-sm font-medium text-[#94a3b8] hover:text-white transition-colors">
+                            Historial Cobrado
+                        </button>
                     </div>
 
-                    <div
-                        class="flex-1 bg-surface-card border border-[#2d3442] rounded-xl flex flex-col overflow-hidden">
-                        <div
-                            class="grid grid-cols-12 gap-4 px-6 py-3 bg-[#161b22] border-b border-[#2d3442] text-[10px] uppercase font-bold text-[#94a3b8]">
-                            <div class="col-span-2">Cliente</div>
-                            <div class="col-span-2">Póliza</div>
-                            <div class="col-span-2">No. Pago</div>
-                            <div class="col-span-2">Fecha de Pago Cliente</div>
-                            <div class="col-span-2 text-right">Comisión</div>
-                            <div class="col-span-2 text-center">Acción</div>
+                    <!-- Tabla principal -->
+                    <div class="bg-surface-card border border-[#2d3442] rounded-xl flex flex-col overflow-hidden">
+                        <div id="tablaHeader" class="overflow-x-auto bg-[#161b22] border-b border-[#2d3442]"></div>
+                        <div class="overflow-x-auto custom-scroll">
+                            <div id="listaComisiones" class="min-w-max"></div>
                         </div>
-                        <div class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1" id="listaComisiones"></div>
                         <div class="p-4 border-t border-[#2d3442] bg-[#1a202a] text-right text-lg font-black text-white"
                             id="totalComisionVista">$0.00</div>
                     </div>
+
+                    <!-- Tabla de Aclaración (se muestra solo si hay items) -->
+                    <div id="seccionAclaracion" class="hidden">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="material-symbols-outlined text-yellow-400" style="font-variation-settings:'FILL' 1">warning</span>
+                            <h2 class="text-base font-bold text-yellow-400">Comisiones en Aclaración</h2>
+                            <span id="badgeAclaracion"
+                                class="px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 text-xs font-bold">0</span>
+                            <span class="text-xs text-[#94a3b8]">— Revisa y concilia o regresa a la cola</span>
+                        </div>
+                        <div class="bg-surface-card border border-yellow-500/30 rounded-xl flex flex-col overflow-hidden">
+                            <div id="aclaracionHeader" class="overflow-x-auto bg-[#161b22] border-b border-yellow-500/20"></div>
+                            <div class="overflow-x-auto custom-scroll">
+                                <div id="listaAclaracion" class="min-w-max"></div>
+                            </div>
+                            <div class="p-4 border-t border-yellow-500/20 bg-[#1a202a] text-right text-base font-bold text-yellow-400"
+                                id="totalAclaracion">Total: $0.00</div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </main>
     </div>
 
+    <!-- Modal Aclaración -->
+    <div id="modalAclaracion" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-[#1f242e] border border-yellow-500/30 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="material-symbols-outlined text-yellow-400">help</span>
+                <h3 class="font-bold text-white text-lg">Enviar a Aclaración</h3>
+            </div>
+            <p class="text-[#94a3b8] text-sm mb-4">
+                Esta comisión pasará a la sección de Aclaración hasta que se resuelva. Puedes agregar una nota.
+            </p>
+            <textarea id="notaAclaracion" rows="3"
+                placeholder="Nota opcional: ej. el monto no coincide con el recibo..."
+                class="w-full bg-[#111318] border border-[#3b4354] rounded-xl p-3 text-white text-sm resize-none focus:outline-none focus:border-yellow-500 mb-4"></textarea>
+            <div class="flex gap-3">
+                <button onclick="cerrarModalAclaracion()"
+                    class="flex-1 px-4 py-2 border border-[#3b4354] text-[#94a3b8] rounded-xl text-sm hover:bg-[#2d3442] transition-colors">
+                    Cancelar
+                </button>
+                <button onclick="confirmarAclaracion()"
+                    class="flex-1 px-4 py-2 bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 rounded-xl text-sm font-bold hover:bg-yellow-500 hover:text-white transition-all">
+                    Enviar a Aclaración
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="menu.js"></script>
     <script>
-        let vistaActual = 'pendientes';
+        // ============================================================
+        // Estado global
+        // ============================================================
+        let vistaActual     = 'pendientes';
+        let _columnasConfig = [];
+        let _modalPolizaId  = null;
+        let _modalIdx       = null;
 
-        const MESES_LARGO  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-        const MESES_CORTO  = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        const MESES_LARGO = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        const MESES_CORTO = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
+        // ============================================================
+        // Init
+        // ============================================================
+        async function init() {
+            await cargarColumnasConfig();
+            await cargarComisiones();
+        }
+
+        // ============================================================
+        // Cargar configuración de columnas de distribución
+        // ============================================================
+        async function cargarColumnasConfig() {
+            const { data } = await window.supabaseClient
+                .from('comisiones_columnas')
+                .select('*')
+                .eq('activa', true)
+                .order('orden');
+            _columnasConfig = data || [];
+        }
+
+        // ============================================================
+        // Helpers
+        // ============================================================
         function fmtFechaCom(str) {
             if (!str) return '--';
             const [y, m, d] = str.split('-');
             return `${parseInt(d)} ${MESES_CORTO[parseInt(m)-1]} ${y}`;
         }
+        function formatoMoneda(v) { return window.SegumexFinanzas.formatoMoneda(v); }
 
+        // ============================================================
+        // Generar header de tabla con columnas dinámicas
+        // ============================================================
+        function generarHeader(containerId) {
+            const colsExtra = _columnasConfig.map(c =>
+                `<div class="w-28 shrink-0 text-right">${c.nombre}<br><span class="font-normal normal-case text-[9px] opacity-70">${c.porcentaje}%</span></div>`
+            ).join('');
+            document.getElementById(containerId).innerHTML = `
+                <div class="flex items-center px-4 py-3 text-[10px] uppercase font-bold text-[#94a3b8] min-w-max">
+                    <div class="w-36 shrink-0">Cliente</div>
+                    <div class="w-32 shrink-0">Póliza</div>
+                    <div class="w-24 shrink-0">No. Pago</div>
+                    <div class="w-32 shrink-0">Fecha Pago</div>
+                    <div class="w-28 shrink-0 text-right">Comisión</div>
+                    ${colsExtra}
+                    <div class="w-52 shrink-0 text-center">Acción</div>
+                </div>`;
+        }
+
+        // ============================================================
+        // Cargar y renderizar comisiones
+        // ============================================================
         async function cargarComisiones() {
+            generarHeader('tablaHeader');
+            generarHeader('aclaracionHeader');
+
             const { data: polizasDB } = await window.supabaseClient.from('polizas').select('*');
             const { data: clis }      = await window.supabaseClient.from('clientes').select('id, nombre');
 
-            let tG = 0, tC = 0, tV = 0;
-            const filas = [];
+            let tG = 0, tC = 0, tA = 0, tP = 0, tV = 0;
+            const filasPrincipales = [];
+            const filasAclaracion  = [];
 
             (polizasDB || []).forEach(p => {
                 if (p.restringida === true) return;
                 if (!p.pagos_status) return;
-                const cli      = (clis || []).find(c => String(c.id) === String(p.cliente_id));
-                const num      = parseInt(p.finanzas?.formaPago) || 1;
-                const monto    = window.SegumexFinanzas.calcularComision(p.finanzas?.primaNeta, num, p.finanzas?.comisionPct);
+
+                const cli          = (clis || []).find(c => String(c.id) === String(p.cliente_id));
+                const num          = parseInt(p.finanzas?.formaPago) || 1;
+                const monto        = window.SegumexFinanzas.calcularComision(p.finanzas?.primaNeta, num, p.finanzas?.comisionPct);
                 const pagosDetalle = p.finanzas?.pagos_detalle || [];
 
                 p.pagos_status.forEach((pagado, idx) => {
+                    if (pagado !== true) return;
+
                     let montoReal = monto;
                     if (pagosDetalle[idx]?.comision !== undefined) montoReal = parseFloat(pagosDetalle[idx].comision);
 
-                    if (pagado === true) {
-                        const cobrada = p.comisiones_cobradas_status?.[idx] === true;
-                        if (cobrada) {
-                            tC += montoReal;
-                            if (vistaActual === 'finalizadas') { tV += montoReal; filas.push({ p, cli, idx, montoReal, esC: true }); }
-                        } else {
-                            tG += montoReal;
-                            if (vistaActual === 'pendientes') { tV += montoReal; filas.push({ p, cli, idx, montoReal, esC: false }); }
+                    const cobrada    = p.comisiones_cobradas_status?.[idx] === true;
+                    const aclaracion = !cobrada && (p.comisiones_aclaracion_status?.[idx] === true);
+                    const nota       = p.comisiones_aclaracion_notas?.[String(idx)] || '';
+
+                    tG += montoReal;
+
+                    if (cobrada) {
+                        tC += montoReal;
+                        if (vistaActual === 'finalizadas') {
+                            tV += montoReal;
+                            filasPrincipales.push({ p, cli, idx, montoReal, estado: 'cobrada', nota });
+                        }
+                    } else if (aclaracion) {
+                        tA += montoReal;
+                        filasAclaracion.push({ p, cli, idx, montoReal, estado: 'aclaracion', nota });
+                    } else {
+                        tP += montoReal;
+                        if (vistaActual === 'pendientes') {
+                            tV += montoReal;
+                            filasPrincipales.push({ p, cli, idx, montoReal, estado: 'pendiente', nota });
                         }
                     }
                 });
             });
 
-            // Ordenar por fecha de pago cliente (pagos_fechas[idx])
-            filas.sort((a, b) => {
-                const fa = a.p.pagos_fechas?.[a.idx] || '';
-                const fb = b.p.pagos_fechas?.[b.idx] || '';
-                return fa.localeCompare(fb);
-            });
+            // Ordenar por fecha
+            const sortFn = (a, b) =>
+                (a.p.pagos_fechas?.[a.idx] || '').localeCompare(b.p.pagos_fechas?.[b.idx] || '');
+            filasPrincipales.sort(sortFn);
+            filasAclaracion.sort(sortFn);
 
-            // Agrupar por mes (YYYY-MM)
+            // Renderizar tabla principal (agrupada por mes)
+            renderGruposMes(filasPrincipales, 'listaComisiones');
+
+            // Renderizar tabla de aclaración (lista plana)
+            renderFilasSimples(filasAclaracion, 'listaAclaracion', true);
+
+            // KPIs
+            document.getElementById('kpiGanadas').innerText    = formatoMoneda(tG);
+            document.getElementById('kpiCobradas').innerText   = formatoMoneda(tC);
+            document.getElementById('kpiAclaracion').innerText = formatoMoneda(tA);
+            document.getElementById('kpiPendientes').innerText = formatoMoneda(tP);
+            document.getElementById('totalComisionVista').innerText = 'Total vista: ' + formatoMoneda(tV);
+            document.getElementById('totalAclaracion').innerText    = 'Total en aclaración: ' + formatoMoneda(tA);
+
+            // Mostrar/ocultar sección aclaración
+            const seccion = document.getElementById('seccionAclaracion');
+            if (filasAclaracion.length > 0) {
+                seccion.classList.remove('hidden');
+                document.getElementById('badgeAclaracion').innerText = filasAclaracion.length;
+            } else {
+                seccion.classList.add('hidden');
+            }
+        }
+
+        // ============================================================
+        // Renderizar agrupado por mes
+        // ============================================================
+        function renderGruposMes(filas, containerId) {
+            if (filas.length === 0) {
+                document.getElementById(containerId).innerHTML =
+                    `<div class="text-center py-12 text-[#94a3b8] text-sm">Sin registros en esta vista.</div>`;
+                return;
+            }
             const grupos = {};
             filas.forEach(f => {
                 const fecha = f.p.pagos_fechas?.[f.idx] || '';
@@ -161,107 +323,247 @@
                 grupos[clave].push(f);
             });
 
-            // Renderizar
             let html = '';
             Object.keys(grupos).sort().forEach(clave => {
-                const grupo     = grupos[clave];
-                const totalMes  = grupo.reduce((s, f) => s + f.montoReal, 0);
-                let labelMes;
-                if (clave === 'sin-fecha') {
-                    labelMes = 'Sin fecha';
-                } else {
+                const grupo    = grupos[clave];
+                const totalMes = grupo.reduce((s, f) => s + f.montoReal, 0);
+                const grupoId  = 'grupo-' + clave;
+                let labelMes   = 'Sin fecha';
+                if (clave !== 'sin-fecha') {
                     const [y, m] = clave.split('-');
                     labelMes = `${MESES_LARGO[parseInt(m)-1]} ${y}`;
                 }
-
-                // Separador de mes (desplegable)
-                const grupoId = 'grupo-' + clave;
                 html += `
-                <div class="flex items-center gap-3 px-4 py-2 mt-2 cursor-pointer select-none group/mes"
+                <div class="flex items-center gap-3 px-4 py-2 mt-2 cursor-pointer select-none"
                      onclick="toggleGrupo('${grupoId}', this)">
-                    <div class="h-px flex-1 bg-[#2d3442] group-hover/mes:bg-[#3b4354] transition-colors"></div>
+                    <div class="h-px flex-1 bg-[#2d3442]"></div>
                     <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[14px] text-[#94a3b8] transition-transform duration-200" style="font-variation-settings:'FILL' 1" data-icon>expand_less</span>
-                        <span class="text-[11px] font-bold text-[#94a3b8] uppercase tracking-widest whitespace-nowrap group-hover/mes:text-white transition-colors">${labelMes}</span>
+                        <span class="material-symbols-outlined text-[14px] text-[#94a3b8] transition-transform duration-200" data-icon>expand_less</span>
+                        <span class="text-[11px] font-bold text-[#94a3b8] uppercase tracking-widest whitespace-nowrap">${labelMes}</span>
                         <span class="text-[11px] font-bold text-blue-400 whitespace-nowrap">${formatoMoneda(totalMes)}</span>
                         <span class="text-[10px] text-[#94a3b8] whitespace-nowrap">(${grupo.length})</span>
                     </div>
-                    <div class="h-px flex-1 bg-[#2d3442] group-hover/mes:bg-[#3b4354] transition-colors"></div>
+                    <div class="h-px flex-1 bg-[#2d3442]"></div>
                 </div>
                 <div id="${grupoId}">`;
-
-                grupo.forEach(f => { html += renderFilaHtml(f.p, f.cli, f.idx, f.montoReal, f.esC); });
+                grupo.forEach(f => { html += renderFila(f, false); });
                 html += `</div>`;
             });
-
-            document.getElementById('listaComisiones').innerHTML = html;
-            document.getElementById('kpiGanadas').innerText             = formatoMoneda(tG);
-            document.getElementById('kpiCobradas').innerText            = formatoMoneda(tC);
-            document.getElementById('totalComisionVista').innerText     = 'Total vista: ' + formatoMoneda(tV);
+            document.getElementById(containerId).innerHTML = html;
         }
 
-        function renderFilaHtml(p, c, idx, m, esC) {
+        // ============================================================
+        // Renderizar lista plana
+        // ============================================================
+        function renderFilasSimples(filas, containerId, esAclaracion) {
+            if (filas.length === 0) {
+                document.getElementById(containerId).innerHTML =
+                    `<div class="text-center py-8 text-[#94a3b8] text-sm">Sin comisiones en aclaración.</div>`;
+                return;
+            }
+            document.getElementById(containerId).innerHTML =
+                filas.map(f => renderFila(f, esAclaracion)).join('');
+        }
+
+        // ============================================================
+        // Renderizar una fila
+        // ============================================================
+        function renderFila(f, esAclaracion) {
+            const { p, cli, idx, montoReal, estado, nota } = f;
             const noPoliza       = p.no_poliza || p.numero || '---';
-            const fechaLimiteFmt = fmtFechaCom(p.finanzas?.pagos_detalle?.[idx]?.fecha); // fecha programada
-            const fechaPagoFmt   = fmtFechaCom(p.pagos_fechas?.[idx]);                   // fecha real de pago
-            const nombreCli      = c ? c.nombre : 'Desc.';
+            const fechaLimiteFmt = fmtFechaCom(p.finanzas?.pagos_detalle?.[idx]?.fecha);
+            const fechaPagoFmt   = fmtFechaCom(p.pagos_fechas?.[idx]);
+            const nombreCli      = cli ? cli.nombre : 'Desc.';
+
+            // Columnas de distribución dinámicas
+            const colsDist = _columnasConfig.map(c => {
+                const val = montoReal * (c.porcentaje / 100);
+                return `<div class="w-28 shrink-0 text-right text-xs font-semibold text-purple-300">${formatoMoneda(val)}</div>`;
+            }).join('');
+
+            // Badge nota
+            const notaBadge = nota
+                ? `<span class="ml-1 px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-300 text-[9px] font-bold cursor-help" title="${nota}">NOTA</span>`
+                : '';
+
+            // Botones
+            let botonesHtml = '';
+            if (esAclaracion) {
+                botonesHtml = `
+                    <button onclick="regresarDeAclaracion('${p.id}', ${idx})"
+                        title="Regresar a Por Conciliar"
+                        class="px-3 py-1.5 bg-[#2d3442] text-[#94a3b8] rounded-lg text-xs font-bold hover:bg-[#3b4354] hover:text-white transition-all">
+                        Regresar
+                    </button>
+                    <button onclick="conciliarComision('${p.id}', ${idx})"
+                        title="Marcar como cobrada"
+                        class="px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-xs font-bold hover:bg-green-500 hover:text-white transition-all">
+                        Conciliar
+                    </button>`;
+            } else if (estado === 'pendiente') {
+                botonesHtml = `
+                    <button onclick="abrirModalAclaracion('${p.id}', ${idx})"
+                        title="Enviar a aclaración"
+                        class="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg text-xs font-bold hover:bg-yellow-500 hover:text-white transition-all">
+                        Aclaración
+                    </button>
+                    <button onclick="conciliarComision('${p.id}', ${idx})"
+                        title="Marcar como cobrada"
+                        class="px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-xs font-bold hover:bg-green-500 hover:text-white transition-all">
+                        Conciliar
+                    </button>`;
+            } else {
+                botonesHtml = `<span class="text-green-500 text-xs font-bold flex items-center gap-1">
+                    <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL' 1">check_circle</span>
+                    Verificado</span>`;
+            }
+
+            const montoColor = estado === 'cobrada' ? 'text-green-400' : estado === 'aclaracion' ? 'text-yellow-400' : 'text-blue-400';
+            const rowBg      = esAclaracion ? 'hover:bg-yellow-500/5' : 'hover:bg-[#1a202a]';
+
             return `
-            <div class="grid grid-cols-2 md:grid-cols-12 gap-2 md:gap-4 px-4 py-3 hover:bg-[#1a202a] border-b border-[#2d3442]/50 items-center rounded-lg mx-2">
-                <div class="col-span-2 md:col-span-2 text-sm text-white font-bold md:font-normal truncate" title="${nombreCli}">${nombreCli}</div>
-                <div class="hidden md:block md:col-span-2 text-xs text-[#94a3b8] font-mono tracking-wider">${noPoliza}</div>
-                <div class="col-span-1 md:col-span-2 text-xs">
+            <div class="flex items-center px-4 py-3 ${rowBg} border-b border-[#2d3442]/50 min-w-max">
+                <div class="w-36 shrink-0 text-sm text-white font-medium truncate" title="${nombreCli}">
+                    ${nombreCli}${notaBadge}
+                </div>
+                <div class="w-32 shrink-0 text-xs text-[#94a3b8] font-mono tracking-wider truncate">${noPoliza}</div>
+                <div class="w-24 shrink-0 text-xs">
                     <span class="font-medium text-white">Pago ${idx + 1}</span>
                     <span class="block text-[10px] text-[#94a3b8] mt-0.5">lím: ${fechaLimiteFmt}</span>
                 </div>
-                <div class="hidden md:block md:col-span-2 text-xs text-[#94a3b8]">${fechaPagoFmt}</div>
-                <div class="col-span-1 md:col-span-2 text-right font-bold ${esC ? 'text-green-400' : 'text-blue-400'}">${formatoMoneda(m)}</div>
-                <div class="col-span-2 md:col-span-2 text-center mt-2 md:mt-0">
-                    ${!esC
-                        ? `<button onclick="marcarComisionCobrada('${p.id}', ${idx})" class="w-full md:w-auto px-4 py-2 md:py-1 bg-green-500/20 text-green-400 rounded-lg text-xs font-bold hover:bg-green-500 hover:text-white transition-all">Conciliar</button>`
-                        : `<span class="text-green-500 text-xs font-bold flex items-center justify-center gap-1"><span class="material-symbols-outlined text-sm">check_circle</span> Verificado</span>`}
-                </div>
+                <div class="w-32 shrink-0 text-xs text-[#94a3b8]">${fechaPagoFmt}</div>
+                <div class="w-28 shrink-0 text-right font-bold ${montoColor}">${formatoMoneda(montoReal)}</div>
+                ${colsDist}
+                <div class="w-52 shrink-0 flex items-center justify-center gap-2">${botonesHtml}</div>
             </div>`;
         }
 
-        async function marcarComisionCobrada(polizaId, indexPago) {
-            if (confirm("¿Confirmas que ya recibiste esta comisión?")) {
-                try {
-                    const { data: p, error: errFetch } = await window.supabaseClient.from('polizas').select('*').eq('id', polizaId).single();
+        // ============================================================
+        // Conciliar
+        // ============================================================
+        async function conciliarComision(polizaId, indexPago) {
+            if (!confirm(`¿Confirmas que ya recibiste la comisión del Pago ${indexPago + 1}?`)) return;
+            try {
+                const { data: p, error } = await window.supabaseClient
+                    .from('polizas').select('*').eq('id', polizaId).single();
+                if (error) throw error;
 
-                    if (errFetch) throw errFetch;
+                const totalCuotas = parseInt(p.finanzas?.formaPago) || 12;
 
-                    if (p) {
-                        const totalCuotas = parseInt(p.finanzas?.formaPago) || 12;
-                        // Asegurar que es un array válido
-                        let nuevosCobradasStatus = Array.isArray(p.comisiones_cobradas_status)
-                            ? [...p.comisiones_cobradas_status]
-                            : new Array(totalCuotas).fill(false);
+                let cobradas = Array.isArray(p.comisiones_cobradas_status)
+                    ? [...p.comisiones_cobradas_status]
+                    : new Array(totalCuotas).fill(false);
+                while (cobradas.length < totalCuotas) cobradas.push(false);
+                cobradas[indexPago] = true;
 
-                        // Si el array guardado es más corto que el actual (por cambios en pagos), rellenar
-                        if (nuevosCobradasStatus.length < totalCuotas) {
-                            const diff = totalCuotas - nuevosCobradasStatus.length;
-                            for (let i = 0; i < diff; i++) nuevosCobradasStatus.push(false);
-                        }
+                // Quitar de aclaración si estaba
+                let aclaracion = Array.isArray(p.comisiones_aclaracion_status)
+                    ? [...p.comisiones_aclaracion_status]
+                    : new Array(totalCuotas).fill(false);
+                while (aclaracion.length < totalCuotas) aclaracion.push(false);
+                aclaracion[indexPago] = false;
 
-                        nuevosCobradasStatus[indexPago] = true;
+                const { error: errUpd } = await window.supabaseClient.from('polizas').update({
+                    comisiones_cobradas_status:   cobradas,
+                    comisiones_aclaracion_status: aclaracion
+                }).eq('id', polizaId);
+                if (errUpd) throw errUpd;
 
-                        const { error: errUpdate } = await window.supabaseClient.from('polizas').update({
-                            comisiones_cobradas_status: nuevosCobradasStatus
-                        }).eq('id', polizaId);
-
-                        if (errUpdate) throw errUpdate;
-
-                        // Recargar todo
-                        await cargarComisiones();
-                        alert("✅ Comisión correspodiente al Pago " + (indexPago + 1) + " conciliada correctamente.");
-                    }
-                } catch (e) {
-                    console.error("Error al conciliar:", e);
-                    alert("Error al guardar la conciliación: " + (e.message || "Error desconocido"));
-                }
+                await cargarComisiones();
+            } catch (e) {
+                console.error('Error al conciliar:', e);
+                alert('Error al guardar: ' + (e.message || 'Error desconocido'));
             }
         }
 
+        // ============================================================
+        // Modal Aclaración
+        // ============================================================
+        function abrirModalAclaracion(polizaId, idx) {
+            _modalPolizaId = polizaId;
+            _modalIdx      = idx;
+            document.getElementById('notaAclaracion').value = '';
+            document.getElementById('modalAclaracion').classList.remove('hidden');
+        }
+
+        function cerrarModalAclaracion() {
+            document.getElementById('modalAclaracion').classList.add('hidden');
+            _modalPolizaId = null;
+            _modalIdx      = null;
+        }
+
+        async function confirmarAclaracion() {
+            const polizaId  = _modalPolizaId;
+            const indexPago = _modalIdx;
+            const nota      = document.getElementById('notaAclaracion').value.trim();
+            cerrarModalAclaracion();
+
+            try {
+                const { data: p, error } = await window.supabaseClient
+                    .from('polizas').select('*').eq('id', polizaId).single();
+                if (error) throw error;
+
+                const totalCuotas = parseInt(p.finanzas?.formaPago) || 12;
+
+                let aclaracion = Array.isArray(p.comisiones_aclaracion_status)
+                    ? [...p.comisiones_aclaracion_status]
+                    : new Array(totalCuotas).fill(false);
+                while (aclaracion.length < totalCuotas) aclaracion.push(false);
+                aclaracion[indexPago] = true;
+
+                const notas = { ...(p.comisiones_aclaracion_notas || {}) };
+                if (nota) notas[String(indexPago)] = nota;
+                else delete notas[String(indexPago)];
+
+                const { error: errUpd } = await window.supabaseClient.from('polizas').update({
+                    comisiones_aclaracion_status: aclaracion,
+                    comisiones_aclaracion_notas:  notas
+                }).eq('id', polizaId);
+                if (errUpd) throw errUpd;
+
+                await cargarComisiones();
+            } catch (e) {
+                console.error('Error al enviar a aclaración:', e);
+                alert('Error: ' + (e.message || 'Error desconocido'));
+            }
+        }
+
+        // ============================================================
+        // Regresar de Aclaración → Por Conciliar
+        // ============================================================
+        async function regresarDeAclaracion(polizaId, indexPago) {
+            try {
+                const { data: p, error } = await window.supabaseClient
+                    .from('polizas').select('*').eq('id', polizaId).single();
+                if (error) throw error;
+
+                const totalCuotas = parseInt(p.finanzas?.formaPago) || 12;
+
+                let aclaracion = Array.isArray(p.comisiones_aclaracion_status)
+                    ? [...p.comisiones_aclaracion_status]
+                    : new Array(totalCuotas).fill(false);
+                while (aclaracion.length < totalCuotas) aclaracion.push(false);
+                aclaracion[indexPago] = false;
+
+                const notas = { ...(p.comisiones_aclaracion_notas || {}) };
+                delete notas[String(indexPago)];
+
+                const { error: errUpd } = await window.supabaseClient.from('polizas').update({
+                    comisiones_aclaracion_status: aclaracion,
+                    comisiones_aclaracion_notas:  notas
+                }).eq('id', polizaId);
+                if (errUpd) throw errUpd;
+
+                await cargarComisiones();
+            } catch (e) {
+                console.error('Error al regresar de aclaración:', e);
+                alert('Error: ' + (e.message || 'Error desconocido'));
+            }
+        }
+
+        // ============================================================
+        // Utilidades
+        // ============================================================
         function toggleGrupo(id, headerEl) {
             const grupo = document.getElementById(id);
             if (!grupo) return;
@@ -271,9 +573,16 @@
             if (icon) icon.style.transform = collapsed ? '' : 'rotate(180deg)';
         }
 
-        function cambiarTab(t) { vistaActual = t; cargarComisiones(); }
-        function formatoMoneda(v) { return window.SegumexFinanzas.formatoMoneda(v); }
+        function cambiarTab(t) {
+            vistaActual = t;
+            document.getElementById('tabPendientes').className = t === 'pendientes'
+                ? 'px-6 py-3 text-sm font-bold border-b-2 border-primary text-primary'
+                : 'px-6 py-3 text-sm font-medium text-[#94a3b8] hover:text-white transition-colors';
+            document.getElementById('tabFinalizadas').className = t === 'finalizadas'
+                ? 'px-6 py-3 text-sm font-bold border-b-2 border-primary text-primary'
+                : 'px-6 py-3 text-sm font-medium text-[#94a3b8] hover:text-white transition-colors';
+            cargarComisiones();
+        }
     </script>
 </body>
-
 </html>
