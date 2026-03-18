@@ -219,7 +219,7 @@ Deno.serve(async (req) => {
                     telefono
                 )
             `)
-            .in('estado', ['activa', 'vigente'])
+            .in('estado', ['activa', 'vigente', 'activada', 'Activada', 'Vigente'])
             .or('domiciliada.is.null,domiciliada.eq.false');
 
         if (polizasError) throw new Error('Error cargando pólizas: ' + polizasError.message);
@@ -281,12 +281,16 @@ Deno.serve(async (req) => {
             const numeroPago = proximoPago.numero;
 
             // Calcular diferencia de días: positivo = faltan días, negativo = días vencido
-            const fechaPagoDate = new Date(fechaStr + 'T12:00:00');
+            // IMPORTANT: usar T00:00:00Z (UTC midnight) para evitar offset de 0.5 días con hoy
+            const fechaPagoDate = new Date(fechaStr + 'T00:00:00Z');
             const diffMs = fechaPagoDate.getTime() - hoy.getTime();
             const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
             const claveRegla = OFFSET_MAP.get(diffDias);
-            if (!claveRegla) continue; // No coincide con ningún recordatorio hoy
+            if (!claveRegla) {
+                console.log(`ℹ️ Póliza ${(poliza as any).no_poliza}: pago #${numeroPago} fecha=${fechaStr} diff=${diffDias}d — sin recordatorio programado hoy.`);
+                continue;
+            }
 
             const template = plantillas[claveRegla];
             if (!template) {
