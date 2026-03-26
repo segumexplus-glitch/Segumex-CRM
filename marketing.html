@@ -469,12 +469,11 @@
     let campanasProgramadas = [];
     let tabActual = 'oportunidades';
 
-    const SUPABASE_URL = 'https://mmhdpbygdvdyujiktvqa.supabase.co';
-    const SUPABASE_ANON = window.SUPABASE_ANON_KEY || '';
+    const MKT_URL = 'https://mmhdpbygdvdyujiktvqa.supabase.co';
 
     async function callFunction(name, body) {
         const { data: { session } } = await window.supabaseClient.auth.getSession();
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+        const res = await fetch(`${MKT_URL}/functions/v1/${name}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
