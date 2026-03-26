@@ -1,389 +1,1137 @@
 <!DOCTYPE html>
 <html class="dark" lang="es">
-
 <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Marketing Center - Segumex</title>
+    <title>Marketing IA - Segumex</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
-
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
-        rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <script>
-        // --- SCRIPT DE SEGURIDAD MODIFICADO ---
         (async function () {
             const { data: { session } } = await window.supabaseClient.auth.getSession();
-            if (!session) {
-                window.location.href = 'login.html';
-            }
+            if (!session) window.location.href = 'login.html';
         })();
-        // ---------------------------
-
         tailwind.config = {
             darkMode: "class",
             theme: {
                 extend: {
                     colors: {
                         "primary": "#3b82f6",
-                        "background-dark": "#0f111a",
-                        "surface-dark": "#161b22",
-                        "surface-card": "#1f242e",
+                        "bg-dark": "#0a0c14",
+                        "surface": "#111520",
+                        "card": "#181d2a",
+                        "border-dim": "#1e2536",
                     },
                     fontFamily: { "display": ["Inter", "sans-serif"] }
                 },
             },
         }
     </script>
+    <style>
+        body { background: #0a0c14; }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #1e2536; border-radius: 4px; }
+        .tab-btn { transition: all .2s; }
+        .tab-btn.active { background: #3b82f6; color: #fff; }
+        .tab-btn:not(.active) { color: #64748b; }
+        .tab-btn:not(.active):hover { color: #94a3b8; background: #1e2536; }
+        .score-bar { transition: width .6s cubic-bezier(.4,0,.2,1); }
+        .cal-day { aspect-ratio: 1; }
+        .cal-day.has-campaign { position: relative; }
+        .cal-day.has-campaign::after { content:''; position:absolute; bottom:2px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background:#3b82f6; }
+        .cal-day.today { background: rgba(59,130,246,.15); color:#3b82f6; font-weight:700; border-radius:6px; }
+        .tipo-badge { font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:2px 8px; border-radius:20px; }
+        .tipo-cross_sell { background:rgba(16,185,129,.15); color:#10b981; }
+        .tipo-fidelizacion { background:rgba(168,85,247,.15); color:#a855f7; }
+        .tipo-renovacion { background:rgba(245,158,11,.15); color:#f59e0b; }
+        .tipo-captacion { background:rgba(239,68,68,.15); color:#ef4444; }
+        .tipo-personalizada { background:rgba(59,130,246,.15); color:#3b82f6; }
+        .prioridad-alta { color:#ef4444; }
+        .prioridad-media { color:#f59e0b; }
+        .prioridad-baja { color:#22c55e; }
+        .glass-card { background: rgba(24,29,42,.7); border: 1px solid #1e2536; backdrop-filter: blur(8px); border-radius:16px; }
+        .shimmer { background: linear-gradient(90deg, #181d2a 25%, #1e2536 50%, #181d2a 75%); background-size: 400% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        .wa-bubble { background:#1e3a2f; border-radius:12px 12px 12px 2px; max-width:280px; }
+        .dropzone-active { border-color: #3b82f6 !important; background: rgba(59,130,246,.05) !important; }
+        .tipo-selector-btn { border: 1.5px solid #1e2536; border-radius:10px; transition: all .2s; cursor:pointer; }
+        .tipo-selector-btn.selected { border-color: #3b82f6; background: rgba(59,130,246,.1); }
+    </style>
 </head>
+<body class="font-display text-white" onload="initMarketing()">
 
-<body class="bg-background-dark font-display text-white relative" onload="initMarketing()">
-    <!-- Overlay Mobile -->
-    <div id="sidebarOverlay" onclick="toggleMenu()"
-        class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass transition-opacity"></div>
-
+    <div id="sidebarOverlay" onclick="toggleMenu()" class="fixed inset-0 bg-black/60 z-40 hidden md:hidden"></div>
     <div class="flex flex-col md:flex-row min-h-screen w-full">
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-[#1e2536] bg-[#111520] flex-shrink-0"></aside>
 
-        <aside id="sidebar"
-            class="fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col border-r border-[#2d3442] bg-[#161b22] flex-shrink-0 shadow-2xl md:shadow-none">
-        </aside>
-
-        <main class="flex-1 flex flex-col h-full relative w-full">
-            <!-- Mobile Header / Toggle -->
-            <div class="md:hidden p-4 pb-0 flex items-center gap-3 bg-[#161b22]">
+        <main class="flex-1 flex flex-col min-h-screen overflow-hidden">
+            <!-- Mobile header -->
+            <div class="md:hidden p-4 pb-0 flex items-center gap-3 bg-[#111520] border-b border-[#1e2536]">
                 <button onclick="toggleMenu()" class="p-2 -ml-2 text-white hover:bg-white/10 rounded-lg">
                     <span class="material-symbols-outlined text-2xl">menu</span>
                 </button>
-                <span class="font-bold text-lg">Segumex</span>
+                <span class="font-bold text-lg">Marketing IA</span>
             </div>
-            <header
-                class="h-auto md:h-16 py-4 md:py-0 border-b border-[#2d3442] bg-[#161b22] flex flex-col md:flex-row items-center justify-between px-6 shrink-0 gap-4">
-                <div class="flex items-center gap-4 w-full md:w-auto">
-                    <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">campaign</span> Centro de Marketing
-                    </h1>
+
+            <!-- Top header -->
+            <header class="hidden md:flex h-16 border-b border-[#1e2536] bg-[#111520]/80 backdrop-blur items-center justify-between px-6 shrink-0 sticky top-0 z-30">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-lg text-white">campaign</span>
+                    </div>
+                    <div>
+                        <h1 class="text-base font-bold text-white leading-none">Centro de Marketing IA</h1>
+                        <p class="text-[10px] text-[#475569] mt-0.5">Powered by Gemini 2.0</p>
+                    </div>
                 </div>
-                <div class="flex bg-[#0f111a] rounded-lg p-1 border border-[#2d3442] w-full md:w-auto overflow-x-auto">
-                    <button id="btnVistaCampana" onclick="cambiarVista('campana')"
-                        class="px-4 py-1.5 rounded-md text-xs font-bold bg-primary text-white transition-all whitespace-nowrap">Campañas</button>
-                    <button id="btnVistaFidelizacion" onclick="cambiarVista('fidelizacion')"
-                        class="px-4 py-1.5 rounded-md text-xs font-medium text-[#94a3b8] hover:text-white transition-all">Fidelización</button>
-                    <button id="btnVistaHistorial" onclick="cambiarVista('historial')"
-                        class="px-4 py-1.5 rounded-md text-xs font-medium text-[#94a3b8] hover:text-white transition-all">Historial</button>
+                <div class="flex items-center gap-2">
+                    <!-- Tabs -->
+                    <nav class="flex bg-[#0a0c14] rounded-xl p-1 border border-[#1e2536] gap-1" id="mainTabs">
+                        <button onclick="cambiarTab('oportunidades')" data-tab="oportunidades" class="tab-btn active px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-sm">bolt</span>Oportunidades
+                        </button>
+                        <button onclick="cambiarTab('campana')" data-tab="campana" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-sm">send</span>Nueva Campaña
+                        </button>
+                        <button onclick="cambiarTab('historial')" data-tab="historial" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-sm">history</span>Historial
+                        </button>
+                    </nav>
+                    <button onclick="pedirPermisoNotificaciones()" id="btnNotif" title="Activar notificaciones" class="p-2 rounded-lg border border-[#1e2536] text-[#475569] hover:text-yellow-400 hover:border-yellow-400/30 transition-all">
+                        <span class="material-symbols-outlined text-lg">notifications</span>
+                    </button>
                 </div>
             </header>
 
-            <div class="flex-1 overflow-hidden p-6">
-                <div id="vistaCampanas" class="max-w-[1600px] mx-auto h-full grid grid-cols-12 gap-6">
+            <!-- Main 3-column layout -->
+            <div class="flex-1 flex overflow-hidden">
 
-                    <div class="col-span-12 lg:col-span-5 flex flex-col gap-6 overflow-y-auto pr-2 custom-scroll">
-                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6 space-y-6">
-                            <h3
-                                class="text-lg font-bold flex items-center gap-2 text-primary border-b border-[#2d3442] pb-3">
-                                <span class="material-symbols-outlined">edit_note</span> 1. Crear Contenido
-                            </h3>
-                            <div>
-                                <label class="block text-xs font-bold text-[#94a3b8] uppercase mb-2">Nombre de la
-                                    Campaña</label>
-                                <input type="text" id="nombreCampana" placeholder="Ej: Promoción GMM Enero"
-                                    class="w-full bg-[#0f111a] border border-[#2d3442] rounded-lg text-white text-sm focus:border-primary outline-none">
+                <!-- LEFT: AI Suggestions panel -->
+                <aside class="hidden lg:flex flex-col w-72 xl:w-80 border-r border-[#1e2536] bg-[#111520]/50 shrink-0 overflow-hidden">
+                    <div class="p-4 border-b border-[#1e2536] flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-sm text-violet-400">psychology</span>
                             </div>
-                            <div>
-                                <label class="block text-xs font-bold text-[#94a3b8] uppercase mb-2">Imagen de la
-                                    Campaña</label>
-                                <div class="flex items-center justify-center w-full">
-                                    <label for="dropzone-file"
-                                        class="flex flex-col items-center justify-center w-full h-32 border-2 border-[#2d3442] border-dashed rounded-lg cursor-pointer bg-[#0f111a] hover:bg-[#161b22] transition-colors">
-                                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                                            <span
-                                                class="material-symbols-outlined text-[#94a3b8] text-3xl mb-2">cloud_upload</span>
-                                            <p class="mb-2 text-xs text-[#94a3b8] font-semibold">Haz clic para subir</p>
-                                        </div>
-                                        <input id="dropzone-file" type="file" class="hidden" accept="image/*"
-                                            onchange="procesarImagen(this)" />
-                                    </label>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-[#94a3b8] uppercase mb-2">Mensaje
-                                    Publicitario</label>
-                                <textarea id="textoMensaje" rows="5" onkeyup="previsualizar()"
-                                    placeholder="Redacta tu mensaje aquí..."
-                                    class="w-full bg-[#0f111a] border border-[#2d3442] rounded-lg text-white text-sm focus:border-primary outline-none resize-none"></textarea>
-                                <p class="text-[10px] text-[#94a3b8] mt-1 italic">Usa {nombre} para personalizar.</p>
-                            </div>
+                            <span class="text-sm font-bold text-white">Sugerencias IA</span>
                         </div>
-                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-6">
-                            <h3
-                                class="text-lg font-bold flex items-center gap-2 text-green-500 border-b border-[#2d3442] pb-3">
-                                <span class="material-symbols-outlined">send</span> 3. Ejecutar Acción
-                            </h3>
-                            <div class="grid grid-cols-2 gap-4 mt-6">
-                                <button onclick="lanzarWhatsApp()"
-                                    class="flex flex-col items-center justify-center gap-3 p-4 bg-green-500/10 border border-green-500/20 rounded-xl hover:bg-green-500/20 transition-all group">
-                                    <span
-                                        class="material-symbols-outlined text-3xl text-green-500 group-hover:scale-110 transition-transform">chat</span>
-                                    <span class="text-xs font-bold text-green-400">WhatsApp</span>
-                                </button>
-                                <button onclick="lanzarEmail()"
-                                    class="flex flex-col items-center justify-center gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl hover:bg-blue-500/20 transition-all group">
-                                    <span
-                                        class="material-symbols-outlined text-3xl text-blue-500 group-hover:scale-110 transition-transform">mail</span>
-                                    <span class="text-xs font-bold text-blue-400">Email</span>
-                                </button>
+                        <button onclick="cargarSugerencias()" id="btnRefreshSugerencias" title="Actualizar" class="p-1.5 rounded-lg hover:bg-[#1e2536] text-[#475569] hover:text-white transition-all">
+                            <span class="material-symbols-outlined text-base">refresh</span>
+                        </button>
+                    </div>
+                    <div class="flex-1 overflow-y-auto custom-scroll p-3 space-y-2" id="sugerenciasPanel">
+                        <!-- Shimmer loading -->
+                        <div class="shimmer h-24 w-full"></div>
+                        <div class="shimmer h-24 w-full"></div>
+                        <div class="shimmer h-24 w-full"></div>
+                    </div>
+                </aside>
+
+                <!-- CENTER: Main content -->
+                <div class="flex-1 overflow-y-auto custom-scroll">
+
+                    <!-- TAB: OPORTUNIDADES -->
+                    <div id="tabOportunidades" class="p-4 md:p-6 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-emerald-400">bolt</span>
+                                    Oportunidades de Venta Cruzada
+                                </h2>
+                                <p class="text-xs text-[#475569] mt-0.5">Clientes con mayor potencial de compra adicional</p>
+                            </div>
+                            <button onclick="cargarOportunidades()" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-all">
+                                <span class="material-symbols-outlined text-sm">refresh</span>Actualizar
+                            </button>
+                        </div>
+                        <!-- Score cards resumen -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="resumenOportunidades">
+                            <div class="shimmer h-16 rounded-xl"></div>
+                            <div class="shimmer h-16 rounded-xl"></div>
+                            <div class="shimmer h-16 rounded-xl"></div>
+                            <div class="shimmer h-16 rounded-xl"></div>
+                        </div>
+                        <!-- Table -->
+                        <div class="glass-card overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="border-b border-[#1e2536]">
+                                            <th class="text-left p-3 text-[10px] font-black uppercase tracking-widest text-[#475569]">Cliente</th>
+                                            <th class="text-left p-3 text-[10px] font-black uppercase tracking-widest text-[#475569]">Pólizas actuales</th>
+                                            <th class="text-left p-3 text-[10px] font-black uppercase tracking-widest text-[#475569]">Oportunidad</th>
+                                            <th class="text-left p-3 text-[10px] font-black uppercase tracking-widest text-[#475569]">Score</th>
+                                            <th class="text-right p-3 text-[10px] font-black uppercase tracking-widest text-[#475569]">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tablaOportunidades">
+                                        <tr><td colspan="5" class="p-8 text-center text-[#475569]"><div class="shimmer h-8 w-full"></div></td></tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
 
-                    <div class="col-span-12 lg:col-span-7 flex flex-col gap-6 overflow-hidden">
-                        <div
-                            class="h-80 bg-[#161b22] border border-[#2d3442] rounded-xl flex flex-col overflow-hidden shadow-lg">
-                            <div
-                                class="p-3 border-b border-[#2d3442] bg-[#0f111a] flex justify-between items-center shrink-0">
-                                <h3 class="text-sm font-bold text-[#94a3b8] flex items-center gap-2">
-                                    <span class="material-symbols-outlined text-primary text-base">group_add</span>
-                                    Seleccionar Clientes
+                    <!-- TAB: NUEVA CAMPAÑA -->
+                    <div id="tabCampana" class="hidden p-4 md:p-6">
+                        <div class="max-w-2xl mx-auto space-y-5">
+                            <!-- Nombre campaña -->
+                            <div class="glass-card p-5 space-y-4">
+                                <h3 class="text-sm font-bold text-[#94a3b8] uppercase tracking-widest flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary text-base">edit_note</span>Configurar campaña
                                 </h3>
-                                <div class="flex gap-3 items-center">
-                                    <span
-                                        class="text-[10px] font-bold bg-primary/20 text-primary px-2 py-0.5 rounded-full"
-                                        id="contadorSeleccion">0 seleccionados</span>
-                                    <button onclick="seleccionarTodos()"
-                                        class="text-xs text-[#94a3b8] hover:text-white hover:underline transition-colors">Todos</button>
+                                <div>
+                                    <label class="block text-xs font-semibold text-[#64748b] mb-1.5">Nombre de la campaña</label>
+                                    <input type="text" id="nombreCampana" placeholder="Ej: Oferta GMM Primavera 2026"
+                                        class="w-full bg-[#0a0c14] border border-[#1e2536] rounded-lg text-white text-sm p-3 focus:border-primary outline-none placeholder-[#334155]">
+                                </div>
+                                <!-- Tipo selector -->
+                                <div>
+                                    <label class="block text-xs font-semibold text-[#64748b] mb-2">Tipo de campaña</label>
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2" id="tipoSelectorGrid">
+                                        <div onclick="seleccionarTipo('cross_sell')" class="tipo-selector-btn selected p-3 text-center" data-tipo="cross_sell">
+                                            <span class="material-symbols-outlined text-emerald-400 text-xl">swap_horiz</span>
+                                            <p class="text-[11px] font-semibold text-white mt-1">Venta Cruzada</p>
+                                        </div>
+                                        <div onclick="seleccionarTipo('renovacion')" class="tipo-selector-btn p-3 text-center" data-tipo="renovacion">
+                                            <span class="material-symbols-outlined text-yellow-400 text-xl">autorenew</span>
+                                            <p class="text-[11px] font-semibold text-white mt-1">Renovación</p>
+                                        </div>
+                                        <div onclick="seleccionarTipo('fidelizacion')" class="tipo-selector-btn p-3 text-center" data-tipo="fidelizacion">
+                                            <span class="material-symbols-outlined text-violet-400 text-xl">favorite</span>
+                                            <p class="text-[11px] font-semibold text-white mt-1">Fidelización</p>
+                                        </div>
+                                        <div onclick="seleccionarTipo('personalizada')" class="tipo-selector-btn p-3 text-center" data-tipo="personalizada">
+                                            <span class="material-symbols-outlined text-blue-400 text-xl">tune</span>
+                                            <p class="text-[11px] font-semibold text-white mt-1">Personalizada</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Producto objetivo -->
+                                <div id="productoContainer">
+                                    <label class="block text-xs font-semibold text-[#64748b] mb-1.5">Producto a ofrecer</label>
+                                    <select id="productoObjetivo" class="w-full bg-[#0a0c14] border border-[#1e2536] rounded-lg text-white text-sm p-3 focus:border-primary outline-none">
+                                        <option value="GMM">Gastos Médicos Mayores (GMM)</option>
+                                        <option value="Vida">Seguro de Vida</option>
+                                        <option value="Auto">Seguro de Auto</option>
+                                        <option value="Casa">Seguro de Casa</option>
+                                        <option value="Negocio">Seguro de Negocio</option>
+                                    </select>
                                 </div>
                             </div>
-                            <div class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1" id="listaClientesMarketing">
-                            </div>
-                        </div>
-                        <div class="h-48 bg-[#0f111a] border border-[#2d3442] rounded-xl p-4 flex gap-4 items-center">
-                            <div
-                                class="w-32 h-full bg-[#161b22] rounded-lg overflow-hidden border border-[#2d3442] shrink-0">
-                                <img id="imgPreview" src="" class="w-full h-full object-contain hidden">
-                                <div id="imgPlaceholder"
-                                    class="w-full h-full flex items-center justify-center text-[#2d3442]"><span
-                                        class="material-symbols-outlined text-4xl">image</span></div>
-                            </div>
-                            <div class="flex-1">
-                                <p class="text-[10px] font-bold text-primary uppercase mb-1 italic">Vista Previa</p>
-                                <div id="txtPreview" class="text-xs text-[#94a3b8] italic line-clamp-4">Tu mensaje
-                                    aparecerá aquí...</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <div id="vistaFidelizacion" class="hidden max-w-[1200px] mx-auto h-full overflow-y-auto custom-scroll">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div class="space-y-4">
-                            <h3 class="text-lg font-bold flex items-center gap-2 text-pink-500"><span
-                                    class="material-symbols-outlined">cake</span> Cumpleaños</h3>
-                            <div id="listaCumpleanos" class="space-y-3"></div>
-                        </div>
-                        <div class="space-y-4">
-                            <h3 class="text-lg font-bold flex items-center gap-2 text-yellow-500"><span
-                                    class="material-symbols-outlined">workspace_premium</span> Aniversarios</h3>
-                            <div id="listaAniversarios" class="space-y-3"></div>
-                        </div>
-                    </div>
-                </div>
+                            <!-- Imagen y mensaje -->
+                            <div class="glass-card p-5 space-y-4">
+                                <h3 class="text-sm font-bold text-[#94a3b8] uppercase tracking-widest flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary text-base">image</span>Contenido del mensaje
+                                </h3>
+                                <!-- Image upload -->
+                                <div>
+                                    <label class="block text-xs font-semibold text-[#64748b] mb-1.5">Imagen de campaña <span class="text-[#334155] font-normal">(opcional, se envía con el mensaje)</span></label>
+                                    <div id="dropzoneArea" ondragover="event.preventDefault();this.classList.add('dropzone-active')" ondragleave="this.classList.remove('dropzone-active')" ondrop="handleDrop(event)"
+                                        class="relative border-2 border-dashed border-[#1e2536] rounded-xl p-4 transition-all hover:border-primary/50 cursor-pointer bg-[#0a0c14]">
+                                        <input type="file" id="imagenInput" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onchange="procesarImagen(this)">
+                                        <div id="dropzonePlaceholder" class="flex flex-col items-center py-4 gap-2">
+                                            <span class="material-symbols-outlined text-4xl text-[#334155]">cloud_upload</span>
+                                            <p class="text-sm text-[#475569]">Arrastra una imagen o <span class="text-primary font-semibold">haz clic para seleccionar</span></p>
+                                            <p class="text-[10px] text-[#334155]">JPG, PNG — Máx 5MB</p>
+                                        </div>
+                                        <div id="dropzonePreview" class="hidden flex-col items-center gap-3">
+                                            <img id="previewImg" class="h-32 object-contain rounded-lg">
+                                            <button type="button" onclick="limpiarImagen(event)" class="text-xs text-red-400 hover:text-red-300 flex items-center gap-1">
+                                                <span class="material-symbols-outlined text-sm">delete</span>Quitar imagen
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="uploadProgress" class="hidden mt-2">
+                                        <div class="flex items-center gap-2 text-xs text-[#64748b]">
+                                            <div class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                            Subiendo imagen...
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Mensaje -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-1.5">
+                                        <label class="text-xs font-semibold text-[#64748b]">Mensaje</label>
+                                        <button onclick="generarMensajeIA()" id="btnGenerarMsg" class="flex items-center gap-1.5 px-3 py-1 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-lg text-xs font-semibold hover:bg-violet-500/20 transition-all">
+                                            <span class="material-symbols-outlined text-sm">auto_awesome</span>Generar con IA
+                                        </button>
+                                    </div>
+                                    <textarea id="textoMensaje" rows="4" oninput="actualizarPrevisualizacion()" placeholder="Escribe tu mensaje aquí o usa IA para generarlo..."
+                                        class="w-full bg-[#0a0c14] border border-[#1e2536] rounded-lg text-white text-sm p-3 focus:border-primary outline-none resize-none placeholder-[#334155]"></textarea>
+                                    <div class="flex justify-between mt-1">
+                                        <p class="text-[10px] text-[#475569] italic">Usa <span class="text-primary font-mono">{nombre}</span> para personalizar el saludo</p>
+                                        <span class="text-[10px] text-[#475569]" id="charCount">0 / 220</span>
+                                    </div>
+                                </div>
+                            </div>
 
-                <div id="vistaHistorial"
-                    class="hidden max-w-[1200px] mx-auto h-full overflow-y-auto custom-scroll pb-10">
-                    <div class="space-y-4">
-                        <h3 class="text-xl font-bold flex items-center gap-2 text-[#94a3b8] mb-6">
-                            <span class="material-symbols-outlined">history</span> Historial de Campañas
-                        </h3>
-                        <div id="listaHistorial" class="space-y-4"></div>
+                            <!-- Selección de clientes -->
+                            <div class="glass-card p-5 space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-sm font-bold text-[#94a3b8] uppercase tracking-widest flex items-center gap-2">
+                                        <span class="material-symbols-outlined text-primary text-base">group</span>Destinatarios
+                                    </h3>
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-[11px] font-bold bg-primary/15 text-primary px-2.5 py-1 rounded-full" id="contadorSeleccion">0 seleccionados</span>
+                                        <button onclick="seleccionarTodos()" class="text-xs text-[#64748b] hover:text-white transition-colors">Todos</button>
+                                        <button onclick="deseleccionarTodos()" class="text-xs text-[#64748b] hover:text-white transition-colors">Ninguno</button>
+                                    </div>
+                                </div>
+                                <!-- Filtros rápidos -->
+                                <div class="flex gap-2 flex-wrap">
+                                    <button onclick="filtrarClientes('todos')" class="filtro-btn active px-3 py-1.5 rounded-lg bg-primary/15 border border-primary/20 text-primary text-xs font-semibold">Todos</button>
+                                    <button onclick="filtrarClientes('con_poliza')" class="filtro-btn px-3 py-1.5 rounded-lg border border-[#1e2536] text-[#64748b] text-xs font-semibold hover:border-primary/30 hover:text-primary transition-all">Con póliza</button>
+                                    <button onclick="filtrarClientes('sin_poliza')" class="filtro-btn px-3 py-1.5 rounded-lg border border-[#1e2536] text-[#64748b] text-xs font-semibold hover:border-primary/30 hover:text-primary transition-all">Sin póliza</button>
+                                    <button onclick="filtrarClientes('antiguos')" class="filtro-btn px-3 py-1.5 rounded-lg border border-[#1e2536] text-[#64748b] text-xs font-semibold hover:border-primary/30 hover:text-primary transition-all">+1 año</button>
+                                </div>
+                                <div class="relative">
+                                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#475569] text-sm">search</span>
+                                    <input type="text" id="buscarCliente" oninput="filtrarBusqueda(this.value)" placeholder="Buscar por nombre o teléfono..."
+                                        class="w-full bg-[#0a0c14] border border-[#1e2536] rounded-lg text-white text-sm pl-9 pr-3 py-2.5 focus:border-primary outline-none placeholder-[#334155]">
+                                </div>
+                                <div class="max-h-52 overflow-y-auto custom-scroll space-y-0.5 rounded-lg border border-[#1e2536] bg-[#0a0c14]" id="listaClientesCampana"></div>
+                            </div>
+
+                            <!-- ENVÍO DE PRUEBA -->
+                            <div class="glass-card p-5 space-y-3 border-yellow-500/20">
+                                <h3 class="text-sm font-bold text-yellow-400 uppercase tracking-widest flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-base">science</span>Envío de Prueba
+                                    <span class="text-[10px] font-normal text-[#475569] normal-case tracking-normal ml-1">Verifica cómo se verá antes del envío real</span>
+                                </h3>
+                                <!-- WhatsApp preview bubble -->
+                                <div class="bg-[#0a0c14] rounded-xl p-4 border border-[#1e2536]">
+                                    <p class="text-[10px] font-bold text-[#475569] uppercase tracking-widest mb-3">Vista Previa WhatsApp</p>
+                                    <div class="flex gap-3">
+                                        <div id="previewImageThumb" class="hidden w-20 h-20 rounded-lg overflow-hidden border border-[#1e2536] shrink-0">
+                                            <img id="previewImgThumb" class="w-full h-full object-cover">
+                                        </div>
+                                        <div class="wa-bubble p-3 flex-1">
+                                            <p id="previewTexto" class="text-[13px] text-white whitespace-pre-wrap">Tu mensaje aparecerá aquí...</p>
+                                            <p class="text-[10px] text-[#475569] text-right mt-2">12:00 ✓✓</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex gap-3">
+                                    <div class="flex-1">
+                                        <label class="block text-xs font-semibold text-[#64748b] mb-1.5">Teléfono para prueba</label>
+                                        <input type="tel" id="telefonoPrueba" placeholder="10 dígitos Ej: 5512345678"
+                                            class="w-full bg-[#0a0c14] border border-[#1e2536] rounded-lg text-white text-sm p-2.5 focus:border-yellow-500 outline-none placeholder-[#334155]">
+                                    </div>
+                                    <div class="flex items-end">
+                                        <button onclick="enviarPrueba()" id="btnEnviarPrueba" class="flex items-center gap-2 px-4 py-2.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded-lg text-sm font-semibold hover:bg-yellow-500/20 transition-all whitespace-nowrap">
+                                            <span class="material-symbols-outlined text-base">send</span>Enviar prueba
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Acciones finales -->
+                            <div class="glass-card p-5 space-y-3">
+                                <h3 class="text-sm font-bold text-[#94a3b8] uppercase tracking-widest flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary text-base">rocket_launch</span>Ejecutar campaña
+                                </h3>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <button onclick="programarCampana()" class="flex flex-col items-center gap-2 p-4 rounded-xl border border-[#1e2536] hover:border-blue-500/40 hover:bg-blue-500/5 transition-all group">
+                                        <span class="material-symbols-outlined text-2xl text-[#475569] group-hover:text-blue-400 transition-colors">calendar_add_on</span>
+                                        <span class="text-xs font-semibold text-[#64748b] group-hover:text-blue-400 transition-colors">Programar para después</span>
+                                    </button>
+                                    <button onclick="lanzarCampana()" id="btnLanzar" class="flex flex-col items-center gap-2 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all group">
+                                        <span class="material-symbols-outlined text-2xl text-emerald-400 group-hover:scale-110 transition-transform">send</span>
+                                        <span class="text-xs font-semibold text-emerald-400">Enviar ahora por WhatsApp</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
+
+                    <!-- TAB: HISTORIAL -->
+                    <div id="tabHistorial" class="hidden p-4 md:p-6 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[#475569]">history</span>Historial de Campañas
+                            </h2>
+                        </div>
+                        <div class="space-y-3" id="listaHistorial">
+                            <div class="shimmer h-20 rounded-xl"></div>
+                            <div class="shimmer h-20 rounded-xl"></div>
+                        </div>
+                    </div>
+
+                </div><!-- /CENTER -->
+
+                <!-- RIGHT: Mini Calendar -->
+                <aside class="hidden xl:flex flex-col w-72 border-l border-[#1e2536] bg-[#111520]/50 shrink-0 overflow-hidden">
+                    <div class="p-4 border-b border-[#1e2536]">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-sm text-blue-400">calendar_month</span>
+                            </div>
+                            <span class="text-sm font-bold text-white">Calendario</span>
+                        </div>
+                        <p class="text-[10px] text-[#475569]">Programa y visualiza campañas</p>
+                    </div>
+                    <!-- Mini calendar -->
+                    <div class="p-4 border-b border-[#1e2536]">
+                        <div class="flex items-center justify-between mb-3">
+                            <button onclick="cambiarMesCal(-1)" class="p-1 rounded hover:bg-[#1e2536] text-[#475569] hover:text-white transition-all">
+                                <span class="material-symbols-outlined text-base">chevron_left</span>
+                            </button>
+                            <span class="text-sm font-bold text-white" id="calMesAnio"></span>
+                            <button onclick="cambiarMesCal(1)" class="p-1 rounded hover:bg-[#1e2536] text-[#475569] hover:text-white transition-all">
+                                <span class="material-symbols-outlined text-base">chevron_right</span>
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-7 gap-0.5 text-center mb-1">
+                            <div class="text-[9px] font-black text-[#334155] uppercase">L</div>
+                            <div class="text-[9px] font-black text-[#334155] uppercase">M</div>
+                            <div class="text-[9px] font-black text-[#334155] uppercase">M</div>
+                            <div class="text-[9px] font-black text-[#334155] uppercase">J</div>
+                            <div class="text-[9px] font-black text-[#334155] uppercase">V</div>
+                            <div class="text-[9px] font-black text-[#334155] uppercase">S</div>
+                            <div class="text-[9px] font-black text-[#334155] uppercase">D</div>
+                        </div>
+                        <div class="grid grid-cols-7 gap-0.5" id="calGrid"></div>
+                    </div>
+                    <!-- Upcoming campaigns -->
+                    <div class="flex-1 overflow-y-auto custom-scroll p-4 space-y-2">
+                        <p class="text-[10px] font-black text-[#334155] uppercase tracking-widest mb-3">Próximas campañas</p>
+                        <div id="proximasCampanas">
+                            <p class="text-xs text-[#334155] italic">Sin campañas programadas</p>
+                        </div>
+                    </div>
+                </aside>
+
+            </div><!-- /3-col -->
         </main>
     </div>
 
-    <div id="modalDetalle"
-        class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div
-            class="bg-surface-card border border-[#2d3442] w-full max-w-2xl rounded-2xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div class="p-6 border-b border-[#2d3442] flex justify-between items-center">
-                <h2 class="text-xl font-bold text-white flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">info</span> Detalle de Campaña
-                </h2>
-                <button onclick="cerrarModal()" class="text-[#94a3b8] hover:text-white transition-colors">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
+    <!-- MODAL: Programar campaña -->
+    <div id="modalProgramar" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-[#181d2a] border border-[#1e2536] rounded-2xl w-full max-w-md">
+            <div class="p-5 border-b border-[#1e2536] flex justify-between items-center">
+                <h3 class="font-bold text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">calendar_add_on</span>Programar campaña
+                </h3>
+                <button onclick="cerrarModalProgramar()" class="text-[#475569] hover:text-white"><span class="material-symbols-outlined">close</span></button>
             </div>
-            <div class="p-6 overflow-y-auto space-y-6" id="contenidoModal">
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-[#64748b] mb-1.5">Fecha y hora de envío</label>
+                    <input type="datetime-local" id="fechaProgramada" class="w-full bg-[#0a0c14] border border-[#1e2536] rounded-lg text-white text-sm p-3 focus:border-primary outline-none">
+                </div>
+                <div class="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3">
+                    <p class="text-xs text-blue-400">La campaña quedará guardada en el calendario. Cuando llegue la fecha recibirás una notificación push para enviarla.</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="cerrarModalProgramar()" class="flex-1 py-2.5 rounded-xl border border-[#1e2536] text-[#64748b] text-sm font-semibold hover:border-[#2d3442] transition-all">Cancelar</button>
+                    <button onclick="confirmarProgramar()" class="flex-1 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-blue-600 transition-all">Guardar en calendario</button>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- MODAL: Detalle historial -->
+    <div id="modalDetalle" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-[#181d2a] border border-[#1e2536] rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <div class="p-5 border-b border-[#1e2536] flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">info</span>Detalle de campaña
+                </h3>
+                <button onclick="cerrarModalDetalle()" class="text-[#475569] hover:text-white"><span class="material-symbols-outlined">close</span></button>
+            </div>
+            <div class="p-5 overflow-y-auto custom-scroll" id="contenidoModalDetalle"></div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+        <div id="toastContent" class="flex items-center gap-3 px-4 py-3 rounded-xl border shadow-2xl text-sm font-semibold"></div>
+    </div>
+
     <script src="menu.js"></script>
     <script>
-        let clientesSeleccionados = new Set();
-        let listaClientesGlobal = [];
-        let imagenBase64 = "";
+    // ============================================================
+    // ESTADO GLOBAL
+    // ============================================================
+    let clientesGlobal = [];
+    let polizasGlobal = [];
+    let clientesSeleccionados = new Set();
+    let imagenPath = null;   // path en Supabase Storage
+    let imagenBase64 = null; // para preview local
+    let tipoCampanaActual = 'cross_sell';
+    let calFecha = new Date();
+    let campanasProgramadas = [];
+    let tabActual = 'oportunidades';
 
-        async function initMarketing() {
-            // --- CONSULTA SUPABASE ---
-            const { data: clientes } = await window.supabaseClient.from('clientes').select('*');
-            listaClientesGlobal = clientes || [];
+    const SUPABASE_URL = 'https://mmhdpbygdvdyujiktvqa.supabase.co';
+    const SUPABASE_ANON = window.SUPABASE_ANON_KEY || '';
 
-            renderLista();
-            await renderFidelizacion();
-            await renderHistorial();
-        }
+    async function callFunction(name, body) {
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session?.access_token || ''}`
+            },
+            body: JSON.stringify(body)
+        });
+        return res.json();
+    }
 
-        function cambiarVista(vista) {
-            ['vistaCampanas', 'vistaFidelizacion', 'vistaHistorial'].forEach(v => document.getElementById(v).classList.add('hidden'));
-            ['btnVistaCampana', 'btnVistaFidelizacion', 'btnVistaHistorial'].forEach(b => {
-                document.getElementById(b).className = "px-4 py-1.5 rounded-md text-xs font-medium text-[#94a3b8] hover:text-white transition-all";
-            });
-            const targetView = vista === 'campana' ? 'vistaCampanas' : vista === 'fidelizacion' ? 'vistaFidelizacion' : 'vistaHistorial';
-            const targetBtn = vista === 'campana' ? 'btnVistaCampana' : vista === 'fidelizacion' ? 'btnVistaFidelizacion' : 'btnVistaHistorial';
-            document.getElementById(targetView).classList.remove('hidden');
-            document.getElementById(targetBtn).className = "px-4 py-1.5 rounded-md text-xs font-bold bg-primary text-white transition-all";
-            if (vista === 'historial') renderHistorial();
-        }
+    // ============================================================
+    // INIT
+    // ============================================================
+    async function initMarketing() {
+        pedirPermisoNotificaciones();
+        await Promise.all([
+            cargarClientes(),
+            renderCalendario(),
+            cargarProximasCampanas()
+        ]);
+        await Promise.all([
+            cargarSugerencias(),
+            cargarOportunidades(),
+            renderHistorial()
+        ]);
+        verificarCampanasHoy();
+    }
 
-        function renderLista() {
-            const cont = document.getElementById('listaClientesMarketing');
-            cont.innerHTML = listaClientesGlobal.map(c => `
-            <div class="flex items-center gap-4 p-3 hover:bg-[#161b22] border-b border-[#2d3442]/30 transition-colors">
-                <input type="checkbox" onchange="toggleCliente('${c.id}')" class="rounded border-[#2d3442] bg-transparent text-primary focus:ring-0 cursor-pointer">
-                <div class="flex-1">
-                    <p class="text-sm font-medium text-white">${c.nombre} ${c.apellido || ''}</p>
-                    <p class="text-[10px] text-[#94a3b8]">${c.telefono || 'Sin Tel'} • ${c.email || 'Sin Email'}</p>
+    // ============================================================
+    // TABS
+    // ============================================================
+    function cambiarTab(tab) {
+        tabActual = tab;
+        ['oportunidades', 'campana', 'historial'].forEach(t => {
+            document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.add('hidden');
+        });
+        document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.remove('hidden');
+
+        document.querySelectorAll('#mainTabs .tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+
+        if (tab === 'historial') renderHistorial();
+    }
+
+    // ============================================================
+    // CLIENTES
+    // ============================================================
+    async function cargarClientes() {
+        const { data: clientes } = await window.supabaseClient.from('clientes').select('*');
+        const { data: polizas } = await window.supabaseClient.from('polizas').select('cliente_id, ramo, estado').in('estado', ['activa', 'vigente']);
+        clientesGlobal = clientes || [];
+        polizasGlobal = polizas || [];
+        renderListaClientes(clientesGlobal);
+    }
+
+    function renderListaClientes(lista) {
+        const cont = document.getElementById('listaClientesCampana');
+        if (!lista.length) { cont.innerHTML = '<p class="p-4 text-xs text-[#475569] text-center">No hay clientes</p>'; return; }
+        cont.innerHTML = lista.map(c => {
+            const pol = polizasGlobal.filter(p => String(p.cliente_id) === String(c.id));
+            const selected = clientesSeleccionados.has(String(c.id));
+            return `<label class="flex items-center gap-3 p-2.5 hover:bg-[#111520] cursor-pointer transition-colors border-b border-[#1e2536]/50 last:border-0">
+                <input type="checkbox" ${selected ? 'checked' : ''} onchange="toggleCliente('${c.id}')" class="rounded border-[#1e2536] bg-transparent text-primary focus:ring-0 focus:ring-offset-0 shrink-0">
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-white truncate">${c.nombre} ${c.apellido || ''}</p>
+                    <p class="text-[10px] text-[#475569]">${c.telefono || 'Sin tel'} ${pol.length ? `• ${pol.map(p => p.ramo).join(', ')}` : '• Sin pólizas'}</p>
                 </div>
-            </div>`).join('');
-        }
+                ${!pol.length ? '<span class="text-[9px] font-bold text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">Sin póliza</span>' : ''}
+            </label>`;
+        }).join('');
+    }
 
-        async function guardarEnHistorial(tipo, nombreCampana, mensaje, destinatarios, img) {
-            const campaña = {
-                fecha: new Date().toLocaleString('es-MX'),
-                tipo,
-                nombre: nombreCampana || "Campaña sin nombre",
+    function toggleCliente(id) {
+        if (clientesSeleccionados.has(String(id))) clientesSeleccionados.delete(String(id));
+        else clientesSeleccionados.add(String(id));
+        actualizarContador();
+    }
+
+    function seleccionarTodos() {
+        clientesGlobal.forEach(c => clientesSeleccionados.add(String(c.id)));
+        renderListaClientes(clientesGlobal);
+        actualizarContador();
+    }
+
+    function deseleccionarTodos() {
+        clientesSeleccionados.clear();
+        renderListaClientes(clientesGlobal);
+        actualizarContador();
+    }
+
+    function actualizarContador() {
+        document.getElementById('contadorSeleccion').textContent = `${clientesSeleccionados.size} seleccionados`;
+    }
+
+    let filtroActivo = 'todos';
+    function filtrarClientes(tipo) {
+        filtroActivo = tipo;
+        document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('active', 'bg-primary/15', 'border-primary/20', 'text-primary'));
+        event.target.classList.add('active', 'bg-primary/15', 'border-primary/20', 'text-primary');
+        aplicarFiltros();
+    }
+
+    function filtrarBusqueda(q) { aplicarFiltros(q); }
+
+    function aplicarFiltros(q = '') {
+        let lista = clientesGlobal;
+        if (filtroActivo === 'con_poliza') lista = lista.filter(c => polizasGlobal.some(p => String(p.cliente_id) === String(c.id)));
+        if (filtroActivo === 'sin_poliza') lista = lista.filter(c => !polizasGlobal.some(p => String(p.cliente_id) === String(c.id)));
+        if (filtroActivo === 'antiguos') {
+            const hace365 = Date.now() - 365 * 86400000;
+            lista = lista.filter(c => new Date(c.created_at).getTime() < hace365);
+        }
+        if (q) lista = lista.filter(c => `${c.nombre} ${c.apellido || ''} ${c.telefono || ''}`.toLowerCase().includes(q.toLowerCase()));
+        renderListaClientes(lista);
+    }
+
+    // ============================================================
+    // TIPO CAMPAÑA
+    // ============================================================
+    function seleccionarTipo(tipo) {
+        tipoCampanaActual = tipo;
+        document.querySelectorAll('.tipo-selector-btn').forEach(b => {
+            b.classList.toggle('selected', b.dataset.tipo === tipo);
+        });
+    }
+
+    // ============================================================
+    // IMAGEN
+    // ============================================================
+    async function procesarImagen(input) {
+        if (!input.files?.[0]) return;
+        const file = input.files[0];
+        if (file.size > 5 * 1024 * 1024) { mostrarToast('Imagen muy grande (máx 5MB)', 'error'); return; }
+
+        // Preview local
+        const reader = new FileReader();
+        reader.onload = e => {
+            imagenBase64 = e.target.result;
+            document.getElementById('previewImg').src = imagenBase64;
+            document.getElementById('previewImgThumb').src = imagenBase64;
+            document.getElementById('dropzonePlaceholder').classList.add('hidden');
+            document.getElementById('dropzonePreview').classList.remove('hidden');
+            document.getElementById('dropzonePreview').classList.add('flex');
+            document.getElementById('previewImageThumb').classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+
+        // Upload to Supabase Storage
+        document.getElementById('uploadProgress').classList.remove('hidden');
+        const ext = file.name.split('.').pop();
+        const path = `campanas/${Date.now()}.${ext}`;
+        const { data, error } = await window.supabaseClient.storage.from('marketing-images').upload(path, file, { upsert: true });
+        document.getElementById('uploadProgress').classList.add('hidden');
+
+        if (error) { mostrarToast('Error al subir imagen: ' + error.message, 'error'); return; }
+        imagenPath = data.path;
+        mostrarToast('Imagen lista', 'success');
+    }
+
+    function handleDrop(event) {
+        event.preventDefault();
+        document.getElementById('dropzoneArea').classList.remove('dropzone-active');
+        const file = event.dataTransfer.files[0];
+        if (file) { const dt = new DataTransfer(); dt.items.add(file); document.getElementById('imagenInput').files = dt.files; procesarImagen(document.getElementById('imagenInput')); }
+    }
+
+    function limpiarImagen(e) {
+        e.stopPropagation();
+        imagenPath = null; imagenBase64 = null;
+        document.getElementById('previewImg').src = '';
+        document.getElementById('previewImgThumb').src = '';
+        document.getElementById('imagenInput').value = '';
+        document.getElementById('dropzonePlaceholder').classList.remove('hidden');
+        document.getElementById('dropzonePreview').classList.add('hidden');
+        document.getElementById('dropzonePreview').classList.remove('flex');
+        document.getElementById('previewImageThumb').classList.add('hidden');
+        actualizarPrevisualizacion();
+    }
+
+    // ============================================================
+    // PREVISUALIZACIÓN
+    // ============================================================
+    function actualizarPrevisualizacion() {
+        const msg = document.getElementById('textoMensaje').value;
+        document.getElementById('previewTexto').textContent = msg.replace('{nombre}', 'Juan') || 'Tu mensaje aparecerá aquí...';
+        const len = msg.length;
+        const charCount = document.getElementById('charCount');
+        charCount.textContent = `${len} / 220`;
+        charCount.className = len > 200 ? 'text-[10px] text-yellow-400' : 'text-[10px] text-[#475569]';
+    }
+
+    // ============================================================
+    // GENERAR MENSAJE CON IA
+    // ============================================================
+    async function generarMensajeIA() {
+        const btn = document.getElementById('btnGenerarMsg');
+        btn.innerHTML = '<span class="animate-spin material-symbols-outlined text-sm">refresh</span>Generando...';
+        btn.disabled = true;
+        try {
+            const producto = document.getElementById('productoObjetivo').value;
+            const data = await callFunction('marketing-ai', {
+                action: 'generar_mensaje',
+                tipo_campana: tipoCampanaActual,
+                producto,
+                segmento: filtroActivo === 'todos' ? 'clientes actuales' : filtroActivo
+            });
+            if (data.mensaje) {
+                document.getElementById('textoMensaje').value = data.mensaje;
+                actualizarPrevisualizacion();
+                mostrarToast('Mensaje generado con IA', 'success');
+            }
+        } catch { mostrarToast('Error al generar mensaje', 'error'); }
+        btn.innerHTML = '<span class="material-symbols-outlined text-sm">auto_awesome</span>Generar con IA';
+        btn.disabled = false;
+    }
+
+    // ============================================================
+    // ENVÍO DE PRUEBA
+    // ============================================================
+    async function enviarPrueba() {
+        const telefono = document.getElementById('telefonoPrueba').value.trim();
+        const mensaje = document.getElementById('textoMensaje').value.trim();
+        if (!telefono || telefono.length < 10) { mostrarToast('Ingresa un teléfono válido de 10 dígitos', 'error'); return; }
+        if (!mensaje) { mostrarToast('Escribe un mensaje primero', 'error'); return; }
+
+        const btn = document.getElementById('btnEnviarPrueba');
+        btn.innerHTML = '<span class="animate-spin material-symbols-outlined text-base">refresh</span>Enviando...';
+        btn.disabled = true;
+        try {
+            const data = await callFunction('marketing-ai', {
+                action: 'enviar_prueba',
                 mensaje,
-                conteo: destinatarios.length,
-                destinatarios,
-                imagen: img
-            };
+                imagen_path: imagenPath,
+                telefono_prueba: telefono
+            });
+            if (data.success) mostrarToast('¡Prueba enviada! Revisa tu WhatsApp', 'success');
+            else mostrarToast('No se pudo enviar la prueba', 'error');
+        } catch { mostrarToast('Error de conexión', 'error'); }
+        btn.innerHTML = '<span class="material-symbols-outlined text-base">send</span>Enviar prueba';
+        btn.disabled = false;
+    }
 
-            await window.supabaseClient.from('historial_marketing').insert([campaña]);
-        }
+    // ============================================================
+    // LANZAR CAMPAÑA
+    // ============================================================
+    async function lanzarCampana() {
+        const nombre = document.getElementById('nombreCampana').value.trim();
+        const mensaje = document.getElementById('textoMensaje').value.trim();
+        if (!nombre) { mostrarToast('Escribe un nombre para la campaña', 'error'); return; }
+        if (!mensaje) { mostrarToast('Escribe el mensaje de la campaña', 'error'); return; }
+        if (clientesSeleccionados.size === 0) { mostrarToast('Selecciona al menos un destinatario', 'error'); return; }
 
-        async function renderHistorial() {
-            const cont = document.getElementById('listaHistorial');
-            const { data: historial } = await window.supabaseClient.from('historial_marketing').select('*').order('created_at', { ascending: false });
+        const destinatarios = clientesGlobal
+            .filter(c => clientesSeleccionados.has(String(c.id)) && c.telefono)
+            .map(c => ({ nombre: `${c.nombre} ${c.apellido || ''}`.trim(), telefono: c.telefono }));
 
-            if (!historial || historial.length === 0) {
-                cont.innerHTML = '<p class="text-center py-20 text-[#475569] italic font-medium">No hay campañas registradas.</p>';
+        if (destinatarios.length === 0) { mostrarToast('Ningún cliente seleccionado tiene teléfono', 'error'); return; }
+
+        if (!confirm(`¿Enviar a ${destinatarios.length} cliente(s) por WhatsApp?\n\n"${mensaje.substring(0, 60)}..."`)) return;
+
+        const btn = document.getElementById('btnLanzar');
+        btn.innerHTML = '<span class="animate-spin material-symbols-outlined text-2xl text-emerald-400">refresh</span><span class="text-xs font-semibold text-emerald-400">Enviando...</span>';
+        btn.disabled = true;
+
+        try {
+            const data = await callFunction('marketing-ai', {
+                action: 'enviar_campana',
+                nombre_campana: nombre,
+                tipo: tipoCampanaActual,
+                mensaje,
+                imagen_path: imagenPath,
+                destinatarios
+            });
+            if (data.success) {
+                mostrarToast(`✓ Enviado a ${data.enviados} de ${data.total} clientes`, 'success');
+                renderHistorial();
+            } else {
+                mostrarToast('Error al enviar la campaña', 'error');
+            }
+        } catch { mostrarToast('Error de conexión', 'error'); }
+
+        btn.innerHTML = '<span class="material-symbols-outlined text-2xl text-emerald-400">send</span><span class="text-xs font-semibold text-emerald-400">Enviar ahora por WhatsApp</span>';
+        btn.disabled = false;
+    }
+
+    // ============================================================
+    // SUGERENCIAS IA (panel izquierdo)
+    // ============================================================
+    async function cargarSugerencias() {
+        const panel = document.getElementById('sugerenciasPanel');
+        const btn = document.getElementById('btnRefreshSugerencias');
+        btn.querySelector('span').classList.add('animate-spin');
+        panel.innerHTML = '<div class="shimmer h-24 w-full rounded-xl"></div><div class="shimmer h-24 w-full rounded-xl mt-2"></div><div class="shimmer h-24 w-full rounded-xl mt-2"></div>';
+
+        try {
+            const data = await callFunction('marketing-ai', { action: 'sugerencias' });
+            const sugerencias = data.sugerencias || [];
+            if (!sugerencias.length) {
+                panel.innerHTML = '<p class="text-xs text-[#475569] italic text-center py-8">No hay sugerencias disponibles</p>';
                 return;
             }
-            cont.innerHTML = historial.map(h => `
-            <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5 flex justify-between items-center hover:border-primary/40 transition-all">
-                <div class="flex items-center gap-4">
-                    <div class="size-12 rounded-lg bg-[#161b22] flex items-center justify-center text-primary border border-[#2d3442]">
-                        <span class="material-symbols-outlined">${h.tipo === 'WhatsApp' ? 'chat' : 'mail'}</span>
-                    </div>
-                    <div>
-                        <h4 class="text-white font-bold">${h.nombre}</h4>
-                        <p class="text-xs text-[#94a3b8]">${h.fecha} • <span class="text-primary font-medium">${h.conteo} Destinatarios</span></p>
-                    </div>
+            panel.innerHTML = sugerencias.map(s => `
+            <div class="bg-[#0a0c14] border border-[#1e2536] rounded-xl p-3 space-y-2 hover:border-violet-500/30 transition-all group">
+                <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-semibold text-white leading-tight">${s.cliente_nombre}</p>
+                    <span class="tipo-badge tipo-${s.tipo} shrink-0">${s.tipo.replace('_',' ')}</span>
                 </div>
-                <button onclick="verDetalle(${h.id})" class="px-4 py-2 bg-[#161b22] hover:bg-primary/20 hover:text-primary border border-[#2d3442] rounded-lg text-xs font-bold transition-all flex items-center gap-2">
-                    Ver Detalles <span class="material-symbols-outlined text-sm">visibility</span>
-                </button>
+                <p class="text-[11px] text-[#64748b] leading-snug">${s.razon}</p>
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold prioridad-${s.prioridad}">● ${s.prioridad.toUpperCase()}</span>
+                    <button onclick="usarSugerencia(${JSON.stringify(s).replace(/"/g, '&quot;')})"
+                        class="text-[10px] font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        Usar <span class="material-symbols-outlined text-xs">arrow_forward</span>
+                    </button>
+                </div>
             </div>`).join('');
+        } catch {
+            panel.innerHTML = '<p class="text-xs text-red-400 text-center py-8">Error cargando sugerencias</p>';
         }
+        btn.querySelector('span').classList.remove('animate-spin');
+    }
 
-        async function verDetalle(id) {
-            const { data: h } = await window.supabaseClient.from('historial_marketing').select('*').eq('id', id).single();
-            if (!h) return;
+    function usarSugerencia(s) {
+        cambiarTab('campana');
+        document.getElementById('nombreCampana').value = `${s.tipo.replace('_',' ')} - ${s.cliente_nombre}`;
+        document.getElementById('textoMensaje').value = s.mensaje_sugerido || '';
+        // Select only this client
+        clientesSeleccionados.clear();
+        if (s.cliente_id) clientesSeleccionados.add(String(s.cliente_id));
+        renderListaClientes(clientesGlobal);
+        actualizarContador();
+        actualizarPrevisualizacion();
+        mostrarToast('Sugerencia aplicada', 'success');
+    }
 
-            const modal = document.getElementById('modalDetalle');
-            const content = document.getElementById('contenidoModal');
+    // ============================================================
+    // OPORTUNIDADES
+    // ============================================================
+    async function cargarOportunidades() {
+        document.getElementById('tablaOportunidades').innerHTML =
+            '<tr><td colspan="5" class="p-6"><div class="shimmer h-8 w-full rounded-lg"></div></td></tr>';
+        document.getElementById('resumenOportunidades').innerHTML =
+            '<div class="shimmer h-16 rounded-xl"></div><div class="shimmer h-16 rounded-xl"></div><div class="shimmer h-16 rounded-xl"></div><div class="shimmer h-16 rounded-xl"></div>';
 
-            content.innerHTML = `
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <h5 class="text-[10px] text-[#94a3b8] uppercase font-black mb-2 tracking-widest">Contenido Enviado</h5>
-                    <div class="bg-[#161b22] p-4 rounded-xl border border-[#2d3442] space-y-4">
-                        ${h.imagen ? `<img src="${h.imagen}" class="w-full h-32 object-contain bg-black rounded-lg">` : ''}
-                        <p class="text-sm text-white italic whitespace-pre-wrap">"${h.mensaje}"</p>
-                    </div>
+        try {
+            const data = await callFunction('marketing-ai', { action: 'oportunidades' });
+            const ops = data.oportunidades || [];
+
+            // Summary cards
+            const alta = ops.filter(o => o.score >= 70).length;
+            const media = ops.filter(o => o.score >= 50 && o.score < 70).length;
+            const total = ops.length;
+            const sinPoliza = ops.filter(o => !o.polizasActuales.length).length;
+            document.getElementById('resumenOportunidades').innerHTML = `
+            <div class="glass-card p-4 rounded-xl">
+                <p class="text-2xl font-black text-white">${total}</p>
+                <p class="text-[10px] text-[#475569] mt-0.5 font-semibold uppercase tracking-wider">Total oportunidades</p>
+            </div>
+            <div class="glass-card p-4 rounded-xl border-red-500/20">
+                <p class="text-2xl font-black text-red-400">${alta}</p>
+                <p class="text-[10px] text-[#475569] mt-0.5 font-semibold uppercase tracking-wider">Prioridad alta</p>
+            </div>
+            <div class="glass-card p-4 rounded-xl border-yellow-500/20">
+                <p class="text-2xl font-black text-yellow-400">${media}</p>
+                <p class="text-[10px] text-[#475569] mt-0.5 font-semibold uppercase tracking-wider">Prioridad media</p>
+            </div>
+            <div class="glass-card p-4 rounded-xl border-emerald-500/20">
+                <p class="text-2xl font-black text-emerald-400">${sinPoliza}</p>
+                <p class="text-[10px] text-[#475569] mt-0.5 font-semibold uppercase tracking-wider">Sin pólizas</p>
+            </div>`;
+
+            if (!ops.length) {
+                document.getElementById('tablaOportunidades').innerHTML = '<tr><td colspan="5" class="py-16 text-center text-[#475569] text-sm italic">No hay oportunidades detectadas</td></tr>';
+                return;
+            }
+
+            document.getElementById('tablaOportunidades').innerHTML = ops.map(o => {
+                const scoreColor = o.score >= 70 ? 'bg-red-500' : o.score >= 50 ? 'bg-yellow-500' : 'bg-emerald-500';
+                const polBadges = o.polizasActuales.length
+                    ? o.polizasActuales.map(p => `<span class="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded text-[10px] font-semibold">${p}</span>`).join('')
+                    : '<span class="text-[10px] text-red-400 font-semibold">Sin pólizas</span>';
+                return `<tr class="border-b border-[#1e2536] hover:bg-[#111520]/50 transition-colors group">
+                    <td class="p-3">
+                        <p class="text-sm font-semibold text-white">${o.nombre}</p>
+                        <p class="text-[10px] text-[#475569]">${Math.floor(o.diasComoCliente / 365)}a ${o.diasComoCliente % 365}d como cliente</p>
+                    </td>
+                    <td class="p-3"><div class="flex flex-wrap gap-1">${polBadges}</div></td>
+                    <td class="p-3">
+                        <p class="text-xs text-[#94a3b8]">${o.oportunidad}</p>
+                        ${o.faltantes.length ? `<div class="flex gap-1 mt-1">${o.faltantes.map(f => `<span class="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded text-[10px] font-bold">+${f}</span>`).join('')}</div>` : ''}
+                    </td>
+                    <td class="p-3 w-28">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 bg-[#1e2536] rounded-full h-1.5">
+                                <div class="score-bar h-1.5 rounded-full ${scoreColor}" style="width:${o.score}%"></div>
+                            </div>
+                            <span class="text-xs font-bold text-white w-8 text-right">${o.score}</span>
+                        </div>
+                    </td>
+                    <td class="p-3 text-right">
+                        <button onclick="contactarOportunidad(${JSON.stringify(o).replace(/"/g, '&quot;')})"
+                            class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 ml-auto px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-xs font-semibold hover:bg-emerald-500/20">
+                            <span class="material-symbols-outlined text-sm">chat</span>Contactar
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+        } catch (e) {
+            document.getElementById('tablaOportunidades').innerHTML = '<tr><td colspan="5" class="py-10 text-center text-red-400 text-sm">Error cargando oportunidades</td></tr>';
+        }
+    }
+
+    function contactarOportunidad(o) {
+        cambiarTab('campana');
+        document.getElementById('nombreCampana').value = `Cross-sell ${o.sugerencia} - ${o.nombre}`;
+        clientesSeleccionados.clear();
+        clientesSeleccionados.add(String(o.id));
+        renderListaClientes(clientesGlobal);
+        actualizarContador();
+        seleccionarTipo('cross_sell');
+        mostrarToast('Cliente pre-seleccionado. Genera el mensaje con IA', 'success');
+    }
+
+    // ============================================================
+    // HISTORIAL
+    // ============================================================
+    async function renderHistorial() {
+        const cont = document.getElementById('listaHistorial');
+        const { data: historial } = await window.supabaseClient
+            .from('historial_marketing').select('*').order('created_at', { ascending: false });
+        if (!historial?.length) {
+            cont.innerHTML = '<div class="glass-card p-12 text-center"><span class="material-symbols-outlined text-4xl text-[#1e2536]">history</span><p class="text-[#475569] mt-3 text-sm">No hay campañas registradas</p></div>';
+            return;
+        }
+        cont.innerHTML = historial.map(h => `
+        <div class="glass-card p-4 flex items-center justify-between hover:border-primary/30 transition-all">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-xl bg-[#0a0c14] border border-[#1e2536] flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-emerald-400 text-lg">chat</span>
                 </div>
                 <div>
-                    <h5 class="text-[10px] text-[#94a3b8] uppercase font-black mb-2 tracking-widest">Destinatarios (${h.conteo})</h5>
-                    <div class="bg-[#161b22] p-3 rounded-xl border border-[#2d3442] max-h-48 overflow-y-auto custom-scroll space-y-2">
-                        ${h.destinatarios.map(d => `<div class="text-xs text-white flex items-center gap-2"><span class="size-1.5 rounded-full bg-primary"></span>${d}</div>`).join('')}
+                    <p class="text-sm font-bold text-white">${h.nombre}</p>
+                    <p class="text-[11px] text-[#475569] mt-0.5">${h.fecha} • <span class="text-primary font-semibold">${h.conteo} enviados</span>${h.imagen ? ' • Con imagen' : ''}</p>
+                </div>
+            </div>
+            <button onclick="verDetalleHistorial(${h.id})" class="px-3 py-1.5 bg-[#0a0c14] hover:bg-primary/10 hover:text-primary border border-[#1e2536] hover:border-primary/30 rounded-lg text-xs font-semibold text-[#64748b] transition-all flex items-center gap-1.5">
+                Ver <span class="material-symbols-outlined text-sm">visibility</span>
+            </button>
+        </div>`).join('');
+    }
+
+    async function verDetalleHistorial(id) {
+        const { data: h } = await window.supabaseClient.from('historial_marketing').select('*').eq('id', id).single();
+        if (!h) return;
+        document.getElementById('contenidoModalDetalle').innerHTML = `
+        <div class="space-y-4">
+            <div class="bg-[#0a0c14] p-4 rounded-xl border border-[#1e2536]">
+                <p class="text-[10px] font-black text-[#334155] uppercase tracking-widest mb-2">Mensaje enviado</p>
+                <p class="text-sm text-white whitespace-pre-wrap">"${h.mensaje}"</p>
+                ${h.imagen ? '<p class="text-[10px] text-blue-400 mt-2">📎 Enviado con imagen</p>' : ''}
+            </div>
+            <div>
+                <p class="text-[10px] font-black text-[#334155] uppercase tracking-widest mb-2">Destinatarios (${h.conteo})</p>
+                <div class="bg-[#0a0c14] p-3 rounded-xl border border-[#1e2536] max-h-40 overflow-y-auto custom-scroll space-y-1">
+                    ${(h.destinatarios || []).map(d => `<p class="text-xs text-[#94a3b8]">• ${d}</p>`).join('')}
+                </div>
+            </div>
+            <div class="bg-primary/5 border border-primary/20 rounded-xl p-3">
+                <p class="text-xs text-primary">Vía ${h.tipo} · ${h.fecha}</p>
+            </div>
+        </div>`;
+        document.getElementById('modalDetalle').classList.remove('hidden');
+    }
+
+    function cerrarModalDetalle() { document.getElementById('modalDetalle').classList.add('hidden'); }
+
+    // ============================================================
+    // CALENDARIO
+    // ============================================================
+    async function renderCalendario() {
+        const now = calFecha;
+        const y = now.getFullYear(), m = now.getMonth();
+        const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        document.getElementById('calMesAnio').textContent = `${meses[m]} ${y}`;
+
+        const primerDia = new Date(y, m, 1).getDay();
+        const totalDias = new Date(y, m + 1, 0).getDate();
+        const hoy = new Date();
+
+        const { data: campanas } = await window.supabaseClient
+            .from('campanas_programadas').select('fecha_programada, nombre, estado');
+        campanasProgramadas = campanas || [];
+
+        const diasConCampana = new Set(
+            campanasProgramadas.map(c => {
+                const d = new Date(c.fecha_programada);
+                return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+            })
+        );
+
+        const offset = primerDia === 0 ? 6 : primerDia - 1;
+        let html = Array.from({ length: offset }, () => '<div></div>').join('');
+
+        for (let d = 1; d <= totalDias; d++) {
+            const key = `${y}-${m}-${d}`;
+            const esHoy = d === hoy.getDate() && m === hoy.getMonth() && y === hoy.getFullYear();
+            const tieneCampana = diasConCampana.has(key);
+            html += `<div onclick="clickDiaCalendario(${y}, ${m}, ${d})"
+                class="cal-day flex items-center justify-center text-xs rounded-lg cursor-pointer hover:bg-[#1e2536] transition-colors
+                ${esHoy ? 'today' : 'text-[#64748b] hover:text-white'}
+                ${tieneCampana ? 'has-campaign' : ''}"
+                title="${tieneCampana ? 'Tiene campaña programada' : ''}">
+                ${d}
+            </div>`;
+        }
+        document.getElementById('calGrid').innerHTML = html;
+    }
+
+    function cambiarMesCal(delta) {
+        calFecha.setMonth(calFecha.getMonth() + delta);
+        renderCalendario();
+    }
+
+    function clickDiaCalendario(y, m, d) {
+        const fecha = new Date(y, m, d, 10, 0);
+        document.getElementById('fechaProgramada').value = fecha.toISOString().slice(0, 16);
+        if (tabActual !== 'campana') { cambiarTab('campana'); mostrarToast(`Fecha seleccionada: ${d}/${m + 1}/${y}`, 'success'); }
+        else { document.getElementById('modalProgramar').classList.remove('hidden'); }
+    }
+
+    function programarCampana() {
+        document.getElementById('fechaProgramada').value = '';
+        document.getElementById('modalProgramar').classList.remove('hidden');
+    }
+
+    function cerrarModalProgramar() { document.getElementById('modalProgramar').classList.add('hidden'); }
+
+    async function confirmarProgramar() {
+        const nombre = document.getElementById('nombreCampana').value.trim();
+        const mensaje = document.getElementById('textoMensaje').value.trim();
+        const fecha = document.getElementById('fechaProgramada').value;
+
+        if (!nombre || !mensaje || !fecha) { mostrarToast('Completa nombre, mensaje y fecha', 'error'); return; }
+
+        const destinatarios = clientesGlobal
+            .filter(c => clientesSeleccionados.has(String(c.id)) && c.telefono)
+            .map(c => ({ nombre: `${c.nombre} ${c.apellido || ''}`.trim(), telefono: c.telefono }));
+
+        await callFunction('marketing-ai', {
+            action: 'programar',
+            nombre, tipo: tipoCampanaActual, mensaje,
+            imagen_path: imagenPath,
+            fecha_programada: new Date(fecha).toISOString(),
+            destinatarios
+        });
+
+        cerrarModalProgramar();
+        await renderCalendario();
+        await cargarProximasCampanas();
+        mostrarToast('Campaña programada en el calendario', 'success');
+    }
+
+    async function cargarProximasCampanas() {
+        const cont = document.getElementById('proximasCampanas');
+        const { data } = await window.supabaseClient
+            .from('campanas_programadas')
+            .select('*')
+            .eq('estado', 'pendiente')
+            .gte('fecha_programada', new Date().toISOString())
+            .order('fecha_programada', { ascending: true })
+            .limit(5);
+
+        if (!data?.length) {
+            cont.innerHTML = '<p class="text-xs text-[#334155] italic">Sin campañas programadas</p>';
+            return;
+        }
+        cont.innerHTML = data.map(c => {
+            const d = new Date(c.fecha_programada);
+            const label = d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+            const hora = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+            return `<div class="bg-[#0a0c14] border border-[#1e2536] rounded-xl p-3 hover:border-primary/30 transition-all">
+                <div class="flex items-start gap-2">
+                    <div class="text-center shrink-0 w-10">
+                        <p class="text-[10px] font-black text-primary">${label.split(' ')[1].toUpperCase()}</p>
+                        <p class="text-lg font-black text-white leading-none">${label.split(' ')[0]}</p>
                     </div>
-                    <div class="mt-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
-                        <p class="text-xs text-primary font-medium">Enviado vía ${h.tipo} el día ${h.fecha}</p>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-semibold text-white truncate">${c.nombre}</p>
+                        <p class="text-[10px] text-[#475569]">${hora} · ${(c.destinatarios || []).length} dest.</p>
                     </div>
                 </div>
             </div>`;
-            modal.classList.remove('hidden');
+        }).join('');
+    }
+
+    // ============================================================
+    // NOTIFICACIONES PUSH
+    // ============================================================
+    async function pedirPermisoNotificaciones() {
+        if (!('Notification' in window)) return;
+        if (Notification.permission === 'default') {
+            await Notification.requestPermission();
         }
+        const btn = document.getElementById('btnNotif');
+        if (Notification.permission === 'granted') {
+            btn.classList.add('text-yellow-400', 'border-yellow-400/30');
+            btn.classList.remove('text-[#475569]');
+        }
+    }
 
-        function cerrarModal() { document.getElementById('modalDetalle').classList.add('hidden'); }
+    async function verificarCampanasHoy() {
+        if (Notification.permission !== 'granted') return;
+        const manana = new Date(); manana.setDate(manana.getDate() + 1); manana.setHours(23, 59, 59);
+        const { data } = await window.supabaseClient
+            .from('campanas_programadas')
+            .select('nombre, fecha_programada, destinatarios')
+            .eq('estado', 'pendiente')
+            .lte('fecha_programada', manana.toISOString())
+            .gte('fecha_programada', new Date().toISOString());
 
-        async function lanzarWhatsApp() {
-            if (clientesSeleccionados.size === 0) return;
-            const textoOriginal = document.getElementById('textoMensaje').value;
-            if (!textoOriginal) return;
-            const nombresDestinatarios = [];
-            clientesSeleccionados.forEach(id => {
-                const c = listaClientesGlobal.find(cli => String(cli.id) === String(id));
-                if (c && c.telefono) {
-                    nombresDestinatarios.push(`${c.nombre} ${c.apellido || ''}`);
-                    window.open(`https://wa.me/52${c.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(textoOriginal.replace('{nombre}', c.nombre))}`, '_blank');
+        if (data?.length) {
+            data.forEach(c => {
+                const d = new Date(c.fecha_programada);
+                const ahora = Date.now();
+                const diff = d.getTime() - ahora;
+                if (diff > 0 && diff < 86400000) {
+                    setTimeout(() => {
+                        new Notification('🚀 Segumex Marketing', {
+                            body: `Campaña "${c.nombre}" programada para ahora (${(c.destinatarios || []).length} destinatarios)`,
+                            icon: '/favicon.ico'
+                        });
+                    }, diff);
                 }
             });
-            await guardarEnHistorial('WhatsApp', document.getElementById('nombreCampana').value, textoOriginal, nombresDestinatarios, imagenBase64);
+            if (data.some(c => new Date(c.fecha_programada) <= new Date(Date.now() + 3600000))) {
+                mostrarToast(`${data.length} campaña(s) programada(s) próximamente`, 'info');
+            }
         }
+    }
 
-        async function lanzarEmail() {
-            if (clientesSeleccionados.size === 0) return;
-            const textoOriginal = document.getElementById('textoMensaje').value;
-            const campaña = document.getElementById('nombreCampana').value || "Información de Segumex";
-            const nombresDestinatarios = [];
-            clientesSeleccionados.forEach(id => {
-                const c = listaClientesGlobal.find(cli => String(cli.id) === String(id));
-                if (c && c.email) {
-                    nombresDestinatarios.push(`${c.nombre} ${c.apellido || ''}`);
-                    window.open(`mailto:${c.email}?subject=${encodeURIComponent(campaña)}&body=${encodeURIComponent(textoOriginal.replace('{nombre}', c.nombre))}`, '_blank');
-                }
-            });
-            await guardarEnHistorial('Email', campaña, textoOriginal, nombresDestinatarios, imagenBase64);
-        }
-
-        // --- FUNCIONES SOPORTE ---
-        async function renderFidelizacion() {
-            const contCumple = document.getElementById('listaCumpleanos');
-            const contAniv = document.getElementById('listaAniversarios');
-            const { data: polizas } = await window.supabaseClient.from('polizas').select('*');
-
-            const hoy = new Date();
-            const mesDiaHoy = `${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
-            const cumplenHoy = listaClientesGlobal.filter(c => c.nacimiento && c.nacimiento.endsWith(mesDiaHoy));
-            contCumple.innerHTML = cumplenHoy.length > 0 ? cumplenHoy.map(c => renderCardFidelidad(c, `¡Feliz Cumpleaños! 🎂`, 'pink')).join('') : '<p class="text-xs text-[#475569] italic">Nadie hoy.</p>';
-            const aniversariosHoy = (polizas || []).filter(p => p.finanzas?.inicio && p.finanzas.inicio.endsWith(mesDiaHoy));
-            contAniv.innerHTML = aniversariosHoy.length > 0 ? aniversariosHoy.map(p => {
-                const c = listaClientesGlobal.find(cli => String(cli.id) === String(p.cliente_id));
-                return c ? renderCardFidelidad(c, `Aniversario: ${p.ramo} 🎊`, 'yellow') : '';
-            }).join('') : '<p class="text-xs text-[#475569] italic">Nadie hoy.</p>';
-        }
-        function renderCardFidelidad(c, titulo, color) {
-            return `<div class="bg-surface-card border border-[#2d3442] p-4 rounded-xl flex items-center justify-between group hover:border-${color}-500/50 transition-all"><div><p class="text-white font-bold text-sm">${c.nombre} ${c.apellido || ''}</p><p class="text-[10px] text-${color}-400 font-medium uppercase tracking-wider mt-0.5">${titulo}</p></div><a href="https://wa.me/52${c.telefono.replace(/\D/g, '')}?text=${encodeURIComponent('¡Hola ' + c.nombre + '! Saludos de Segumex.')}" target="_blank" class="p-2 bg-green-500/10 text-green-500 rounded-lg hover:bg-green-500 transition-all"><span class="material-symbols-outlined text-sm">chat</span></a></div>`;
-        }
-        function toggleCliente(id) { if (clientesSeleccionados.has(String(id))) clientesSeleccionados.delete(String(id)); else clientesSeleccionados.add(String(id)); document.getElementById('contadorSeleccion').innerText = `${clientesSeleccionados.size} seleccionados`; }
-        function seleccionarTodos() { clientesSeleccionados.clear(); document.querySelectorAll('#listaClientesMarketing input[type="checkbox"]').forEach((cb, idx) => { cb.checked = true; clientesSeleccionados.add(String(listaClientesGlobal[idx].id)); }); document.getElementById('contadorSeleccion').innerText = `${clientesSeleccionados.size} seleccionados`; }
-        function procesarImagen(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = function (e) { imagenBase64 = e.target.result; const img = document.getElementById('imgPreview'); img.src = imagenBase64; img.classList.remove('hidden'); document.getElementById('imgPlaceholder').classList.add('hidden'); }; reader.readAsDataURL(input.files[0]); } }
-        function previsualizar() { document.getElementById('txtPreview').innerText = document.getElementById('textoMensaje').value || "Tu mensaje aparecerá aquí..."; }
+    // ============================================================
+    // TOAST
+    // ============================================================
+    function mostrarToast(msg, tipo = 'success') {
+        const toast = document.getElementById('toast');
+        const content = document.getElementById('toastContent');
+        const configs = {
+            success: { bg: 'bg-[#0d2016] border-emerald-500/30 text-emerald-400', icon: 'check_circle' },
+            error: { bg: 'bg-[#1a0a0a] border-red-500/30 text-red-400', icon: 'error' },
+            info: { bg: 'bg-[#0a0f1a] border-blue-500/30 text-primary', icon: 'info' }
+        };
+        const cfg = configs[tipo] || configs.success;
+        content.className = `flex items-center gap-3 px-4 py-3 rounded-xl border shadow-2xl text-sm font-semibold ${cfg.bg}`;
+        content.innerHTML = `<span class="material-symbols-outlined text-base">${cfg.icon}</span>${msg}`;
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 3500);
+    }
     </script>
 </body>
-
 </html>
