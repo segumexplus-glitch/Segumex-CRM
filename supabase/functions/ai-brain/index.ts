@@ -471,9 +471,16 @@ FORMATO DE SALIDA (JSON obligatorio, sin markdown):
                     aiResponseAction = JSON.parse(cleanText);
                     textToSend = aiResponseAction.reply;
                 } catch {
-                    console.error("Error parsing AI JSON:", rawText);
-                    const replyMatch = rawText.match(/"reply":\s*"([^"]+)"/);
-                    textToSend = replyMatch?.[1] || rawText;
+                    console.error("Error parsing AI JSON:", rawText.substring(0, 300));
+                    // Extraer reply aunque haya saltos de línea escapados
+                    const replyMatch = rawText.match(/"reply":\s*"((?:[^"\\]|\\[\s\S])*)"/);
+                    textToSend = replyMatch?.[1]?.replace(/\\n/g, '\n').replace(/\\"/g, '"') || rawText;
+                    // CRÍTICO: extraer send_pdf y create_lead aunque falle el JSON completo
+                    // Sin esto, el menú de pólizas nunca se envía cuando Gemini devuelve JSON mal formateado
+                    const sendPdfMatch = rawText.match(/"send_pdf":\s*(true|false)/i);
+                    if (sendPdfMatch) aiResponseAction.send_pdf = sendPdfMatch[1].toLowerCase() === 'true';
+                    const createLeadMatch = rawText.match(/"create_lead":\s*(true|false)/i);
+                    if (createLeadMatch) aiResponseAction.create_lead = createLeadMatch[1].toLowerCase() === 'true';
                 }
             } else if (aiData.error?.code === 429) {
                 textToSend = "El sistema de IA está saturado. Por favor intenta en unos minutos.";
