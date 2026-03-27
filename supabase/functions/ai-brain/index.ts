@@ -38,6 +38,23 @@ async function buscarClientePorTelefono(tel10: string) {
 }
 
 // ============================================================
+// Obtiene mensajes outbound recientes enviados a este teléfono
+// (cobranza, bienvenida) para dar contexto a la IA
+// ============================================================
+async function obtenerMensajesRecientes(tel10: string): Promise<any[]> {
+    const hace30dias = new Date(Date.now() - 30 * 86400000).toISOString();
+    const { data } = await supabase
+        .from('mensajes_cobranza_log')
+        .select('tipo_mensaje, numero_poliza, created_at, cliente_nombre, fecha_vencimiento, prima')
+        .or(`telefono.eq.${tel10},telefono.ilike.%${tel10}%`)
+        .gte('created_at', hace30dias)
+        .eq('status', 'enviado')
+        .order('created_at', { ascending: false })
+        .limit(5);
+    return data || [];
+}
+
+// ============================================================
 // Obtiene pólizas vigentes de un cliente (incluye documentos)
 // ============================================================
 async function obtenerPolizasCliente(clienteId: number) {
@@ -241,6 +258,12 @@ Deno.serve(async (req) => {
             // 2. Identificar cliente por teléfono
             const tel10 = extraerTelefono10(conversation.platform_user_id || '');
 
+            // Buscar mensajes outbound recientes SIEMPRE (antes de identificar cliente)
+            let mensajesRecientes: any[] = [];
+            if (tel10.length === 10) {
+                mensajesRecientes = await obtenerMensajesRecientes(tel10);
+            }
+
             if (tel10.length === 10) {
                 clienteIdentificado = await buscarClientePorTelefono(tel10);
 
@@ -264,23 +287,42 @@ Deno.serve(async (req) => {
             }
 
             // 3. Construir system instruction
-            let systemInstruction = `Eres "Segumex IA", el asistente virtual de Segumex (Seguros de Autos, Gastos Médicos, Vida y Daños).
+            let systemInstruction = `Eres el asistente virtual de Segumex, una empresa mexicana de seguros (Auto, GMM, Vida, Casa, Negocio).
 
-TUS REGLAS DE ORO:
-1. **Personalidad**: Amable, profesional, empático. Usa emojis moderadamente (🚗, 🏥, ✅, 🛡️).
-2. **Objetivo**: Resolver dudas, informar sobre pólizas existentes y cotizar seguros nuevos.
-3. **Lead Scoring (CRÍTICO)**: Si el usuario muestra interés en comprar o cotizar, marca "create_lead": true.
-4. **Envío de póliza PDF**: Si el cliente pide su póliza en cualquier forma — "mándame mis documentos", "quiero el pdf", "necesito mi póliza", "me lo puedes enviar", "dónde está mi póliza", o cualquier variación — marca "send_pdf": true. No importa cómo lo escriba, interpreta la intención.
+════════════════════════════════════
+PERSONALIDAD Y TONO — LEE CON ATENCIÓN
+════════════════════════════════════
+- Eres joven, jovial, cálido y muy profesional. Como un asesor de confianza.
+- Usas emojis con moderación (🛡️ 🚗 ✅ 😊), nunca en exceso.
+- Hablas en español mexicano natural. Tuteas al cliente.
+- JAMÁS uses frases que suenen confusas, acusatorias, retóricas o groseras.
+- JAMÁS preguntes cosas como "¿Quedé que?" o "¿A qué te refieres?" de forma brusca.
+- Si no entiendes el mensaje, responde siempre con algo amable como: "¡Hola! 😊 ¿En qué te puedo ayudar hoy?"
 
-FORMATO DE SALIDA (JSON obligatorio):
+REGLA DE ORO — MENSAJES CORTOS DEL CLIENTE:
+Si el cliente manda solo "Gracias", "Ok", "Entendido", "Sí", "No", "Bien", "Recibido" u otra confirmación breve:
+→ Responde SIEMPRE con algo cálido y corto como: "¡Con mucho gusto! 😊 Cualquier cosa que necesites, aquí estoy." o "¡Para eso estamos! 🛡️ Que tengas excelente día, {nombre}."
+→ NUNCA respondas una confirmación con una pregunta o con confusión.
+
+════════════════════════════════════
+OBJETIVO
+════════════════════════════════════
+- Resolver dudas sobre pólizas, coberturas y pagos.
+- Cotizar seguros nuevos cuando el cliente muestre interés.
+- Ser puente entre el cliente y su asesor cuando sea necesario.
+
+════════════════════════════════════
+ACCIONES ESPECIALES
+════════════════════════════════════
+- Lead: Si el usuario quiere cotizar o comprar → "create_lead": true
+- PDF: Si el cliente pide su póliza, documentos, o "mándame el pdf" → "send_pdf": true
+
+FORMATO DE SALIDA (JSON obligatorio, sin markdown):
 {
-    "reply": "Tu mensaje para el usuario aquí.",
+    "reply": "Tu mensaje aquí.",
     "create_lead": true/false,
     "send_pdf": true/false,
-    "lead_data": {
-        "nombre": "Extraer si lo menciona",
-        "interes": "Auto/GMM/Vida/General"
-    }
+    "lead_data": { "nombre": "si lo menciona", "interes": "Auto/GMM/Vida/General" }
 }
 `;
 
@@ -316,6 +358,34 @@ FORMATO DE SALIDA (JSON obligatorio):
                 systemInstruction += `\nEstás hablando con ${conversation.leads.nombre} ${conversation.leads.apellido || ''}.`;
             } else {
                 systemInstruction += `\nEl usuario que escribe NO es un cliente registrado. Sé amable, intenta obtener su nombre y si muestra interés en cotizar, marca create_lead: true.`;
+            }
+
+            // ── CONTEXTO DE MENSAJES OUTBOUND RECIENTES ──────────────
+            // Esto resuelve el problema de continuidad: el cliente responde
+            // a un recordatorio de cobranza o bienvenida y la IA lo entiende.
+            if (mensajesRecientes.length > 0) {
+                const tipoLabels: Record<string, string> = {
+                    'bienvenida_cliente_nuevo': 'mensaje de bienvenida por nueva póliza',
+                    'bienvenida_cliente_existente': 'mensaje de bienvenida por nueva póliza (cliente recurrente)',
+                    'cobranza_7_dias_antes': 'recordatorio de pago (vence en 7 días)',
+                    'cobranza_1_dia_antes': 'recordatorio de pago (vence mañana)',
+                    'cobranza_2_dias_despues': 'aviso de pago vencido (2 días de retraso)',
+                    'cobranza_5_dias_despues': 'aviso de pago vencido (5 días de retraso)',
+                    'cobranza_8_dias_despues': 'aviso de pago vencido (8 días de retraso)',
+                };
+                const ultimo = mensajesRecientes[0];
+                const label = tipoLabels[ultimo.tipo_mensaje] || ultimo.tipo_mensaje;
+                const fechaEnvio = new Date(ultimo.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'long' });
+                systemInstruction += `\n\n════════════════════════════════════`;
+                systemInstruction += `\nCONTEXTO IMPORTANTE — CONTINUIDAD DE CONVERSACIÓN`;
+                systemInstruction += `\n════════════════════════════════════`;
+                systemInstruction += `\nEl ${fechaEnvio} le enviamos a este cliente un "${label}"`;
+                if (ultimo.numero_poliza) systemInstruction += ` (póliza ${ultimo.numero_poliza})`;
+                if (ultimo.prima) systemInstruction += ` por $${Number(ultimo.prima).toLocaleString('es-MX')}`;
+                systemInstruction += `.`;
+                systemInstruction += `\nMUY PROBABLE que el cliente esté RESPONDIENDO a ese mensaje.`;
+                systemInstruction += `\nContextualiza tu respuesta en consecuencia. Si dice "Gracias" o "Ok", agradece y ofrece ayuda.`;
+                systemInstruction += `\nSi pregunta sobre el pago o la fecha, ya tienes esa información arriba.`;
             }
 
             // 5. Base de conocimiento: productos
