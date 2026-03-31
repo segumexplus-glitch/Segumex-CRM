@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
     <script src="finanzas.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
@@ -63,6 +64,11 @@
                     <span class="material-symbols-outlined text-primary">payments</span>
                     Conciliación de Comisiones
                 </h1>
+                <button id="btnExportarExcel" onclick="exportarExcel()"
+                    class="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/15 border border-green-500/30 text-green-400 hover:bg-green-500 hover:text-white transition-all text-sm font-bold shadow-lg shadow-green-500/10">
+                    <span class="material-symbols-outlined text-[18px]">download</span>
+                    Exportar Excel
+                </button>
             </header>
 
             <div class="flex-1 overflow-y-auto p-4 md:p-6 custom-scroll">
@@ -582,6 +588,192 @@
                 ? 'px-6 py-3 text-sm font-bold border-b-2 border-primary text-primary'
                 : 'px-6 py-3 text-sm font-medium text-[#94a3b8] hover:text-white transition-colors';
             cargarComisiones();
+        }
+
+        // ============================================================
+        // Exportar a Excel Profesional
+        // ============================================================
+        async function exportarExcel() {
+            const btn = document.getElementById('btnExportarExcel');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">sync</span> Generando...';
+
+            try {
+                // ── 1. Cargar datos ──────────────────────────────────
+                const [{ data: polizasDB }, { data: clis }] = await Promise.all([
+                    window.supabaseClient.from('polizas').select('*'),
+                    window.supabaseClient.from('clientes').select('id, nombre')
+                ]);
+
+                // ── 2. Cargar columnas dinámicas ─────────────────────
+                const { data: colsCfg } = await window.supabaseClient
+                    .from('comisiones_columnas')
+                    .select('*')
+                    .eq('activa', true)
+                    .order('orden');
+                const columnasDist = colsCfg || [];
+
+                // ── 3. Clasificar comisiones ─────────────────────────
+                let tG = 0, tC = 0, tA = 0, tP = 0;
+                const filasC = [], filasP = [], filasA = [];
+
+                (polizasDB || []).forEach(p => {
+                    if (p.restringida === true || !p.pagos_status) return;
+                    const cli = (clis || []).find(c => String(c.id) === String(p.cliente_id));
+                    const num = parseInt(p.finanzas?.formaPago) || 1;
+                    const monto = window.SegumexFinanzas.calcularComision(p.finanzas?.primaNeta, num, p.finanzas?.comisionPct);
+                    const pagosDetalle = p.finanzas?.pagos_detalle || [];
+
+                    p.pagos_status.forEach((pagado, idx) => {
+                        if (pagado !== true) return;
+                        let montoReal = monto;
+                        if (pagosDetalle[idx]?.comision !== undefined) montoReal = parseFloat(pagosDetalle[idx].comision);
+
+                        const cobrada    = p.comisiones_cobradas_status?.[idx] === true;
+                        const aclaracion = !cobrada && (p.comisiones_aclaracion_status?.[idx] === true);
+                        const nota       = p.comisiones_aclaracion_notas?.[String(idx)] || '';
+                        const noPoliza   = p.no_poliza || p.numero || '---';
+                        const nombreCli  = cli ? cli.nombre : 'Desc.';
+                        const fechaLim   = pagosDetalle[idx]?.fecha || '';
+                        const fechaPago  = p.pagos_fechas?.[idx] || '';
+
+                        tG += montoReal;
+                        const fila = { nombreCli, noPoliza, idx, fechaLim, fechaPago, montoReal, nota, columnasDist };
+
+                        if (cobrada)       { tC += montoReal; filasC.push(fila); }
+                        else if (aclaracion) { tA += montoReal; filasA.push(fila); }
+                        else               { tP += montoReal; filasP.push(fila); }
+                    });
+                });
+
+                // ── 4. Estilos ───────────────────────────────────────
+                const cellBase  = { font: { sz: 10, color: { rgb: 'E2E8F0' } }, alignment: { vertical: 'center' } };
+                const rowAlt    = { fill: { fgColor: { rgb: '1C1F27' } } };
+                const rowNorm   = { fill: { fgColor: { rgb: '111318' } } };
+                const moneyFmt  = '"$"#,##0.00';
+
+                const hdrBase = { font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: { bottom: { style: 'thin', color: { rgb: '3B4354' } } } };
+                const hdrBlue   = { ...hdrBase, fill: { fgColor: { rgb: '1E40AF' } } };
+                const hdrGreen  = { ...hdrBase, fill: { fgColor: { rgb: '166534' } } };
+                const hdrYellow = { ...hdrBase, fill: { fgColor: { rgb: '92400E' } } };
+                const hdrPurple = { ...hdrBase, fill: { fgColor: { rgb: '4C1D95' } } };
+
+                function mc(v, extra) { return { v: v ?? '', s: { ...cellBase, ...extra } }; }
+
+                function fmtF(str) {
+                    if (!str) return '—';
+                    const [y, m, d] = str.split('-');
+                    return `${parseInt(d)} ${MESES_CORTO[parseInt(m)-1]} ${y}`;
+                }
+
+                // ── 5. Función para construir hoja de datos ──────────
+                function buildSheet(filas, hdrStyle) {
+                    const baseHeaders = ['#', 'Cliente', 'No. Póliza', 'No. Pago', 'Fecha Límite', 'Fecha Pago', 'Comisión'];
+                    const distHeaders = columnasDist.map(c => `${c.nombre} (${c.porcentaje}%)`);
+                    const allHeaders  = [...baseHeaders, ...distHeaders];
+                    if (hdrStyle === hdrYellow) allHeaders.push('Nota');
+
+                    const headerRow = allHeaders.map(h => ({ v: h, s: hdrStyle }));
+                    const dataRows = filas.map((f, i) => {
+                        const bg = i % 2 === 0 ? rowAlt.fill : rowNorm.fill;
+                        const s = { fill: bg };
+                        const row = [
+                            mc(i + 1, s),
+                            mc(f.nombreCli, s),
+                            mc(f.noPoliza, { ...s, font: { ...cellBase.font, name: 'Consolas' } }),
+                            mc(`Pago ${f.idx + 1}`, s),
+                            mc(fmtF(f.fechaLim), s),
+                            mc(fmtF(f.fechaPago), s),
+                            mc(f.montoReal, { fill: bg, numFmt: moneyFmt, font: { bold: true, sz: 10, color: { rgb: '60A5FA' } } }),
+                        ];
+                        columnasDist.forEach(c => {
+                            const val = f.montoReal * (c.porcentaje / 100);
+                            row.push(mc(val, { fill: bg, numFmt: moneyFmt, font: { sz: 10, color: { rgb: 'C084FC' } } }));
+                        });
+                        if (hdrStyle === hdrYellow) row.push(mc(f.nota || '', s));
+                        return row;
+                    });
+
+                    // Fila de totales
+                    const totalBg = { fill: { fgColor: { rgb: '0F111A' } } };
+                    const totalRow = allHeaders.map(() => mc('', totalBg));
+                    totalRow[0] = mc('', totalBg);
+                    totalRow[1] = mc(`${filas.length} registros`, { ...totalBg, font: { bold: true, sz: 10, color: { rgb: '94A3B8' } } });
+                    const totalMonto = filas.reduce((s, f) => s + f.montoReal, 0);
+                    totalRow[6] = mc(totalMonto, { ...totalBg, numFmt: moneyFmt, font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } } });
+                    columnasDist.forEach((c, ci) => {
+                        const val = totalMonto * (c.porcentaje / 100);
+                        totalRow[7 + ci] = mc(val, { ...totalBg, numFmt: moneyFmt, font: { bold: true, sz: 10, color: { rgb: 'C084FC' } } });
+                    });
+
+                    const ws = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows, totalRow]);
+                    ws['!cols'] = [
+                        { wch: 5 }, { wch: 28 }, { wch: 18 }, { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 16 },
+                        ...columnasDist.map(() => ({ wch: 16 })),
+                        ...(hdrStyle === hdrYellow ? [{ wch: 30 }] : [])
+                    ];
+                    ws['!rows'] = [{ hpt: 26 }];
+                    return ws;
+                }
+
+                // ── 6. Crear workbook ────────────────────────────────
+                const WB = XLSX.utils.book_new();
+
+                // HOJA 1: Resumen
+                const fechaHoy = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
+                const wsRes = XLSX.utils.aoa_to_sheet([
+                    [{ v: 'SEGUMEX — REPORTE DE COMISIONES', s: { font: { bold: true, sz: 18, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1E40AF' } }, alignment: { horizontal: 'center' } } }],
+                    [{ v: `Generado: ${fechaHoy}`, s: { font: { sz: 11, color: { rgb: '94A3B8' } }, fill: { fgColor: { rgb: '111318' } } } }],
+                    [],
+                    [{ v: 'INDICADOR', s: hdrBlue }, { v: 'MONTO', s: hdrBlue }, { v: 'REGISTROS', s: hdrBlue }],
+                    [mc('Total Comisiones Ganadas', rowAlt), mc(tG, { ...rowAlt, numFmt: moneyFmt, font: { bold: true, sz: 14, color: { rgb: '60A5FA' } } }), mc(filasC.length + filasP.length + filasA.length, rowAlt)],
+                    [mc('Comisiones Cobradas', rowNorm), mc(tC, { ...rowNorm, numFmt: moneyFmt, font: { bold: true, sz: 14, color: { rgb: '4ADE80' } } }), mc(filasC.length, rowNorm)],
+                    [mc('Comisiones Por Conciliar', rowAlt), mc(tP, { ...rowAlt, numFmt: moneyFmt, font: { bold: true, sz: 14, color: { rgb: '60A5FA' } } }), mc(filasP.length, rowAlt)],
+                    [mc('En Aclaración', rowNorm), mc(tA, { ...rowNorm, numFmt: moneyFmt, font: { bold: true, sz: 14, color: { rgb: 'FBBF24' } } }), mc(filasA.length, rowNorm)],
+                    [],
+                    [{ v: 'DISTRIBUCIÓN DE COMISIONES GANADAS', s: { font: { bold: true, sz: 12, color: { rgb: 'C084FC' } }, fill: { fgColor: { rgb: '111318' } } } }],
+                    [{ v: 'Columna', s: hdrPurple }, { v: 'Porcentaje', s: hdrPurple }, { v: 'Monto Total', s: hdrPurple }],
+                    ...columnasDist.map((c, i) => [
+                        mc(c.nombre, i % 2 === 0 ? rowAlt : rowNorm),
+                        mc(`${c.porcentaje}%`, i % 2 === 0 ? rowAlt : rowNorm),
+                        mc(tG * (c.porcentaje / 100), { ...(i % 2 === 0 ? rowAlt : rowNorm), numFmt: moneyFmt, font: { bold: true, sz: 10, color: { rgb: 'C084FC' } } })
+                    ])
+                ]);
+                wsRes['!cols'] = [{ wch: 35 }, { wch: 22 }, { wch: 18 }];
+                wsRes['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
+                XLSX.utils.book_append_sheet(WB, wsRes, '📊 Resumen');
+
+                // HOJA 2: Por Conciliar
+                const wsP = buildSheet(filasP, hdrBlue);
+                XLSX.utils.book_append_sheet(WB, wsP, '🔵 Por Conciliar');
+
+                // HOJA 3: Cobradas
+                const wsC = buildSheet(filasC, hdrGreen);
+                XLSX.utils.book_append_sheet(WB, wsC, '✅ Cobradas');
+
+                // HOJA 4: En Aclaración
+                const wsA = buildSheet(filasA, hdrYellow);
+                XLSX.utils.book_append_sheet(WB, wsA, '⚠️ Aclaración');
+
+                // ── 7. Descargar ─────────────────────────────────────
+                const hoy = new Date().toISOString().slice(0, 10);
+                const fileName = `Comisiones_Segumex_${hoy}.xlsx`;
+                const buffer = XLSX.write(WB, { bookType: 'xlsx', type: 'array' });
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = fileName;
+                document.body.appendChild(a); a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+            } catch (err) {
+                console.error('Error al exportar Excel:', err);
+                alert('Error al generar el Excel: ' + (err.message || 'Error desconocido'));
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">download</span> Exportar Excel';
+            }
         }
     </script>
 </body>
