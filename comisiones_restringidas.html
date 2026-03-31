@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
     <script src="finanzas.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap"
@@ -62,9 +63,16 @@
                 <h1 class="text-xl font-bold text-white flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">lock_person</span> Comisiones Restringidas
                 </h1>
-                <span
-                    class="text-xs text-primary font-bold border border-primary/30 bg-primary/10 px-2 py-1 rounded">SOLO
-                    ADMINISTRADOR</span>
+                <div class="flex items-center gap-3">
+                    <button id="btnExportarExcel" onclick="exportarExcel()"
+                        class="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/15 border border-green-500/30 text-green-400 hover:bg-green-500 hover:text-white transition-all text-sm font-bold shadow-lg shadow-green-500/10">
+                        <span class="material-symbols-outlined text-[18px]">download</span>
+                        Exportar Excel
+                    </button>
+                    <span
+                        class="text-xs text-primary font-bold border border-primary/30 bg-primary/10 px-2 py-1 rounded">SOLO
+                        ADMINISTRADOR</span>
+                </div>
             </header>
 
             <div class="flex-1 overflow-y-auto p-6 custom-scroll">
@@ -188,6 +196,134 @@
 
         function cambiarTab(t) { vistaActual = t; cargarComisiones(); }
         function formatoMoneda(v) { return window.SegumexFinanzas.formatoMoneda(v); }
+
+        const MESES_CORTO_R = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+        // ============================================================
+        // Exportar a Excel Profesional (Restringidas)
+        // ============================================================
+        async function exportarExcel() {
+            const btn = document.getElementById('btnExportarExcel');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">sync</span> Generando...';
+
+            try {
+                const [{ data: polizasDB }, { data: clis }] = await Promise.all([
+                    window.supabaseClient.from('polizas').select('*'),
+                    window.supabaseClient.from('clientes').select('id, nombre')
+                ]);
+
+                let tG = 0, tC = 0;
+                const filasP = [], filasC = [];
+
+                (polizasDB || []).forEach(p => {
+                    if (p.restringida !== true || !p.pagos_status) return;
+                    const cli = (clis || []).find(c => String(c.id) === String(p.cliente_id));
+                    const num = parseInt(p.finanzas?.formaPago) || 1;
+                    const monto = window.SegumexFinanzas.calcularComision(p.finanzas?.primaNeta, num, p.finanzas?.comisionPct);
+                    const pagosDetalle = p.finanzas?.pagos_detalle || [];
+
+                    p.pagos_status.forEach((pagado, idx) => {
+                        if (pagado !== true) return;
+                        let montoReal = monto;
+                        if (pagosDetalle[idx]?.comision !== undefined) montoReal = parseFloat(pagosDetalle[idx].comision);
+
+                        const cobrada   = p.comisiones_cobradas_status?.[idx] === true;
+                        const noPoliza  = p.no_poliza || p.numero || '---';
+                        const nombreCli = cli ? cli.nombre : 'Desc.';
+                        const fechaPago = p.pagos_fechas?.[idx] || '';
+                        const fechaLim  = pagosDetalle[idx]?.fecha || '';
+
+                        const fila = { nombreCli, noPoliza, idx, fechaLim, fechaPago, montoReal };
+                        if (cobrada) { tC += montoReal; filasC.push(fila); }
+                        else         { tG += montoReal; filasP.push(fila); }
+                    });
+                });
+
+                // Estilos
+                const cellBase = { font: { sz: 10, color: { rgb: 'E2E8F0' } }, alignment: { vertical: 'center' } };
+                const rowAlt   = { fill: { fgColor: { rgb: '1C1F27' } } };
+                const rowNorm  = { fill: { fgColor: { rgb: '111318' } } };
+                const moneyFmt = '"$"#,##0.00';
+                const hdrBase  = { font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: { bottom: { style: 'thin', color: { rgb: '3B4354' } } } };
+                const hdrRed   = { ...hdrBase, fill: { fgColor: { rgb: '991B1B' } } };
+                const hdrGreen = { ...hdrBase, fill: { fgColor: { rgb: '166534' } } };
+                const hdrBlue  = { ...hdrBase, fill: { fgColor: { rgb: '1E40AF' } } };
+
+                function mc(v, extra) { return { v: v ?? '', s: { ...cellBase, ...extra } }; }
+                function fmtF(str) {
+                    if (!str) return '—';
+                    const [y, m, d] = str.split('-');
+                    return `${parseInt(d)} ${MESES_CORTO_R[parseInt(m)-1]} ${y}`;
+                }
+
+                function buildSheet(filas, hdrStyle) {
+                    const headers = ['#', 'Cliente', 'No. Póliza', 'No. Pago', 'Fecha Límite', 'Fecha Pago', 'Comisión'];
+                    const headerRow = headers.map(h => ({ v: h, s: hdrStyle }));
+                    const dataRows = filas.map((f, i) => {
+                        const bg = i % 2 === 0 ? rowAlt.fill : rowNorm.fill;
+                        const s = { fill: bg };
+                        return [
+                            mc(i + 1, s),
+                            mc(f.nombreCli, s),
+                            mc(f.noPoliza, { ...s, font: { ...cellBase.font, name: 'Consolas' } }),
+                            mc(`Pago ${f.idx + 1}`, s),
+                            mc(fmtF(f.fechaLim), s),
+                            mc(fmtF(f.fechaPago), s),
+                            mc(f.montoReal, { fill: bg, numFmt: moneyFmt, font: { bold: true, sz: 10, color: { rgb: '60A5FA' } } }),
+                        ];
+                    });
+                    const totalBg = { fill: { fgColor: { rgb: '0F111A' } } };
+                    const totalRow = headers.map(() => mc('', totalBg));
+                    totalRow[1] = mc(`${filas.length} registros`, { ...totalBg, font: { bold: true, sz: 10, color: { rgb: '94A3B8' } } });
+                    totalRow[6] = mc(filas.reduce((s, f) => s + f.montoReal, 0), { ...totalBg, numFmt: moneyFmt, font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } } });
+
+                    const ws = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows, totalRow]);
+                    ws['!cols'] = [{ wch: 5 }, { wch: 28 }, { wch: 18 }, { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
+                    ws['!rows'] = [{ hpt: 26 }];
+                    return ws;
+                }
+
+                const WB = XLSX.utils.book_new();
+
+                // Resumen
+                const fechaHoy = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
+                const wsRes = XLSX.utils.aoa_to_sheet([
+                    [{ v: 'SEGUMEX — COMISIONES RESTRINGIDAS', s: { font: { bold: true, sz: 18, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '991B1B' } }, alignment: { horizontal: 'center' } } }],
+                    [{ v: `Generado: ${fechaHoy} • CONFIDENCIAL`, s: { font: { sz: 11, color: { rgb: 'FCA5A5' } }, fill: { fgColor: { rgb: '111318' } } } }],
+                    [],
+                    [{ v: 'INDICADOR', s: hdrRed }, { v: 'MONTO', s: hdrRed }, { v: 'REGISTROS', s: hdrRed }],
+                    [mc('Comisiones Ganadas (Privadas)', rowAlt), mc(tG, { ...rowAlt, numFmt: moneyFmt, font: { bold: true, sz: 14, color: { rgb: '60A5FA' } } }), mc(filasP.length, rowAlt)],
+                    [mc('Comisiones Cobradas (Privadas)', rowNorm), mc(tC, { ...rowNorm, numFmt: moneyFmt, font: { bold: true, sz: 14, color: { rgb: '4ADE80' } } }), mc(filasC.length, rowNorm)],
+                    [mc('Total General', rowAlt), mc(tG + tC, { ...rowAlt, numFmt: moneyFmt, font: { bold: true, sz: 14, color: { rgb: 'FFFFFF' } } }), mc(filasP.length + filasC.length, rowAlt)],
+                ]);
+                wsRes['!cols'] = [{ wch: 35 }, { wch: 22 }, { wch: 18 }];
+                wsRes['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
+                XLSX.utils.book_append_sheet(WB, wsRes, '📊 Resumen');
+
+                XLSX.utils.book_append_sheet(WB, buildSheet(filasP, hdrBlue), '🔵 Por Conciliar');
+                XLSX.utils.book_append_sheet(WB, buildSheet(filasC, hdrGreen), '✅ Cobradas');
+
+                // Descargar
+                const hoy = new Date().toISOString().slice(0, 10);
+                const fileName = `Comisiones_Restringidas_Segumex_${hoy}.xlsx`;
+                const buffer = XLSX.write(WB, { bookType: 'xlsx', type: 'array' });
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = fileName;
+                document.body.appendChild(a); a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+            } catch (err) {
+                console.error('Error al exportar Excel:', err);
+                alert('Error al generar el Excel: ' + (err.message || 'Error desconocido'));
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">download</span> Exportar Excel';
+            }
+        }
     </script>
 </body>
 
