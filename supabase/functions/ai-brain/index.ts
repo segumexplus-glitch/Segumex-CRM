@@ -30,11 +30,72 @@ function extraerTelefono10(platformUserId: string): string {
 async function buscarClientePorTelefono(tel10: string) {
     const { data, error } = await supabase
         .from('clientes')
-        .select('id, nombre, apellido, rfc, email, telefono')
+        .select('id, nombre, apellido, rfc, email, telefono, fecha_nacimiento')
         .or(`telefono.eq.${tel10},telefono.ilike.%${tel10}%`)
         .maybeSingle();
     if (error) console.error('buscarClientePorTelefono error:', error.message);
     return data || null;
+}
+
+// ============================================================
+// Busca clientes por nombre (búsqueda flexible, ignora tildes y mayúsculas)
+// ============================================================
+async function buscarClientesPorNombre(nombreCompleto: string): Promise<any[]> {
+    const partes = nombreCompleto.trim().split(/\s+/).filter(p => p.length > 2);
+    if (partes.length === 0) return [];
+
+    // Construir condiciones OR para cada parte del nombre contra nombre y apellido
+    const condiciones = partes
+        .flatMap(p => [`nombre.ilike.%${p}%`, `apellido.ilike.%${p}%`])
+        .join(',');
+
+    const { data, error } = await supabase
+        .from('clientes')
+        .select('id, nombre, apellido, fecha_nacimiento, telefono')
+        .or(condiciones)
+        .limit(5);
+
+    if (error) console.error('buscarClientesPorNombre error:', error.message);
+    return data || [];
+}
+
+// ============================================================
+// Normaliza texto de fecha a formato YYYY-MM-DD para comparar
+// Soporta: "15/01/1990", "15-01-1990", "1990-01-15",
+//          "15 de enero de 1990", "enero 15 de 1990"
+// ============================================================
+function normalizarFecha(texto: string): string | null {
+    const meses: Record<string, string> = {
+        'enero':'01','febrero':'02','marzo':'03','abril':'04',
+        'mayo':'05','junio':'06','julio':'07','agosto':'08',
+        'septiembre':'09','octubre':'10','noviembre':'11','diciembre':'12'
+    };
+
+    const t = texto.trim();
+
+    // ISO: 1990-01-15
+    let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+
+    // DD/MM/YYYY o DD-MM-YYYY
+    m = t.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+
+    // "15 de enero de 1990" o "15 enero 1990"
+    const lower = t.toLowerCase();
+    for (const [mes, num] of Object.entries(meses)) {
+        if (lower.includes(mes)) {
+            const dayM  = lower.match(/(\d{1,2})\s+de\s+/);
+            const dayM2 = lower.match(/^(\d{1,2})\s+/);
+            const yearM = lower.match(/\d{4}/);
+            const dia   = (dayM || dayM2)?.[1];
+            if (dia && yearM) {
+                return `${yearM[0]}-${num}-${dia.padStart(2,'0')}`;
+            }
+        }
+    }
+
+    return null;
 }
 
 // ============================================================
@@ -175,7 +236,126 @@ Deno.serve(async (req) => {
                 .maybeSingle();
 
             if (pendingMenu) {
-                const opciones: any[] = pendingMenu.opciones || [];
+                const opcionesRaw = pendingMenu.opciones;
+
+                // ────────────────────────────────────────────────────
+                // CASO: Verificación de identidad por fecha de nacimiento
+                // ────────────────────────────────────────────────────
+                if (opcionesRaw && !Array.isArray(opcionesRaw) && opcionesRaw.tipo === 'verificacion_identidad') {
+                    const verificacion = opcionesRaw;
+                    const fechaIngresada = normalizarFecha(user_message);
+                    const fechaEsperada  = verificacion.fecha_nacimiento
+                        ? normalizarFecha(verificacion.fecha_nacimiento)
+                        : null;
+
+                    await supabase.from('comm_messages').insert({
+                        conversation_id, sender_type: 'user', content: user_message
+                    });
+
+                    if (fechaIngresada && fechaEsperada && fechaIngresada === fechaEsperada) {
+                        // ✅ Identidad confirmada
+                        await supabase.from('ai_poll_pending').delete().eq('id', pendingMenu.id);
+
+                        const polizasVerificadas: any[] = verificacion.polizas || [];
+                        let respuestaFinal = '';
+
+                        if (polizasVerificadas.length === 0) {
+                            respuestaFinal = `✅ Identidad confirmada. Sin embargo, no encontré pólizas activas asociadas a tu nombre. Tu asesor te contactará pronto. 🛡️`;
+                            await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ chatId, message: respuestaFinal })
+                            });
+                        } else if (polizasVerificadas.length === 1) {
+                            respuestaFinal = `✅ ¡Identidad confirmada! Enseguida te envío tu póliza. 😊`;
+                            await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ chatId, message: respuestaFinal })
+                            });
+                            await enviarPdfPoliza(greenBaseUrl, GREEN_API_TOKEN, chatId, polizasVerificadas[0]);
+                        } else {
+                            // Múltiples pólizas → mostrar menú
+                            const numeros = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+                            const lineas = polizasVerificadas.map((p: any, i: number) => {
+                                const emoji = numeros[i] || `${i + 1}.`;
+                                const ramo  = (p.ramo || 'S/R').toUpperCase();
+                                const aseg  = p.aseguradora || 'S/A';
+                                const num   = p.no_poliza   || 'S/N';
+                                return `${emoji} ${aseg} · ${ramo} (${num})`;
+                            });
+                            respuestaFinal = `✅ ¡Identidad confirmada! Tienes *${polizasVerificadas.length} pólizas* activas con nosotros.\n\n¿Cuál necesitas?\n\n${lineas.join('\n')}\n\nResponde con el número de tu elección.`;
+
+                            // Guardar menú de pólizas como pendingMenu normal
+                            await supabase.from('ai_poll_pending').delete().eq('chat_id', chatId);
+                            await supabase.from('ai_poll_pending').insert({
+                                chat_id: chatId, conversation_id, opciones: polizasVerificadas
+                            });
+
+                            await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ chatId, message: respuestaFinal })
+                            });
+                        }
+
+                        await supabase.from('comm_messages').insert({
+                            conversation_id, sender_type: 'ai', content: respuestaFinal
+                        });
+                        return new Response(JSON.stringify({ success: true, identity_verified: true }), {
+                            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                        });
+
+                    } else {
+                        // ❌ Fecha incorrecta o no reconocida
+                        const intentos = (verificacion.intentos || 0) + 1;
+
+                        if (intentos >= 3) {
+                            // Demasiados intentos → bloquear y notificar agente
+                            await supabase.from('ai_poll_pending').delete().eq('id', pendingMenu.id);
+                            const msgBloqueo = `Lo sentimos, no pudimos verificar tu identidad. Un asesor se pondrá en contacto contigo a la brevedad. 🙏`;
+                            await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ chatId, message: msgBloqueo })
+                            });
+                            await supabase.from('comm_messages').insert({
+                                conversation_id, sender_type: 'ai', content: msgBloqueo
+                            });
+                            await supabase.functions.invoke('push-sender', {
+                                body: {
+                                    notify_all: true,
+                                    title: '⚠️ Verificación fallida',
+                                    body: `${verificacion.nombre_buscado || 'Desconocido'} no pudo verificar su identidad tras 3 intentos.`,
+                                    data: { url: 'buzon.html' }
+                                }
+                            });
+                        } else {
+                            // Actualizar contador de intentos
+                            await supabase.from('ai_poll_pending')
+                                .update({ opciones: { ...verificacion, intentos } })
+                                .eq('id', pendingMenu.id);
+                            const msgReintento = `La fecha no coincide con nuestros registros. Por favor intenta de nuevo (intento ${intentos} de 3).\n\n📅 Envíame tu *fecha de nacimiento* en formato DD/MM/AAAA.`;
+                            await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ chatId, message: msgReintento })
+                            });
+                            await supabase.from('comm_messages').insert({
+                                conversation_id, sender_type: 'ai', content: msgReintento
+                            });
+                        }
+
+                        return new Response(JSON.stringify({ success: true, identity_verified: false }), {
+                            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                        });
+                    }
+                }
+
+                // ────────────────────────────────────────────────────
+                // CASO: Selección de póliza por número (menú existente)
+                // ────────────────────────────────────────────────────
+                const opciones: any[] = Array.isArray(opcionesRaw) ? opcionesRaw : [];
                 const numInput = parseInt(user_message.trim(), 10);
 
                 if (!isNaN(numInput) && numInput >= 1 && numInput <= opciones.length) {
@@ -419,6 +599,9 @@ ACCIONES ESPECIALES
 ════════════════════════════════════
 - Lead: Tan pronto el cliente muestre interés en cotizar → "create_lead": true
 - PDF: Si el cliente pide su póliza, documentos, o "mándame el pdf" → "send_pdf": true
+  ⚠️ IMPORTANTE para send_pdf: Si el usuario NO está identificado por teléfono y pide su póliza,
+  PRIMERO pregunta su nombre completo si no lo ha dado. Una vez que lo tengas, entonces marca
+  "send_pdf": true e incluye "nombre_buscado" en lead_data. No marques send_pdf: true sin tener el nombre.
 - Cotización completa: Cuando ya recopilaste TODOS los datos del flujo → "cotizacion_completa": true
 
 FORMATO DE SALIDA (JSON obligatorio, sin markdown):
@@ -429,6 +612,7 @@ FORMATO DE SALIDA (JSON obligatorio, sin markdown):
     "cotizacion_completa": true/false,
     "lead_data": {
         "nombre": "si lo mencionó",
+        "nombre_buscado": "nombre completo que dio el cliente para buscar su póliza (solo cuando send_pdf: true)",
         "interes": "Auto/GMM/Vida/Casa/Negocio/Otro",
         "subtipo": "individual/familiar/colectivo/nacional/legalizado/flotilla/etc (si aplica)",
         "codigo_postal": "si lo dio",
@@ -746,7 +930,75 @@ Incluye en lead_data SOLO los campos que ya te proporcionó el cliente. Omite lo
         }
 
         // --------------------------------------------------------
-        // 11. ENVIAR PÓLIZA(S)
+        // 11a. VERIFICACIÓN DE IDENTIDAD POR NOMBRE (número desconocido)
+        // Si el cliente pide su póliza pero no está identificado por teléfono,
+        // buscamos por nombre y pedimos fecha de nacimiento para confirmar.
+        // --------------------------------------------------------
+        if (aiResponseAction?.send_pdf && !clienteIdentificado && GREEN_INSTANCE_ID && GREEN_API_TOKEN) {
+            const nombreBuscado = aiResponseAction.lead_data?.nombre_buscado || aiResponseAction.lead_data?.nombre || '';
+
+            if (nombreBuscado.length > 3) {
+                const candidatos = await buscarClientesPorNombre(nombreBuscado);
+
+                if (candidatos.length > 0) {
+                    // Tomar el candidato con más coincidencia (el primero de la búsqueda)
+                    const candidato = candidatos[0];
+                    const polizasCandidato = await obtenerPolizasCliente(candidato.id);
+
+                    // Guardar estado de verificación pendiente
+                    await supabase.from('ai_poll_pending').delete().eq('chat_id', chatId);
+                    await supabase.from('ai_poll_pending').insert({
+                        chat_id: chatId,
+                        conversation_id,
+                        opciones: {
+                            tipo: 'verificacion_identidad',
+                            cliente_id: candidato.id,
+                            nombre_buscado: nombreBuscado,
+                            fecha_nacimiento: candidato.fecha_nacimiento,
+                            polizas: polizasCandidato,
+                            intentos: 0
+                        }
+                    });
+
+                    // Reemplazar el mensaje de Gemini con la solicitud de verificación
+                    const msgVerificacion = `Para proteger tu información, necesito verificar tu identidad. 🔒\n\nPor favor indícame tu *fecha de nacimiento* en formato DD/MM/AAAA.`;
+
+                    // Cancelar el mensaje que ya envió Gemini y mandar el de verificación
+                    await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ chatId, message: msgVerificacion })
+                    });
+                    await supabase.from('comm_messages').insert({
+                        conversation_id, sender_type: 'ai', content: msgVerificacion
+                    });
+
+                    console.log(`🔒 Verificación de identidad iniciada para: ${nombreBuscado} → candidato ID ${candidato.id}`);
+
+                    return new Response(JSON.stringify({ success: true, identity_check_started: true }), {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                    });
+
+                } else {
+                    // No encontramos a nadie con ese nombre
+                    const msgNoEncontrado = `No encontré ningún cliente registrado con el nombre *${nombreBuscado}*.\n\nSi crees que hay un error, comunícate con tu asesor directamente. 🛡️`;
+                    await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ chatId, message: msgNoEncontrado })
+                    });
+                    await supabase.from('comm_messages').insert({
+                        conversation_id, sender_type: 'ai', content: msgNoEncontrado
+                    });
+                    return new Response(JSON.stringify({ success: true, client_not_found: true }), {
+                        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                    });
+                }
+            }
+        }
+
+        // --------------------------------------------------------
+        // 11b. ENVIAR PÓLIZA(S) — cliente identificado por teléfono
         // --------------------------------------------------------
         if (aiResponseAction?.send_pdf && clienteIdentificado && polizasCliente.length > 0 && GREEN_INSTANCE_ID && GREEN_API_TOKEN) {
             // chatId ya definido arriba (const chatId = conversation.platform_user_id)
