@@ -160,6 +160,37 @@ async function generarUrlFirmada(path: string): Promise<string | null> {
 }
 
 // ============================================================
+// Envía un WhatsApp de alerta al número del agente (4494296226)
+// ============================================================
+async function alertarAgentePorWhatsApp(
+    greenBaseUrl: string,
+    token: string,
+    nombreCliente: string | null,
+    telefonoCliente: string,
+    motivo: 'escalation' | 'verificacion_fallida'
+): Promise<void> {
+    const AGENTE_CHAT_ID = '524494296226@c.us';
+    const identificador  = nombreCliente
+        ? `*${nombreCliente}* (${telefonoCliente})`
+        : `cliente con número *${telefonoCliente}*`;
+
+    const mensaje = motivo === 'escalation'
+        ? `🙋 El ${identificador} está solicitando hablar con un asesor.`
+        : `⚠️ El ${identificador} no pudo verificar su identidad tras 3 intentos.`;
+
+    try {
+        await fetch(`${greenBaseUrl}/sendMessage/${token}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chatId: AGENTE_CHAT_ID, message: mensaje })
+        });
+        console.log(`📲 Agente notificado por WhatsApp: ${motivo}`);
+    } catch (e) {
+        console.error('Error notificando agente por WhatsApp:', e);
+    }
+}
+
+// ============================================================
 // Construye la base URL de Green API según el instance ID
 // ============================================================
 function buildGreenBaseUrl(instanceId: string): string {
@@ -356,6 +387,15 @@ Deno.serve(async (req) => {
                                     data: { url: 'buzon.html' }
                                 }
                             });
+
+                            // WhatsApp directo al agente
+                            const telFallido = chatId.replace('@c.us','').replace(/^521?/,'').slice(-10);
+                            await alertarAgentePorWhatsApp(
+                                greenBaseUrl, GREEN_API_TOKEN,
+                                verificacion.nombre_buscado || null,
+                                telFallido,
+                                'verificacion_fallida'
+                            );
                         } else {
                             // Actualizar contador de intentos
                             await supabase.from('ai_poll_pending')
@@ -629,6 +669,9 @@ ACCIONES ESPECIALES
   PRIMERO pregunta su nombre completo si no lo ha dado. Una vez que lo tengas, entonces marca
   "send_pdf": true e incluye "nombre_buscado" en lead_data. No marques send_pdf: true sin tener el nombre.
 - Cotización completa: Cuando ya recopilaste TODOS los datos del flujo → "cotizacion_completa": true
+- Escalar a agente: Si el cliente pide hablar con una persona, un asesor, un humano, o expresa
+  frustración importante y quiere salir del bot → "escalate_to_agent": true
+  Responde algo como: "Por supuesto, con gusto te comunico con uno de nuestros asesores. En breve se pondrá en contacto contigo. 😊🛡️"
 
 FORMATO DE SALIDA (JSON obligatorio, sin markdown):
 {
@@ -636,6 +679,7 @@ FORMATO DE SALIDA (JSON obligatorio, sin markdown):
     "create_lead": true/false,
     "send_pdf": true/false,
     "cotizacion_completa": true/false,
+    "escalate_to_agent": true/false,
     "lead_data": {
         "nombre": "si lo mencionó",
         "nombre_buscado": "nombre completo que dio el cliente para buscar su póliza (solo cuando send_pdf: true)",
@@ -819,6 +863,8 @@ Incluye en lead_data SOLO los campos que ya te proporcionó el cliente. Omite lo
                     if (createLeadMatch) aiResponseAction.create_lead = createLeadMatch[1].toLowerCase() === 'true';
                     const cotizacionMatch = rawText.match(/"cotizacion_completa":\s*(true|false)/i);
                     if (cotizacionMatch) aiResponseAction.cotizacion_completa = cotizacionMatch[1].toLowerCase() === 'true';
+                    const escalateMatch = rawText.match(/"escalate_to_agent":\s*(true|false)/i);
+                    if (escalateMatch) aiResponseAction.escalate_to_agent = escalateMatch[1].toLowerCase() === 'true';
                 }
             } else if (aiData.error?.code === 429) {
                 textToSend = "El sistema de IA está saturado. Por favor intenta en unos minutos.";
@@ -878,7 +924,35 @@ Incluye en lead_data SOLO los campos que ya te proporcionó el cliente. Omite lo
                 }
             }
 
-            // 9b. Actualizar lead con datos completos de cotización
+            // 9b. Escalar a agente humano
+            if (aiResponseAction.escalate_to_agent) {
+                console.log("🙋 Cliente solicita agente humano.");
+
+                // Cambiar conversación a agent_handling
+                await supabase.from('comm_conversations')
+                    .update({ status: 'agent_handling' })
+                    .eq('id', conversation_id);
+
+                // Notificar por WhatsApp al número del agente
+                const telCliente = tel10 || conversation.platform_user_id.replace(/\D/g, '').slice(-10);
+                const nombreCliente = clienteIdentificado
+                    ? `${clienteIdentificado.nombre} ${clienteIdentificado.apellido || ''}`.trim()
+                    : (aiResponseAction.lead_data?.nombre || null);
+
+                await alertarAgentePorWhatsApp(greenBaseUrl, GREEN_API_TOKEN, nombreCliente, telCliente, 'escalation');
+
+                // Push notification adicional
+                await supabase.functions.invoke('push-sender', {
+                    body: {
+                        notify_all: true,
+                        title: '🙋 Cliente pide hablar con asesor',
+                        body: `${nombreCliente || telCliente} quiere atención humana.`,
+                        data: { url: 'buzon.html' }
+                    }
+                });
+            }
+
+            // 9c. Actualizar lead con datos completos de cotización
             if (aiResponseAction.cotizacion_completa) {
                 console.log("✅ Cotización completa. Guardando datos del lead...");
 
