@@ -38,25 +38,41 @@ async function buscarClientePorTelefono(tel10: string) {
 }
 
 // ============================================================
-// Busca clientes por nombre (búsqueda flexible, ignora tildes y mayúsculas)
+// Busca clientes por nombre (búsqueda flexible palabra por palabra)
+// Hace una query separada por cada parte del nombre para evitar
+// problemas de sintaxis con OR compuestos en Supabase.
 // ============================================================
 async function buscarClientesPorNombre(nombreCompleto: string): Promise<any[]> {
     const partes = nombreCompleto.trim().split(/\s+/).filter(p => p.length > 2);
     if (partes.length === 0) return [];
 
-    // Construir condiciones OR para cada parte del nombre contra nombre y apellido
-    const condiciones = partes
-        .flatMap(p => [`nombre.ilike.%${p}%`, `apellido.ilike.%${p}%`])
-        .join(',');
+    const mapa = new Map<number, any>();
 
-    const { data, error } = await supabase
-        .from('clientes')
-        .select('id, nombre, apellido, fecha_nacimiento, telefono')
-        .or(condiciones)
-        .limit(5);
+    for (const parte of partes) {
+        const { data, error } = await supabase
+            .from('clientes')
+            .select('id, nombre, apellido, fecha_nacimiento, rfc, telefono')
+            .or(`nombre.ilike.%${parte}%,apellido.ilike.%${parte}%`)
+            .limit(10);
 
-    if (error) console.error('buscarClientesPorNombre error:', error.message);
-    return data || [];
+        if (error) {
+            console.error('buscarClientesPorNombre error:', error.message);
+            continue;
+        }
+
+        for (const c of (data || [])) {
+            if (!mapa.has(c.id)) {
+                mapa.set(c.id, { ...c, _score: 0 });
+            }
+            // Sumar puntuación: cada palabra que coincide suma 1
+            mapa.get(c.id)._score += 1;
+        }
+    }
+
+    // Ordenar por score (más coincidencias primero) y devolver top 5
+    return Array.from(mapa.values())
+        .sort((a, b) => b._score - a._score)
+        .slice(0, 5);
 }
 
 // ============================================================
@@ -243,16 +259,26 @@ Deno.serve(async (req) => {
                 // ────────────────────────────────────────────────────
                 if (opcionesRaw && !Array.isArray(opcionesRaw) && opcionesRaw.tipo === 'verificacion_identidad') {
                     const verificacion = opcionesRaw;
-                    const fechaIngresada = normalizarFecha(user_message);
-                    const fechaEsperada  = verificacion.fecha_nacimiento
-                        ? normalizarFecha(verificacion.fecha_nacimiento)
-                        : null;
 
                     await supabase.from('comm_messages').insert({
                         conversation_id, sender_type: 'user', content: user_message
                     });
 
-                    if (fechaIngresada && fechaEsperada && fechaIngresada === fechaEsperada) {
+                    // Verificar por fecha de nacimiento O por RFC (cualquiera de los dos)
+                    const fechaIngresada = normalizarFecha(user_message);
+                    const fechaEsperada  = verificacion.fecha_nacimiento
+                        ? normalizarFecha(verificacion.fecha_nacimiento)
+                        : null;
+
+                    const rfcIngresado = user_message.trim().toUpperCase().replace(/\s/g, '');
+                    const rfcEsperado  = (verificacion.rfc || '').toUpperCase().trim();
+                    const esRFC        = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i.test(rfcIngresado);
+
+                    const verificadoPorFecha = !!(fechaIngresada && fechaEsperada && fechaIngresada === fechaEsperada);
+                    const verificadoPorRFC   = !!(esRFC && rfcEsperado && rfcIngresado === rfcEsperado);
+                    const identidadConfirmada = verificadoPorFecha || verificadoPorRFC;
+
+                    if (identidadConfirmada) {
                         // ✅ Identidad confirmada
                         await supabase.from('ai_poll_pending').delete().eq('id', pendingMenu.id);
 
@@ -335,7 +361,7 @@ Deno.serve(async (req) => {
                             await supabase.from('ai_poll_pending')
                                 .update({ opciones: { ...verificacion, intentos } })
                                 .eq('id', pendingMenu.id);
-                            const msgReintento = `La fecha no coincide con nuestros registros. Por favor intenta de nuevo (intento ${intentos} de 3).\n\n📅 Envíame tu *fecha de nacimiento* en formato DD/MM/AAAA.`;
+                            const msgReintento = `El dato no coincide con nuestros registros. Por favor intenta de nuevo (intento ${intentos} de 3).\n\nRecuerda que puedes usar cualquiera de estos:\n📅 *Fecha de nacimiento* (DD/MM/AAAA)\n🪪 *RFC*`;
                             await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -955,13 +981,14 @@ Incluye en lead_data SOLO los campos que ya te proporcionó el cliente. Omite lo
                             cliente_id: candidato.id,
                             nombre_buscado: nombreBuscado,
                             fecha_nacimiento: candidato.fecha_nacimiento,
+                            rfc: candidato.rfc || '',
                             polizas: polizasCandidato,
                             intentos: 0
                         }
                     });
 
                     // Reemplazar el mensaje de Gemini con la solicitud de verificación
-                    const msgVerificacion = `Para proteger tu información, necesito verificar tu identidad. 🔒\n\nPor favor indícame tu *fecha de nacimiento* en formato DD/MM/AAAA.`;
+                    const msgVerificacion = `Para proteger tu información, necesito verificar tu identidad. 🔒\n\nPor favor compárteme uno de los siguientes datos:\n\n📅 *Fecha de nacimiento* (formato DD/MM/AAAA)\n🪪 *RFC*`;
 
                     // Cancelar el mensaje que ya envió Gemini y mandar el de verificación
                     await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
