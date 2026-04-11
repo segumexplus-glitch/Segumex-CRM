@@ -298,6 +298,8 @@ PERSONALIDAD Y TONO — LEE CON ATENCIÓN
 - JAMÁS uses frases que suenen confusas, acusatorias, retóricas o groseras.
 - JAMÁS preguntes cosas como "¿Quedé que?" o "¿A qué te refieres?" de forma brusca.
 - Si no entiendes el mensaje, responde siempre con algo amable como: "¡Hola! 😊 ¿En qué te puedo ayudar hoy?"
+- Haz UNA sola pregunta por mensaje. No bombardees al cliente con todas las preguntas de golpe.
+- Si el cliente ya te dio varios datos en un solo mensaje, extráelos todos y solo pregunta por los que faltan.
 
 REGLA DE ORO — MENSAJES CORTOS DEL CLIENTE:
 Si el cliente manda solo "Gracias", "Ok", "Entendido", "Sí", "No", "Bien", "Recibido" u otra confirmación breve:
@@ -309,21 +311,124 @@ OBJETIVO
 ════════════════════════════════════
 - Resolver dudas sobre pólizas, coberturas y pagos.
 - Cotizar seguros nuevos cuando el cliente muestre interés.
+- Recopilar datos específicos según el tipo de seguro usando los flujos definidos abajo.
 - Ser puente entre el cliente y su asesor cuando sea necesario.
+
+════════════════════════════════════
+FLUJOS DE COTIZACIÓN POR TIPO DE SEGURO
+════════════════════════════════════
+
+Cuando el cliente quiera cotizar, PRIMERO pregunta qué tipo de seguro le interesa si no lo ha dicho.
+Opciones: Gastos Médicos, Auto, Casa, Negocio, Vida, Otro.
+Luego sigue el flujo correspondiente:
+
+── GASTOS MÉDICOS (GMM) ──────────────────────────────
+Paso 1: Pregunta si busca un seguro Individual, Familiar o Colectivo.
+
+Si elige INDIVIDUAL o FAMILIAR:
+  Paso 2: Pide el nombre completo, fecha de nacimiento (o edad) y género de cada persona a cotizar.
+          Para familiar: pide los datos de cada integrante uno por uno o todos juntos si prefiere.
+  Paso 3: Pide el código postal.
+  Paso 4 (opcional): Pregunta si cuenta con una póliza anterior de GMM que pueda compartir.
+  Al terminar todos los datos → cotizacion_completa: true
+
+Si elige COLECTIVO:
+  Responde: "El seguro de Gastos Médicos Colectivo es un producto muy específico con muchas particularidades. Con gusto agendamos una llamada con nuestro agente especializado. ¿Qué día y hora te acomodaría mejor? 😊"
+  Paso 2: Captura el día y hora preferidos para la llamada.
+  Al tener día y hora → cotizacion_completa: true
+
+── AUTO ──────────────────────────────────────────────
+Paso 1: Pregunta si es un vehículo Nacional, Legalizado, o si quiere cotizar una Flotilla.
+
+Si elige NACIONAL o LEGALIZADO:
+  Paso 2: "Puedes darnos los datos de tu vehículo (Marca, Modelo, Versión y Año) o si tienes a la mano una foto de tu tarjeta de circulación, puedes mandárnosla por aquí junto con tu código postal y con gusto te preparamos tu cotización lo antes posible. 🚗"
+  Paso 3 (si da datos manualmente): Solicita Marca, Modelo, Versión, Año y Código Postal.
+  Paso 4: Pregunta si anteriormente ha tenido una póliza para ese vehículo que pueda compartir en PDF o imagen.
+  Al terminar todos los datos → cotizacion_completa: true
+
+Si elige FLOTILLA:
+  Paso 2: Explica que necesitas los mismos datos de cada vehículo (Marca, Modelo, Versión, Año, CP).
+          Pueden enviarlo en una lista o en un Excel con la relación de vehículos.
+  Paso 3: Pregunta qué tipo de uso darán a los vehículos (particular, reparto, carga, transporte de personal, etc.).
+  Paso 4: Pregunta si anteriormente han contado con un seguro para la flotilla y si pueden compartir la póliza o una relación en Excel.
+  Al terminar → cotizacion_completa: true
+
+── CASA ──────────────────────────────────────────────
+Paso 1: Pide el domicilio completo incluyendo código postal.
+Paso 2: Pregunta si la casa es rentada o propia.
+Paso 3: Pregunta si es de 1 o 2 plantas.
+Paso 4: Pide el valor aproximado de los contenidos (muebles, electrodomésticos, etc.).
+Paso 5: Pide el valor estimado de la casa.
+Paso 6: Pregunta la fecha aproximada de construcción. Aclara: "En caso de no saberla, no hay problema. 😊"
+Paso 7: Pregunta el material de construcción (block, tabique, madera, mixto, etc.).
+Paso 8: Pregunta si ha tenido seguro de casa anteriormente y si puede compartir la póliza en PDF o fotografía.
+Al terminar → cotizacion_completa: true
+
+── NEGOCIO ──────────────────────────────────────────
+Paso 1: Pide el RFC del negocio.
+Paso 2: Pide la Razón Social.
+Paso 3: Pregunta el Régimen Fiscal.
+Paso 4: Pide el giro del negocio (qué tipo de empresa/actividad es).
+Paso 5: Pide la dirección exacta del establecimiento incluyendo código postal.
+Paso 6: Pide el valor estimado de contenidos. Pídelos separados: maquinaria, dispositivos electrónicos y mercancía.
+Paso 7: Pregunta el número de trabajadores.
+Paso 8: Pregunta el número de pisos del establecimiento.
+Paso 9: Pregunta si cuenta con una póliza anterior para ese negocio que pueda compartir en PDF o fotografía.
+Al terminar → cotizacion_completa: true
+
+── VIDA ──────────────────────────────────────────────
+Paso 1: Pide el nombre completo de la persona a asegurar.
+Paso 2: Pide la fecha de nacimiento.
+Paso 3: Pregunta el género.
+Paso 4: Pregunta si tienen en mente un presupuesto mensual que quisieran pagar, o bien el monto total (suma asegurada) por el que les gustaría adquirir el seguro.
+Al terminar → cotizacion_completa: true
+
+── OTRO TIPO DE SEGURO ───────────────────────────────
+Paso 1: Pregunta qué tipo de seguro están buscando y dales espacio para describir su necesidad.
+Al recibir la descripción → cotizacion_completa: true
+
+════════════════════════════════════
+MENSAJE DE CIERRE (aplica a TODOS los seguros)
+════════════════════════════════════
+Cuando cotizacion_completa sea true, cierra SIEMPRE con este mensaje (adaptado naturalmente):
+"¡Perfecto! Ya tenemos toda la información. En caso de que necesitemos algún dato adicional, nos pondremos en contacto contigo. 😊🛡️"
 
 ════════════════════════════════════
 ACCIONES ESPECIALES
 ════════════════════════════════════
-- Lead: Si el usuario quiere cotizar o comprar → "create_lead": true
+- Lead: Tan pronto el cliente muestre interés en cotizar → "create_lead": true
 - PDF: Si el cliente pide su póliza, documentos, o "mándame el pdf" → "send_pdf": true
+- Cotización completa: Cuando ya recopilaste TODOS los datos del flujo → "cotizacion_completa": true
 
 FORMATO DE SALIDA (JSON obligatorio, sin markdown):
 {
     "reply": "Tu mensaje aquí.",
     "create_lead": true/false,
     "send_pdf": true/false,
-    "lead_data": { "nombre": "si lo menciona", "interes": "Auto/GMM/Vida/General" }
+    "cotizacion_completa": true/false,
+    "lead_data": {
+        "nombre": "si lo mencionó",
+        "interes": "Auto/GMM/Vida/Casa/Negocio/Otro",
+        "subtipo": "individual/familiar/colectivo/nacional/legalizado/flotilla/etc (si aplica)",
+        "codigo_postal": "si lo dio",
+        "personas_gmm": [{"nombre":"...","edad":"...","genero":"..."}],
+        "agenda_llamada": {"dia":"...","hora":"..."},
+        "auto_marca": "...", "auto_modelo": "...", "auto_version": "...", "auto_anio": "...",
+        "auto_uso": "particular/comercial/etc (para flotilla)",
+        "casa_domicilio": "...", "casa_tipo": "propia/rentada", "casa_plantas": "1/2",
+        "casa_valor_contenidos": "...", "casa_valor_inmueble": "...",
+        "casa_fecha_construccion": "...", "casa_material": "...",
+        "negocio_rfc": "...", "negocio_razon_social": "...", "negocio_regimen": "...",
+        "negocio_giro": "...", "negocio_domicilio": "...",
+        "negocio_valor_maquinaria": "...", "negocio_valor_electronica": "...", "negocio_valor_mercancia": "...",
+        "negocio_trabajadores": "...", "negocio_pisos": "...",
+        "vida_nombre": "...", "vida_fecha_nacimiento": "...", "vida_genero": "...",
+        "vida_presupuesto_mensual": "...", "vida_suma_asegurada": "...",
+        "otro_descripcion": "...",
+        "tiene_poliza_anterior": true/false
+    }
 }
+Incluye en lead_data SOLO los campos que ya te proporcionó el cliente. Omite los que no apliquen o no se hayan dado aún.
 `;
 
             // 4. Personalizar según si el cliente está identificado
@@ -475,12 +580,14 @@ FORMATO DE SALIDA (JSON obligatorio, sin markdown):
                     // Extraer reply aunque haya saltos de línea escapados
                     const replyMatch = rawText.match(/"reply":\s*"((?:[^"\\]|\\[\s\S])*)"/);
                     textToSend = replyMatch?.[1]?.replace(/\\n/g, '\n').replace(/\\"/g, '"') || rawText;
-                    // CRÍTICO: extraer send_pdf y create_lead aunque falle el JSON completo
+                    // CRÍTICO: extraer send_pdf, create_lead y cotizacion_completa aunque falle el JSON completo
                     // Sin esto, el menú de pólizas nunca se envía cuando Gemini devuelve JSON mal formateado
                     const sendPdfMatch = rawText.match(/"send_pdf":\s*(true|false)/i);
                     if (sendPdfMatch) aiResponseAction.send_pdf = sendPdfMatch[1].toLowerCase() === 'true';
                     const createLeadMatch = rawText.match(/"create_lead":\s*(true|false)/i);
                     if (createLeadMatch) aiResponseAction.create_lead = createLeadMatch[1].toLowerCase() === 'true';
+                    const cotizacionMatch = rawText.match(/"cotizacion_completa":\s*(true|false)/i);
+                    if (cotizacionMatch) aiResponseAction.cotizacion_completa = cotizacionMatch[1].toLowerCase() === 'true';
                 }
             } else if (aiData.error?.code === 429) {
                 textToSend = "El sistema de IA está saturado. Por favor intenta en unos minutos.";
@@ -489,10 +596,13 @@ FORMATO DE SALIDA (JSON obligatorio, sin markdown):
                 textToSend = "Disculpa, no entendí eso. Un asesor te contactará.";
             }
 
-            // 9. Crear lead
+            // 9. Crear / actualizar lead
+            const phoneNumber = tel10 || conversation.platform_user_id.replace(/\D/g, '');
+            const ld = aiResponseAction.lead_data || {};
+
+            // 9a. Crear lead inicial cuando el cliente muestra intención de cotizar
             if (aiResponseAction.create_lead && !conversation.lead_id && !clienteIdentificado) {
                 console.log("🎯 Creando lead por intención de compra...");
-                const phoneNumber = tel10 || conversation.platform_user_id.replace(/\D/g, '');
 
                 const { data: existingLead } = await supabase
                     .from('leads')
@@ -503,8 +613,8 @@ FORMATO DE SALIDA (JSON obligatorio, sin markdown):
                 let leadId = existingLead?.id;
 
                 if (!leadId) {
-                    const leadNombre = aiResponseAction.lead_data?.nombre || 'Prospecto WhatsApp';
-                    const leadInteres = aiResponseAction.lead_data?.interes || 'General';
+                    const leadNombre = ld.nombre || 'Prospecto WhatsApp';
+                    const leadInteres = ld.interes || 'General';
                     const { data: newLead } = await supabase
                         .from('leads')
                         .insert({
@@ -519,7 +629,6 @@ FORMATO DE SALIDA (JSON obligatorio, sin markdown):
                     leadId = newLead?.id;
 
                     if (leadId) {
-                        // Notificar al agente del nuevo lead
                         await supabase.functions.invoke('push-sender', {
                             body: {
                                 notify_all: true,
@@ -535,6 +644,59 @@ FORMATO DE SALIDA (JSON obligatorio, sin markdown):
                     await supabase.from('comm_conversations')
                         .update({ lead_id: leadId })
                         .eq('id', conversation_id);
+                }
+            }
+
+            // 9b. Actualizar lead con datos completos de cotización
+            if (aiResponseAction.cotizacion_completa) {
+                console.log("✅ Cotización completa. Guardando datos del lead...");
+
+                // Recuperar lead_id actualizado (puede haberse seteado en 9a)
+                const { data: convActualizada } = await supabase
+                    .from('comm_conversations')
+                    .select('lead_id')
+                    .eq('id', conversation_id)
+                    .single();
+
+                const leadIdCotizacion = convActualizada?.lead_id;
+
+                if (leadIdCotizacion) {
+                    // Campos con columnas propias en la tabla leads
+                    const updateCampos: Record<string, any> = {};
+                    if (ld.nombre)          updateCampos.nombre         = ld.nombre;
+                    if (ld.interes)         updateCampos.interes        = ld.interes;
+                    if (ld.codigo_postal)   updateCampos.codigo_postal  = ld.codigo_postal;
+                    if (ld.auto_modelo)     updateCampos.auto_modelo    = ld.auto_modelo;
+                    if (ld.auto_anio)       updateCampos.auto_anio      = ld.auto_anio;
+                    if (ld.auto_version)    updateCampos.auto_version   = ld.auto_version;
+
+                    // Todos los datos de cotización en historial JSONB para referencia del agente
+                    updateCampos.historial = [{
+                        tipo: 'cotizacion_whatsapp',
+                        fecha: new Date().toISOString(),
+                        datos: ld
+                    }];
+
+                    updateCampos.estado = 'cotizacion_pendiente';
+
+                    await supabase.from('leads')
+                        .update(updateCampos)
+                        .eq('id', leadIdCotizacion);
+
+                    // Notificar al agente que hay una cotización lista para atender
+                    const tipoSeguro = ld.interes || 'Seguro';
+                    const subtipo    = ld.subtipo  ? ` (${ld.subtipo})` : '';
+                    const nombreLead = ld.nombre   || 'Prospecto';
+                    await supabase.functions.invoke('push-sender', {
+                        body: {
+                            notify_all: true,
+                            title: `📋 Cotización lista — ${tipoSeguro}${subtipo}`,
+                            body: `${nombreLead} completó el formulario de ${tipoSeguro} por WhatsApp. ¡Revísalo en Leads!`,
+                            data: { url: `detalle_lead.html?id=${leadIdCotizacion}` }
+                        }
+                    });
+
+                    console.log(`✅ Lead ${leadIdCotizacion} actualizado con datos de cotización ${tipoSeguro}`);
                 }
             }
 
