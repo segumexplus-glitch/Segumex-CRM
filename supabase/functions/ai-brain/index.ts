@@ -30,7 +30,7 @@ function extraerTelefono10(platformUserId: string): string {
 async function buscarClientePorTelefono(tel10: string) {
     const { data, error } = await supabase
         .from('clientes')
-        .select('id, nombre, apellido, rfc, email, telefono, fecha_nacimiento')
+        .select('id, nombre, apellido, rfc, email, telefono, nacimiento')
         .or(`telefono.eq.${tel10},telefono.ilike.%${tel10}%`)
         .maybeSingle();
     if (error) console.error('buscarClientePorTelefono error:', error.message);
@@ -42,8 +42,15 @@ async function buscarClientePorTelefono(tel10: string) {
 // Hace una query separada por cada parte del nombre para evitar
 // problemas de sintaxis con OR compuestos en Supabase.
 // ============================================================
+// Elimina acentos: "Álvaro" → "Alvaro", "José" → "Jose"
+function quitarAcentos(str: string): string {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 async function buscarClientesPorNombre(nombreCompleto: string): Promise<any[]> {
-    const partes = nombreCompleto.trim().split(/\s+/).filter(p => p.length > 2);
+    // Normalizar: quitar acentos para que "Soto" encuentre "SOTO" y "Héctor" encuentre "HECTOR"
+    const nombreNormalizado = quitarAcentos(nombreCompleto);
+    const partes = nombreNormalizado.trim().split(/\s+/).filter(p => p.length > 2);
     if (partes.length === 0) return [];
 
     const mapa = new Map<number, any>();
@@ -51,7 +58,7 @@ async function buscarClientesPorNombre(nombreCompleto: string): Promise<any[]> {
     for (const parte of partes) {
         const { data, error } = await supabase
             .from('clientes')
-            .select('id, nombre, apellido, fecha_nacimiento, rfc, telefono')
+            .select('id, nombre, apellido, rfc, nacimiento, telefono')
             .or(`nombre.ilike.%${parte}%,apellido.ilike.%${parte}%`)
             .limit(10);
 
@@ -297,13 +304,14 @@ Deno.serve(async (req) => {
 
                     // Verificar por fecha de nacimiento O por RFC (cualquiera de los dos)
                     const fechaIngresada = normalizarFecha(user_message);
-                    const fechaEsperada  = verificacion.fecha_nacimiento
-                        ? normalizarFecha(verificacion.fecha_nacimiento)
+                    const fechaEsperada  = verificacion.nacimiento
+                        ? normalizarFecha(verificacion.nacimiento)
                         : null;
 
                     const rfcIngresado = user_message.trim().toUpperCase().replace(/\s/g, '');
                     const rfcEsperado  = (verificacion.rfc || '').toUpperCase().trim();
-                    const esRFC        = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i.test(rfcIngresado);
+                    // RFC mexicano: 12-13 caracteres alfanuméricos (puede tener dígitos en cualquier posición)
+                    const esRFC        = /^[A-Z0-9Ñ&]{12,13}$/i.test(rfcIngresado);
 
                     const verificadoPorFecha = !!(fechaIngresada && fechaEsperada && fechaIngresada === fechaEsperada);
                     const verificadoPorRFC   = !!(esRFC && rfcEsperado && rfcIngresado === rfcEsperado);
@@ -1054,7 +1062,7 @@ Incluye en lead_data SOLO los campos que ya te proporcionó el cliente. Omite lo
                             tipo: 'verificacion_identidad',
                             cliente_id: candidato.id,
                             nombre_buscado: nombreBuscado,
-                            fecha_nacimiento: candidato.fecha_nacimiento,
+                            nacimiento: candidato.nacimiento,
                             rfc: candidato.rfc || '',
                             polizas: polizasCandidato,
                             intentos: 0
