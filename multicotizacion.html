@@ -14,16 +14,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <link href="ui.css" rel="stylesheet" />
     <script src="ui.js"></script>
+    <script src="menu.js"></script>
 
     <script>
         tailwind.config = {
             darkMode: "class",
             theme: { extend: { colors: { "primary": "#135bec", "background-dark": "#101622", "surface-dark": "#111318", "surface-card": "#1c1f27", "text-secondary": "#9da6b9" }, fontFamily: { "display": ["Inter", "sans-serif"] } } }
         };
-        (async function () {
-            const { data: { session } } = await window.supabaseClient.auth.getSession();
-            if (!session) window.location.href = 'login.html';
-        })();
+        // Sesión verificada por menu.js
     </script>
 
     <style>
