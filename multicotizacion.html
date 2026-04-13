@@ -192,6 +192,7 @@
                         <p class="text-sm font-medium text-white mb-1">Arrastra los PDFs aquí o selecciona:</p>
                         <p class="text-xs text-[#9da6b9] mb-4">Hasta 4 archivos PDF · Máximo 10MB cada uno</p>
                         <input id="fileInput" type="file" multiple accept=".pdf"
+                            onchange="handleFiles(this.files)"
                             style="display:block; margin:0 auto; color:white; font-size:13px; cursor:pointer;" />
                     </div>
 
@@ -199,7 +200,7 @@
                     <div id="fileList" class="space-y-3 mb-6 hidden"></div>
 
                     <button onclick="procesarCotizaciones()" id="btnProcesar"
-                        class="w-full bg-primary hover:bg-blue-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+                        class="w-full bg-primary hover:bg-blue-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
                         <span class="material-symbols-outlined text-base">auto_awesome</span>
                         Analizar con IA y continuar
                     </button>
@@ -576,6 +577,13 @@
     // PASO 1 → 2: Procesar PDFs con IA
     // ═══════════════════════════════════════════════════════════════
     async function procesarCotizaciones() {
+        if (archivos.length === 0) { showToast('Selecciona al menos 1 PDF', 'error'); return; }
+        if (!document.getElementById('vMarca').value.trim()) { showToast('Ingresa la marca del vehículo', 'error'); return; }
+        if (!document.getElementById('vModelo').value.trim()) { showToast('Ingresa el modelo del vehículo', 'error'); return; }
+        if (!document.getElementById('vAnio').value.trim()) { showToast('Ingresa el año del vehículo', 'error'); return; }
+        if (!document.getElementById('vCP').value.trim()) { showToast('Ingresa el código postal', 'error'); return; }
+        if (!document.getElementById('vCreadoPor').value) { showToast('Selecciona quién crea la cotización (Albert o Soto)', 'error'); return; }
+
         const btn = document.getElementById('btnProcesar');
         btn.disabled = true;
         btn.innerHTML = '<span class="material-symbols-outlined text-base spin">refresh</span> Analizando con IA...';
