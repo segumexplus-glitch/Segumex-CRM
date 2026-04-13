@@ -187,17 +187,12 @@
                     </div>
 
                     <!-- Zona de upload -->
-                    <div id="dropZone" class="drop-zone border-2 border-dashed border-[#3b4354] rounded-xl mb-5 hover:border-primary transition-colors">
-                        <label for="fileInput" class="flex flex-col items-center justify-center p-8 cursor-pointer w-full h-full">
-                            <span class="material-symbols-outlined text-4xl text-[#9da6b9] mb-2">upload_file</span>
-                            <p class="text-sm font-medium text-white mb-1">Arrastra los PDFs aquí o haz clic</p>
-                            <p class="text-xs text-[#9da6b9] mb-4">Hasta 4 archivos PDF · Máximo 10MB cada uno</p>
-                            <span class="px-5 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-semibold rounded-lg pointer-events-none">
-                                Seleccionar PDFs
-                            </span>
-                        </label>
-                        <input id="fileInput" type="file" multiple accept="application/pdf,.pdf"
-                            class="sr-only" />
+                    <div id="dropZone" class="drop-zone border-2 border-dashed border-[#3b4354] rounded-xl mb-5 hover:border-primary transition-colors p-8 text-center">
+                        <span class="material-symbols-outlined text-4xl text-[#9da6b9] mb-2 block">upload_file</span>
+                        <p class="text-sm font-medium text-white mb-1">Arrastra los PDFs aquí o selecciona:</p>
+                        <p class="text-xs text-[#9da6b9] mb-4">Hasta 4 archivos PDF · Máximo 10MB cada uno</p>
+                        <input id="fileInput" type="file" multiple accept=".pdf"
+                            style="display:block; margin:0 auto; color:white; font-size:13px; cursor:pointer;" />
                     </div>
 
                     <!-- Lista de archivos -->
