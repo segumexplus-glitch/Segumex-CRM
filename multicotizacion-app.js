@@ -12,9 +12,6 @@
     let pdfBlob = null;
     let pdfStoragePath = null;
 
-    const SUPABASE_URL = window.supabaseUrl;
-    const SUPABASE_KEY = window.supabaseKey;
-
     // ─── Colores por aseguradora ───
     const INSURER_COLORS = {
         'hdi': 'color-hdi', 'qualitas': 'color-qualitas', 'gnp': 'color-gnp',
