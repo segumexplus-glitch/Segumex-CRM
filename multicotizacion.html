@@ -198,7 +198,7 @@
                             class="px-5 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-semibold rounded-lg">
                             Seleccionar archivos
                         </button>
-                        <input id="fileInput" type="file" accept=".pdf" multiple style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" />
+                        <input id="fileInput" type="file" multiple style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" />
                     </div>
 
                     <!-- Lista de archivos -->
@@ -468,10 +468,11 @@
         // File input listener
         const fileInput = document.getElementById('fileInput');
         fileInput.addEventListener('change', function() {
+            console.log('📂 Archivos seleccionados:', this.files?.length);
             if (this.files && this.files.length > 0) {
                 handleFiles(this.files);
-                this.value = ''; // reset para permitir seleccionar el mismo archivo de nuevo
             }
+            this.value = '';
         });
 
         // Pre-fill CP from vCP to lCP
@@ -517,7 +518,8 @@
     function handleFiles(files) {
         for (const file of files) {
             if (archivos.length >= 4) { showToast('Máximo 4 cotizaciones', 'warning'); break; }
-            if (!file.name.endsWith('.pdf')) { showToast(`${file.name} no es PDF`, 'error'); continue; }
+            const esPDF = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+            if (!esPDF) { showToast(`${file.name} no es PDF`, 'error'); continue; }
             if (file.size > 10 * 1024 * 1024) { showToast(`${file.name} excede 10MB`, 'error'); continue; }
             if (archivos.find(f => f.name === file.name)) continue;
             archivos.push(file);
