@@ -68,12 +68,7 @@
             document.getElementById('lCP').value = e.target.value;
         });
 
-        // Validar botón al cambiar campos requeridos
-        ['vMarca','vModelo','vAnio','vCP'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.addEventListener('input', validarBtnProcesar);
-        });
-        document.getElementById('vCreadoPor').addEventListener('change', validarBtnProcesar);
+        // (validación ocurre al hacer clic en el botón)
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -117,8 +112,7 @@
 
     function renderFileList() {
         const list = document.getElementById('fileList');
-        const btn = document.getElementById('btnProcesar');
-        if (archivos.length === 0) { list.classList.add('hidden'); btn.disabled = true; return; }
+        if (archivos.length === 0) { list.classList.add('hidden'); return; }
         list.classList.remove('hidden');
         list.innerHTML = archivos.map((f, i) => `
             <div class="cot-card flex items-center gap-3 p-3">
@@ -132,20 +126,6 @@
                 </button>
             </div>
         `).join('');
-        btn.disabled = false;
-        // Validar campos obligatorios
-        validarBtnProcesar();
-    }
-
-    function validarBtnProcesar() {
-        const btn = document.getElementById('btnProcesar');
-        const ok = archivos.length > 0 &&
-            document.getElementById('vMarca').value.trim() &&
-            document.getElementById('vModelo').value.trim() &&
-            document.getElementById('vAnio').value.trim() &&
-            document.getElementById('vCP').value.trim() &&
-            document.getElementById('vCreadoPor').value;
-        btn.disabled = !ok;
     }
 
     // Los listeners se agregan en init() para garantizar que el DOM esté listo
