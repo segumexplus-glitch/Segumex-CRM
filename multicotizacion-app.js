@@ -159,12 +159,18 @@
     // PASO 1 → 2: Procesar PDFs con IA
     // ═══════════════════════════════════════════════════════════════
     async function procesarCotizaciones() {
-        if (archivos.length === 0) { showToast('Selecciona al menos 1 PDF', 'error'); return; }
-        if (!document.getElementById('vMarca').value.trim()) { showToast('Ingresa la marca del vehículo', 'error'); return; }
-        if (!document.getElementById('vModelo').value.trim()) { showToast('Ingresa el modelo del vehículo', 'error'); return; }
-        if (!document.getElementById('vAnio').value.trim()) { showToast('Ingresa el año del vehículo', 'error'); return; }
-        if (!document.getElementById('vCP').value.trim()) { showToast('Ingresa el código postal', 'error'); return; }
-        if (!document.getElementById('vCreadoPor').value) { showToast('Selecciona quién crea la cotización (Albert o Soto)', 'error'); return; }
+        const errores = [];
+        if (archivos.length === 0) errores.push('• Selecciona al menos 1 PDF');
+        if (!document.getElementById('vMarca').value.trim()) errores.push('• Marca del vehículo');
+        if (!document.getElementById('vModelo').value.trim()) errores.push('• Modelo del vehículo');
+        if (!document.getElementById('vAnio').value.trim()) errores.push('• Año del vehículo');
+        if (!document.getElementById('vCP').value.trim()) errores.push('• Código postal');
+        if (!document.getElementById('vCreadoPor').value) errores.push('• Creado por (Albert o Soto)');
+
+        if (errores.length > 0) {
+            alert('Faltan los siguientes campos:\n\n' + errores.join('\n'));
+            return;
+        }
 
         const btn = document.getElementById('btnProcesar');
         btn.disabled = true;
