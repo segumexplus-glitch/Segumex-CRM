@@ -187,18 +187,17 @@
                     </div>
 
                     <!-- Zona de upload -->
-                    <div id="dropZone" class="drop-zone border-2 border-dashed border-[#3b4354] rounded-xl p-8 text-center mb-5 hover:border-primary transition-colors relative"
-                        ondragover="event.preventDefault(); this.classList.add('dragover')"
-                        ondragleave="this.classList.remove('dragover')"
-                        ondrop="handleDrop(event)">
-                        <span class="material-symbols-outlined text-4xl text-[#9da6b9] mb-2 block">upload_file</span>
-                        <p class="text-sm font-medium text-white mb-1">Arrastra los PDFs aquí</p>
-                        <p class="text-xs text-[#9da6b9] mb-4">Hasta 4 archivos PDF · Máximo 10MB cada uno</p>
-                        <button type="button" onclick="document.getElementById('fileInput').click()"
-                            class="px-5 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-semibold rounded-lg">
-                            Seleccionar archivos
-                        </button>
-                        <input id="fileInput" type="file" multiple style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" />
+                    <div id="dropZone" class="drop-zone border-2 border-dashed border-[#3b4354] rounded-xl mb-5 hover:border-primary transition-colors">
+                        <label for="fileInput" class="flex flex-col items-center justify-center p-8 cursor-pointer w-full h-full">
+                            <span class="material-symbols-outlined text-4xl text-[#9da6b9] mb-2">upload_file</span>
+                            <p class="text-sm font-medium text-white mb-1">Arrastra los PDFs aquí o haz clic</p>
+                            <p class="text-xs text-[#9da6b9] mb-4">Hasta 4 archivos PDF · Máximo 10MB cada uno</p>
+                            <span class="px-5 py-2 bg-primary hover:bg-blue-600 text-white text-sm font-semibold rounded-lg pointer-events-none">
+                                Seleccionar PDFs
+                            </span>
+                        </label>
+                        <input id="fileInput" type="file" multiple accept="application/pdf,.pdf"
+                            class="sr-only" />
                     </div>
 
                     <!-- Lista de archivos -->
@@ -467,12 +466,23 @@
 
         // File input listener
         const fileInput = document.getElementById('fileInput');
-        fileInput.addEventListener('change', function() {
-            console.log('📂 Archivos seleccionados:', this.files?.length);
-            if (this.files && this.files.length > 0) {
-                handleFiles(this.files);
+        fileInput.addEventListener('change', function(e) {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+                handleFiles(files);
             }
-            this.value = '';
+            // reset value so same file can be selected again
+            setTimeout(() => { fileInput.value = ''; }, 100);
+        });
+
+        // Drag and drop en el dropZone
+        const dropZone = document.getElementById('dropZone');
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
         });
 
         // Pre-fill CP from vCP to lCP
