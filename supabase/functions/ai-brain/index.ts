@@ -198,6 +198,29 @@ async function alertarAgentePorWhatsApp(
 }
 
 // ============================================================
+// Envía mensaje por Meta Graph API (Facebook Messenger / Instagram DM)
+// Limpia formato WhatsApp (*bold*, _italic_) ya que Meta no lo soporta
+// ============================================================
+async function enviarMensajeMeta(recipientId: string, message: string, token: string): Promise<void> {
+    const textoLimpio = message
+        .replace(/\*(.*?)\*/g, '$1')   // *negrita* → texto
+        .replace(/_(.*?)_/g, '$1')     // _cursiva_ → texto
+        .replace(/~(.*?)~/g, '$1');    // ~tachado~ → texto
+
+    const res = await fetch(`https://graph.facebook.com/v19.0/me/messages?access_token=${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            recipient: { id: recipientId },
+            message: { text: textoLimpio }
+        })
+    });
+    const data = await res.json();
+    if (!res.ok) console.error('❌ Error enviando mensaje Meta:', JSON.stringify(data));
+    else console.log(`✅ Mensaje Meta enviado a ${recipientId}`);
+}
+
+// ============================================================
 // Construye la base URL de Green API según el instance ID
 // ============================================================
 function buildGreenBaseUrl(instanceId: string): string {
@@ -256,9 +279,11 @@ Deno.serve(async (req) => {
         return new Response('ok', { headers: corsHeaders });
     }
 
-    const GREEN_INSTANCE_ID = Deno.env.get('GREEN_INSTANCE_ID') ?? '';
-    const GREEN_API_TOKEN   = Deno.env.get('GREEN_API_TOKEN') ?? '';
-    const GEMINI_API_KEY    = Deno.env.get('GEMINI_API_KEY')?.trim() ?? '';
+    const GREEN_INSTANCE_ID        = Deno.env.get('GREEN_INSTANCE_ID') ?? '';
+    const GREEN_API_TOKEN          = Deno.env.get('GREEN_API_TOKEN') ?? '';
+    const GEMINI_API_KEY           = Deno.env.get('GEMINI_API_KEY')?.trim() ?? '';
+    const META_PAGE_ACCESS_TOKEN   = Deno.env.get('META_PAGE_ACCESS_TOKEN') ?? '';
+    const META_INSTAGRAM_TOKEN     = Deno.env.get('META_INSTAGRAM_TOKEN') ?? '';
 
     const greenBaseUrl = buildGreenBaseUrl(GREEN_INSTANCE_ID);
 
@@ -268,10 +293,10 @@ Deno.serve(async (req) => {
         const body = await req.json();
         const { conversation_id, user_message, action, agent_message, selected_options, poll_chat_id } = body;
 
-        // 1. Obtener conversación
+        // 1. Obtener conversación (incluye canal para saber la plataforma)
         const { data: conversation } = await supabase
             .from('comm_conversations')
-            .select('*, leads(*)')
+            .select('*, leads(*), comm_channels(platform, identifier)')
             .eq('id', conversation_id)
             .single();
 
@@ -1023,18 +1048,32 @@ Incluye en lead_data SOLO los campos que ya te proporcionó el cliente. Omite lo
         } // fin else IA
 
         // --------------------------------------------------------
-        // 10. ENVIAR TEXTO POR WHATSAPP (Green API)
+        // 10. ENVIAR RESPUESTA AL CLIENTE (WhatsApp / Facebook / Instagram)
         // --------------------------------------------------------
         let waData, waRes;
 
-        if (textToSend && conversation.platform_user_id && GREEN_INSTANCE_ID && GREEN_API_TOKEN) {
-            waRes = await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chatId: conversation.platform_user_id, message: textToSend })
-            });
-            waData = await waRes.json();
-            if (!waRes.ok) console.error("Error Green API:", waData);
+        const channelPlatform = conversation.comm_channels?.platform ?? 'whatsapp';
+
+        if (textToSend && conversation.platform_user_id) {
+
+            if ((channelPlatform === 'facebook' || channelPlatform === 'instagram') && (META_PAGE_ACCESS_TOKEN || META_INSTAGRAM_TOKEN)) {
+                // ── Facebook Messenger / Instagram DM ────────────
+                const metaToken = channelPlatform === 'instagram'
+                    ? (META_INSTAGRAM_TOKEN || META_PAGE_ACCESS_TOKEN)
+                    : META_PAGE_ACCESS_TOKEN;
+                console.log(`📤 Enviando por Meta (${channelPlatform}) a ${conversation.platform_user_id}`);
+                await enviarMensajeMeta(conversation.platform_user_id, textToSend, metaToken);
+
+            } else if (GREEN_INSTANCE_ID && GREEN_API_TOKEN) {
+                // ── WhatsApp (Green API) — comportamiento original ─
+                waRes = await fetch(`${greenBaseUrl}/sendMessage/${GREEN_API_TOKEN}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chatId: conversation.platform_user_id, message: textToSend })
+                });
+                waData = await waRes.json();
+                if (!waRes.ok) console.error("Error Green API:", waData);
+            }
         }
 
         // --------------------------------------------------------

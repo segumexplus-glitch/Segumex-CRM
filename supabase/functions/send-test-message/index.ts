@@ -67,7 +67,43 @@ Deno.serve(async (req) => {
             throw new Error('Faltan credenciales de Green API (GREEN_INSTANCE_ID, GREEN_API_TOKEN)');
         }
 
-        const { tipo_mensaje, telefono, data_real } = await req.json();
+        const body = await req.json();
+        const { tipo_mensaje, telefono, data_real, mensaje, pdf_url, pdf_nombre } = body;
+
+        // ── MODO DIRECTO: mensaje + opcional pdf_url (multicotización, etc.) ──
+        if (mensaje && telefono && !tipo_mensaje) {
+            const digits = telefono.replace(/\D/g, '');
+            if (digits.length !== 10) throw new Error('El teléfono debe tener 10 dígitos');
+            const chatId = `521${digits}@c.us`;
+
+            let waRes: Response;
+            if (pdf_url) {
+                const url = `${greenBaseUrl()}/sendFileByUrl/${GREEN_API_TOKEN}`;
+                waRes = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chatId, urlFile: pdf_url, fileName: pdf_nombre || 'multicotizacion.pdf', caption: mensaje })
+                });
+            } else {
+                const url = `${greenBaseUrl()}/sendMessage/${GREEN_API_TOKEN}`;
+                waRes = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chatId, message: mensaje })
+                });
+            }
+
+            const waResponse = await waRes.json();
+            if (!waRes.ok || waResponse?.error || waResponse?.errorMessage) {
+                throw new Error(`Green API error: ${waResponse?.errorMessage || waResponse?.error || waRes.status}`);
+            }
+            console.log(`✅ Mensaje directo enviado a ${chatId}, idMessage: ${waResponse.idMessage}`);
+            return new Response(JSON.stringify({ success: true, chatId, wa_response: waResponse }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+        }
+
+        // ── MODO PLANTILLA (original) ──
 
         if (!tipo_mensaje || !telefono) {
             throw new Error('Se requieren tipo_mensaje y telefono');
