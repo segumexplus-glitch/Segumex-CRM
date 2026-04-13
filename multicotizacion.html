@@ -580,7 +580,16 @@
                         if (!document.getElementById('vModelo').value && v.modelo) document.getElementById('vModelo').value = v.modelo;
                         if (!document.getElementById('vAnio').value && v.anio) document.getElementById('vAnio').value = v.anio;
                         if (!document.getElementById('vVersion').value && v.version) document.getElementById('vVersion').value = v.version;
-                        if (!document.getElementById('vCP').value && data.data.cp) document.getElementById('vCP').value = data.data.cp;
+                    }
+                    if (!document.getElementById('vCP').value && data.data.cp) {
+                        document.getElementById('vCP').value = data.data.cp;
+                        document.getElementById('lCP').value = data.data.cp;
+                    }
+                    // Detectar periodicidad automáticamente
+                    if (data.data.forma_pago) {
+                        const mapaForma = { 1: 'anual', 2: 'semestral', 4: 'trimestral', 12: 'mensual' };
+                        const formaDetectada = mapaForma[data.data.forma_pago];
+                        if (formaDetectada) document.getElementById('vFormaPago').value = formaDetectada;
                     }
                     cotizaciones.push({ ...data.data, _archivo: file.name });
                 } else {
