@@ -187,15 +187,16 @@
                     </div>
 
                     <!-- Zona de upload -->
-                    <div id="dropZone" class="drop-zone border-2 border-dashed border-[#3b4354] rounded-xl p-8 text-center mb-5 cursor-pointer hover:border-primary transition-colors"
-                        onclick="document.getElementById('fileInput').click()"
+                    <div id="dropZone" class="drop-zone border-2 border-dashed border-[#3b4354] rounded-xl p-8 text-center mb-5 hover:border-primary transition-colors relative"
                         ondragover="event.preventDefault(); this.classList.add('dragover')"
                         ondragleave="this.classList.remove('dragover')"
                         ondrop="handleDrop(event)">
-                        <span class="material-symbols-outlined text-4xl text-[#9da6b9] mb-2 block">upload_file</span>
-                        <p class="text-sm font-medium text-white mb-1">Arrastra los PDFs aquí o haz clic para seleccionar</p>
-                        <p class="text-xs text-[#9da6b9]">Hasta 4 archivos PDF · Máximo 10MB cada uno</p>
-                        <input id="fileInput" type="file" accept=".pdf" multiple class="hidden" onchange="handleFiles(this.files)" />
+                        <label for="fileInput" class="cursor-pointer block">
+                            <span class="material-symbols-outlined text-4xl text-[#9da6b9] mb-2 block">upload_file</span>
+                            <p class="text-sm font-medium text-white mb-1">Arrastra los PDFs aquí o haz clic para seleccionar</p>
+                            <p class="text-xs text-[#9da6b9]">Hasta 4 archivos PDF · Máximo 10MB cada uno</p>
+                        </label>
+                        <input id="fileInput" type="file" accept=".pdf,application/pdf" multiple class="hidden" onchange="handleFiles(this.files)" />
                     </div>
 
                     <!-- Lista de archivos -->
