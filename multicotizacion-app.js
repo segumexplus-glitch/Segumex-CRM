@@ -289,21 +289,20 @@
         const tel = document.getElementById('buscarTel').value.trim();
         if (tel.length !== 10) { showToast('Ingresa 10 dígitos', 'error'); return; }
 
-        const { data } = await window.supabaseClient.from('leads').select('id, nombre, apellido, telefono, email, estado').eq('telefono', tel).maybeSingle();
+        const { data } = await window.supabaseClient.from('leads').select('id, nombre, telefono, email, estado').eq('telefono', tel).maybeSingle();
         const res = document.getElementById('resultadoBusqueda');
         res.classList.remove('hidden');
 
         if (data) {
             res.innerHTML = `<div class="bg-[#282e39] rounded-lg p-3 text-sm">
                 <p class="text-green-400 font-medium mb-1">✓ Cliente encontrado</p>
-                <p class="text-white">${data.nombre} ${data.apellido || ''}</p>
+                <p class="text-white">${data.nombre}</p>
                 <p class="text-[#9da6b9] text-xs">${data.email || 'Sin email'}</p>
-                <button onclick="usarLeadExistente(${data.id}, '${data.nombre}', '${data.apellido||''}', '${data.telefono||tel}', '${data.email||''}')"
+                <button onclick="usarLeadExistente(${data.id}, '${data.nombre}', '${data.telefono||tel}', '${data.email||''}')"
                     class="mt-2 text-xs text-primary hover:underline">Usar este lead</button>
             </div>`;
             // Pre-fill
             document.getElementById('lNombre').value = data.nombre || '';
-            document.getElementById('lApellido').value = data.apellido || '';
             document.getElementById('lTelefono').value = data.telefono || tel;
             document.getElementById('lEmail').value = data.email || '';
         } else {
@@ -312,10 +311,9 @@
         }
     }
 
-    function usarLeadExistente(id, nombre, apellido, tel, email) {
+    function usarLeadExistente(id, nombre, tel, email) {
         leadId = id;
         document.getElementById('lNombre').value = nombre;
-        document.getElementById('lApellido').value = apellido;
         document.getElementById('lTelefono').value = tel;
         document.getElementById('lEmail').value = email;
         showToast('Lead existente seleccionado', 'success');
@@ -342,10 +340,10 @@
             const creadoPor = document.getElementById('vCreadoPor').value;
 
             if (!leadId) {
-                // Crear nuevo lead
+                // Crear nuevo lead (tabla usa 'nombre' como campo único)
+                const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
                 const { data: nuevoLead, error } = await window.supabaseClient.from('leads').insert({
-                    nombre,
-                    apellido,
+                    nombre: nombreCompleto,
                     telefono,
                     email: document.getElementById('lEmail').value.trim() || null,
                     codigo_postal: cp || document.getElementById('lCP').value.trim() || null,

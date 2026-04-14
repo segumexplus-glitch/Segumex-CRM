@@ -253,13 +253,10 @@
                     <div class="bg-[#1c1f27] rounded-xl p-5 border border-[#3b4354]">
                         <h3 class="font-semibold text-sm mb-4">Datos del lead</h3>
                         <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs text-[#9da6b9] mb-1">Nombre *</label>
-                                <input id="lNombre" type="text" class="w-full bg-[#282e39] border border-[#3b4354] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary" />
-                            </div>
-                            <div>
-                                <label class="block text-xs text-[#9da6b9] mb-1">Apellido *</label>
-                                <input id="lApellido" type="text" class="w-full bg-[#282e39] border border-[#3b4354] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary" />
+                            <div class="col-span-2">
+                                <label class="block text-xs text-[#9da6b9] mb-1">Nombre completo *</label>
+                                <input id="lNombre" type="text" placeholder="Nombre y apellido" class="w-full bg-[#282e39] border border-[#3b4354] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary" />
+                                <input id="lApellido" type="hidden" value="" />
                             </div>
                             <div>
                                 <label class="block text-xs text-[#9da6b9] mb-1">Teléfono *</label>
