@@ -1,5 +1,7 @@
 // Deploy: supabase functions deploy extract-quote --no-verify-jwt
 
+import { jsonrepair } from 'npm:jsonrepair@3';
+
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? '';
 
 const corsHeaders = {
@@ -150,38 +152,53 @@ INSTRUCCIONES para primas:
                     break;
                 }
 
-                // Parseo robusto: intenta múltiples estrategias
+                // Parseo robusto: 4 estrategias en cascada
                 let parseError = '';
                 let parsed: any = null;
 
-                // Estrategia 1: parseo directo
-                try { parsed = JSON.parse(rawText.trim()); } catch (e1) { parseError = String(e1); }
+                // Limpiar markdown antes de intentar cualquier parseo
+                const cleanText = rawText
+                    .replace(/```json\s*/gi, '')
+                    .replace(/```\s*/g, '')
+                    .trim();
 
-                // Estrategia 2: limpiar bloques de código markdown
+                // Estrategia 1: parseo directo del texto limpio
+                try { parsed = JSON.parse(cleanText); } catch (e1) { parseError = String(e1); }
+
+                // Estrategia 2: jsonrepair — maneja comillas faltantes, comas extra,
+                // valores sin comillas (ej: NO APLICA, AMPARADO, $3,000,000), etc.
                 if (!parsed) {
                     try {
-                        const cleaned = rawText
-                            .replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-                        parsed = JSON.parse(cleaned);
-                    } catch (e2) { parseError = String(e2); }
+                        const repaired = jsonrepair(cleanText);
+                        parsed = JSON.parse(repaired);
+                        console.log(`[Gemini] JSON reparado con jsonrepair en intento ${intento}`);
+                    } catch (e2) { parseError = `jsonrepair: ${e2}`; }
                 }
 
-                // Estrategia 3: extraer primer objeto JSON del texto
+                // Estrategia 3: extraer primer bloque {...} y reparar
                 if (!parsed) {
                     try {
-                        const match = rawText.match(/\{[\s\S]*\}/);
-                        if (match) parsed = JSON.parse(match[0]);
-                    } catch (e3) { parseError = String(e3); }
+                        const match = cleanText.match(/\{[\s\S]*\}/);
+                        if (match) {
+                            const repaired = jsonrepair(match[0]);
+                            parsed = JSON.parse(repaired);
+                        }
+                    } catch (e3) { parseError = `regex+repair: ${e3}`; }
+                }
+
+                // Estrategia 4: parseo original sin limpiar (último recurso)
+                if (!parsed) {
+                    try { parsed = JSON.parse(rawText.trim()); } catch (e4) { /* ignore */ }
                 }
 
                 if (!parsed) {
                     lastError = `No se pudo parsear JSON: ${parseError}`;
                     console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: ${lastError}`);
-                    console.warn('rawText preview:', rawText.substring(0, 300));
+                    console.warn('rawText preview:', rawText.substring(0, 400));
                     if (intento < MAX_INTENTOS) {
-                        continue; // reintenta de inmediato
+                        continue;
                     }
-                    throw new Error(lastError);
+                    break; // dejar que Plan B lo intente
                 }
 
                 // Validar calidad mínima
