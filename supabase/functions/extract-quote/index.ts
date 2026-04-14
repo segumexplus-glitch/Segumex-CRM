@@ -22,44 +22,56 @@ Deno.serve(async (req) => {
 
         const mimeType = mime_type || 'application/pdf';
 
-        const prompt = `Analiza esta cotización de seguro de auto mexicano y extrae toda la información relevante.
+        const prompt = `Eres un experto en seguros de auto en México. Analiza EXHAUSTIVAMENTE esta cotización y extrae ABSOLUTAMENTE TODA la información. No omitas ningún detalle, por mínimo que sea.
 
-Responde ÚNICAMENTE con un JSON válido, sin bloques de código ni explicaciones.
+Responde ÚNICAMENTE con un JSON válido, sin bloques de código ni explicaciones adicionales.
 Si no encuentras un campo usa null. No inventes datos.
 
 Estructura JSON requerida:
 {
-  "aseguradora": "nombre exacto: HDI, Qualitas, GNP, AXA, Mapfre, Afirme, Chubb, Zurich, Inbursa, Banorte, Atlas, Primero, Ana u otra",
+  "aseguradora": "nombre exacto de la compañía aseguradora tal como aparece en el documento (ej: HDI Seguros, Quálitas, GNP Seguros, AXA Seguros, Mapfre, Afirme Seguros, Chubb, Zurich, Inbursa, Banorte Seguros, Seguros Atlas, Primero Seguros, ANA Seguros u otra)",
   "vehiculo": {
     "marca": "marca del vehículo",
-    "modelo": "modelo",
+    "modelo": "modelo exacto",
     "anio": "año como texto de 4 dígitos",
-    "version": "versión o trim si aparece",
-    "serie": "número de serie VIN si aparece"
+    "version": "versión, trim o descripción completa del modelo si aparece",
+    "serie": "número de serie VIN completo si aparece"
   },
   "coberturas": [
     {
-      "nombre": "nombre de la cobertura",
-      "suma_asegurada": "monto o descripción (ej: '3,000,000', 'Valor comercial', 'Amplia')",
-      "deducible": "deducible si aplica (ej: '10%', '5%', 'No aplica')",
+      "nombre": "nombre EXACTO de la cobertura tal como aparece en el documento",
+      "suma_asegurada": "monto exacto o descripción (ej: '$3,000,000', 'Valor Comercial', 'Valor Convenido', 'Amplia', 'Limitada', 'Amparado', 'Incluida')",
+      "deducible": "deducible exacto si aplica (ej: '10%', '5%', '$5,000', '3 SMDF', 'No aplica', 'N/A')",
       "incluida": true
     }
   ],
   "prima_total": 0.00,
+  "prima_neta": 0.00,
   "prima_fraccionada": 0.00,
   "forma_pago": 1,
   "cp": "código postal si aparece",
-  "numero_cotizacion": "folio o número de cotización de la aseguradora si aparece",
-  "vigencia_cotizacion": "fecha de vencimiento de la cotización si aparece"
+  "numero_cotizacion": "folio, número o clave de cotización de la aseguradora si aparece",
+  "vigencia_inicio": "fecha de inicio de vigencia si aparece",
+  "vigencia_fin": "fecha de fin de vigencia si aparece",
+  "vigencia_cotizacion": "fecha de vencimiento de la cotización (hasta cuándo es válida) si aparece"
 }
 
-Notas importantes:
-- forma_pago: 1=anual, 2=semestral, 4=trimestral, 12=mensual
-- prima_total: prima total a pagar en el período seleccionado (sin IVA si es posible, o total si no se distingue)
-- prima_fraccionada: cuánto se pagaría por período si hay pago fraccionado (mensual/trimestral/etc), null si no aplica
-- coberturas: incluye TODAS las coberturas que aparezcan en el documento, tanto incluidas como opcionales
-- Para coberturas importantes de auto en México: RC (Responsabilidad Civil), DM (Daños Materiales), RT (Robo Total), GM (Gastos Médicos Ocupantes), AF (Asistencia Vial), RC amplia, etc.
-- suma_asegurada: escribe el monto como texto (ej: "3,000,000") o descripción si es valor comercial/amplia`;
+INSTRUCCIONES CRÍTICAS para el campo "coberturas" — LEE CON ATENCIÓN:
+- Extrae CADA UNA de las coberturas listadas en el documento sin excepción
+- Incluye coberturas básicas: Daños Materiales (DM), Robo Total (RT), Responsabilidad Civil (RC), Gastos Médicos Ocupantes (GMO / GM), Asistencia Vial, Defensa Legal
+- Incluye coberturas extendidas: RC en EUA y Canadá, Extensión RC, Muerte del Conductor, Pérdida de Uso, Cristales, Equipo Especial, etc.
+- Incluye coberturas adicionales u opcionales que aparezcan aunque estén marcadas como "no incluidas" — en ese caso pon incluida: false
+- Para cada cobertura anota el deducible EXACTO como aparece (porcentaje, pesos, días de salario mínimo, etc.)
+- Si una cobertura dice "AMPARADO", "INCLUIDA", "AMPLIA", "APLICA" = incluida true, suma_asegurada con ese texto
+- Si dice "NO APLICA", "EXCLUIDA", "NO INCLUIDA" = incluida false
+- NO agrupes coberturas — cada línea de cobertura del documento = un objeto separado en el array
+- Los montos de suma asegurada escríbelos CON el símbolo de pesos y comas (ej: "$3,000,000.00")
+
+INSTRUCCIONES para primas:
+- prima_total: el total a pagar en el período seleccionado (incluyendo IVA si no se distingue)
+- prima_neta: prima sin IVA si aparece desglosada
+- prima_fraccionada: monto por período en pagos fraccionados (mensual, trimestral, semestral), null si solo hay pago anual
+- forma_pago: 1=anual, 2=semestral, 4=trimestral, 12=mensual — detecta según el tipo de pago de la cotización`;
 
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 

@@ -12,6 +12,27 @@
     let pdfBlob = null;
     let pdfStoragePath = null;
 
+    // ─── Cache de logos (base64 obtenidos del edge function) ───
+    const logoCache = new Map(); // aseguradora → base64 data URL
+
+    async function cargarLogosAseguradoras() {
+        const nombres = [...new Set(cotizaciones.map(c => c.aseguradora).filter(Boolean))];
+        await Promise.all(nombres.map(async (nombre) => {
+            if (logoCache.has(nombre)) return;
+            try {
+                const { data } = await window.supabaseClient.functions.invoke('get-insurer-logo', {
+                    body: { aseguradora: nombre }
+                });
+                if (data?.logo) {
+                    logoCache.set(nombre, data.logo);
+                    console.log(`✅ Logo cargado: ${nombre}`);
+                }
+            } catch (e) {
+                console.warn(`Sin logo para ${nombre}:`, e);
+            }
+        }));
+    }
+
     // ─── Colores por aseguradora ───
     const INSURER_COLORS = {
         'hdi': 'color-hdi', 'qualitas': 'color-qualitas', 'gnp': 'color-gnp',
@@ -208,6 +229,10 @@
             }
 
             renderCotizacionesGrid();
+
+            // Cargar logos de aseguradoras en segundo plano (no bloquea la UI)
+            cargarLogosAseguradoras().catch(() => {});
+
             irPaso(2);
 
         } catch(e) {
@@ -441,19 +466,17 @@
         const cols = cotizaciones.map(cot => {
             const color = getInsurerColor(cot.aseguradora);
             const initials = getInsurerInitials(cot.aseguradora);
-            const domain = getInsurerDomain(cot.aseguradora);
             const esHDI = (cot.aseguradora||'').toLowerCase().includes('hdi');
-            const coberturas = (cot.coberturas || []).filter(c => c.incluida !== false).slice(0, 10);
+            const coberturas = (cot.coberturas || []).filter(c => c.incluida !== false); // sin límite
 
-            // Insurer logo: Clearbit with colored-initials fallback
-            const logoHTML = domain
-                ? `<div style="height:52px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;">
-                      <img class="insurer-logo" src="https://logo.clearbit.com/${domain}" alt="${cot.aseguradora}"
-                           style="max-height:52px;max-width:90px;width:auto;height:auto;object-fit:contain;"
-                           onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
-                      <div style="display:none;width:52px;height:52px;border-radius:10px;align-items:center;justify-content:center;font-weight:800;font-size:11px;letter-spacing:0.5px;color:white;" class="${color}">${initials}</div>
+            // Insurer logo: usa base64 del cache (obtenido server-side), fallback a badge de color
+            const logoData = logoCache.get(cot.aseguradora);
+            const logoHTML = logoData
+                ? `<div style="height:60px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;">
+                      <img class="insurer-logo" src="${logoData}" alt="${cot.aseguradora}"
+                           style="max-height:60px;max-width:110px;width:auto;height:auto;object-fit:contain;" />
                    </div>`
-                : `<div style="width:52px;height:52px;border-radius:10px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;letter-spacing:0.5px;color:white;" class="${color}">${initials}</div>`;
+                : `<div style="width:56px;height:56px;border-radius:12px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;letter-spacing:0.5px;color:white;" class="${color}">${initials}</div>`;
 
             let precioHTML = '';
             if (esHDI && hdiDescuento && hdiPrecioDescuento) {
@@ -509,7 +532,7 @@
             <div style="display:flex;justify-content:space-between;align-items:center;">
                 <div style="display:flex;align-items:center;gap:16px;">
                     <img src="segumex%20sin%20fondo.png" alt="Segumex"
-                         style="height:52px;width:auto;object-fit:contain;filter:brightness(0) invert(1);"
+                         style="height:70px;width:auto;object-fit:contain;filter:brightness(0) invert(1);"
                          onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />
                     <div style="display:none;">
                         <p style="font-weight:900;font-size:20px;margin:0;letter-spacing:-0.3px;">SEGUMEX</p>
