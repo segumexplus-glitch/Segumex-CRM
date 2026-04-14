@@ -68,10 +68,17 @@
         'banorte':  'logos_aseguradoras/Seguros_banorte.png',
     };
 
+    // Normaliza texto: minúsculas + quita acentos (ej: "Quálitas" → "qualitas")
+    function norm(str) {
+        return (str || '').toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+    }
+
     function getLocalInsurerLogo(aseguradora) {
-        const n = (aseguradora || '').toLowerCase();
+        const n = norm(aseguradora);
         for (const [key, path] of Object.entries(INSURER_LOGOS)) {
-            if (n.includes(key)) return path;
+            if (n.includes(norm(key))) return path;
         }
         return null;
     }
@@ -89,17 +96,17 @@
     }
 
     function getInsurerColor(nombre) {
-        const n = (nombre || '').toLowerCase();
+        const n = norm(nombre);
         for (const [key, cls] of Object.entries(INSURER_COLORS)) {
-            if (n.includes(key)) return cls;
+            if (n.includes(norm(key))) return cls;
         }
         return 'color-default';
     }
 
     function getInsurerDomain(nombre) {
-        const n = (nombre || '').toLowerCase();
+        const n = norm(nombre);
         for (const [key, domain] of Object.entries(INSURER_DOMAINS)) {
-            if (n.includes(key)) return domain;
+            if (n.includes(norm(key))) return domain;
         }
         return null;
     }
@@ -605,8 +612,11 @@
             const color = getInsurerColor(cot.aseguradora);
             const initials = getInsurerInitials(cot.aseguradora);
             const nombreLimpio = limpiarNombreAseguradora(cot.aseguradora);
-            const esHDI = (nombreLimpio||'').toLowerCase().includes('hdi');
-            const coberturas = (cot.coberturas || []).filter(c => c.incluida !== false); // sin límite
+            const esHDI = norm(nombreLimpio).includes('hdi');
+            const todasCoberturas = (cot.coberturas || []).filter(c => c.incluida !== false);
+            const MAX_COB = 13; // máximo por columna para caber en una hoja
+            const coberturas = todasCoberturas.slice(0, MAX_COB);
+            const masCount = todasCoberturas.length - coberturas.length;
 
             // Logo: primero archivo local, luego cache (Clearbit base64), luego badge de color
             const localLogo = getLocalInsurerLogo(nombreLimpio);
@@ -648,6 +658,7 @@
                         </div>
                         ${c.deducible && c.deducible !== 'No aplica' ? `<div style="font-size:10px;color:#9ca3af;">Ded: ${c.deducible}</div>` : ''}
                     </div>`).join('')
+                  + (masCount > 0 ? `<div class="coverage-row" style="color:#9ca3af;font-size:10px;font-style:italic;text-align:center;">+ ${masCount} cobertura${masCount>1?'s':''} adicional${masCount>1?'es':''}</div>` : '')
                 : '<div class="coverage-row" style="color:#9ca3af;text-align:center;">Sin detalle disponible</div>';
 
             return `
@@ -676,10 +687,14 @@
                 <div style="display:flex;align-items:center;gap:16px;">
                     <img src="segumex%20sin%20fondo.png" alt="Segumex"
                          style="height:70px;width:auto;object-fit:contain;filter:brightness(0) invert(1);"
-                         onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />
-                    <div style="display:none;">
-                        <p style="font-weight:900;font-size:20px;margin:0;letter-spacing:-0.3px;">SEGUMEX</p>
-                        <p style="font-size:11px;color:rgba(255,255,255,0.7);margin:0;">Soluciones en Seguros</p>
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                    <div style="display:none;align-items:center;gap:16px;">
+                        <p style="font-weight:900;font-size:20px;margin:0;letter-spacing:-0.3px;color:white;">SEGUMEX</p>
+                    </div>
+                    <div style="border-left:1px solid rgba(255,255,255,0.2);padding-left:16px;margin-left:4px;">
+                        <p style="font-size:9px;color:rgba(255,255,255,0.55);margin:0;text-transform:uppercase;letter-spacing:2.5px;font-weight:500;">Propuesta de</p>
+                        <p style="font-size:16px;font-weight:700;color:white;margin:2px 0 0;letter-spacing:0.3px;">Seguro de Auto</p>
+                        <p style="font-size:9px;color:rgba(255,255,255,0.45);margin:3px 0 0;letter-spacing:0.5px;">Soluciones en Seguros</p>
                     </div>
                 </div>
                 <div style="text-align:right;">
@@ -726,7 +741,38 @@
     }
 
     function imprimirDocumento() {
+        const doc = document.getElementById('printDoc');
+
+        // Restaurar cualquier escala previa
+        doc.style.transform = '';
+        doc.style.transformOrigin = '';
+        doc.style.height = '';
+
+        // Medir dimensiones naturales del documento
+        const natW = doc.scrollWidth;
+        const natH = doc.scrollHeight;
+
+        // Área útil de A4 horizontal con márgenes 5mm: ~287mm × 200mm ≈ 1085px × 756px
+        const availW = 1085;
+        const availH = 756;
+
+        const scale = Math.min(availW / natW, availH / natH, 1);
+
+        if (scale < 0.99) {
+            doc.style.transformOrigin = 'top left';
+            doc.style.transform = `scale(${scale.toFixed(4)})`;
+            // Colapsar el espacio sobrante que deja el shrink
+            doc.style.height = `${Math.ceil(natH * scale)}px`;
+        }
+
         window.print();
+
+        // Restaurar diseño original tras cerrar el diálogo de impresión
+        setTimeout(() => {
+            doc.style.transform = '';
+            doc.style.transformOrigin = '';
+            doc.style.height = '';
+        }, 1500);
     }
 
     // ═══════════════════════════════════════════════════════════════
