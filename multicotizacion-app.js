@@ -139,18 +139,8 @@
     // PASO 1 → 2: Procesar PDFs con IA
     // ═══════════════════════════════════════════════════════════════
     async function procesarCotizaciones() {
-        const errores = [];
-        if (archivos.length === 0) errores.push('• Selecciona al menos 1 PDF');
-        if (!document.getElementById('vMarca').value.trim()) errores.push('• Marca del vehículo');
-        if (!document.getElementById('vModelo').value.trim()) errores.push('• Modelo del vehículo');
-        if (!document.getElementById('vAnio').value.trim()) errores.push('• Año del vehículo');
-        if (!document.getElementById('vCP').value.trim()) errores.push('• Código postal');
-        if (!document.getElementById('vCreadoPor').value) errores.push('• Creado por (Albert o Soto)');
-
-        if (errores.length > 0) {
-            alert('Faltan los siguientes campos:\n\n' + errores.join('\n'));
-            return;
-        }
+        if (archivos.length === 0) { alert('Selecciona al menos 1 PDF de cotización.'); return; }
+        if (!document.getElementById('vCreadoPor').value) { alert('Selecciona quién crea la cotización: Albert o Soto.'); return; }
 
         const btn = document.getElementById('btnProcesar');
         btn.disabled = true;

@@ -144,30 +144,31 @@
 
                     <!-- Datos del vehículo -->
                     <div class="bg-[#1c1f27] rounded-xl p-5 mb-5 border border-[#3b4354]">
-                        <h3 class="font-semibold mb-4 flex items-center gap-2 text-sm"><span class="material-symbols-outlined text-primary text-base">directions_car</span> Datos del vehículo y cotización</h3>
+                        <h3 class="font-semibold mb-1 flex items-center gap-2 text-sm"><span class="material-symbols-outlined text-primary text-base">directions_car</span> Datos del vehículo</h3>
+                        <p class="text-xs text-[#9da6b9] mb-4">La IA extrae automáticamente del PDF: marca, modelo, año, CP y periodicidad. Solo selecciona quién crea la cotización.</p>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div>
-                                <label class="block text-xs text-[#9da6b9] mb-1">Marca *</label>
-                                <input id="vMarca" type="text" placeholder="Nissan" class="w-full bg-[#282e39] border border-[#3b4354] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary" />
+                                <label class="block text-xs text-[#9da6b9] mb-1">Marca <span class="text-[#3b4354]">(auto)</span></label>
+                                <input id="vMarca" type="text" placeholder="Se detecta del PDF" class="w-full bg-[#282e39] border border-[#3b4354] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary" />
                             </div>
                             <div>
-                                <label class="block text-xs text-[#9da6b9] mb-1">Modelo *</label>
-                                <input id="vModelo" type="text" placeholder="Versa" class="w-full bg-[#282e39] border border-[#3b4354] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary" />
+                                <label class="block text-xs text-[#9da6b9] mb-1">Modelo <span class="text-[#3b4354]">(auto)</span></label>
+                                <input id="vModelo" type="text" placeholder="Se detecta del PDF" class="w-full bg-[#282e39] border border-[#3b4354] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary" />
                             </div>
                             <div>
-                                <label class="block text-xs text-[#9da6b9] mb-1">Año *</label>
-                                <input id="vAnio" type="text" placeholder="2022" maxlength="4" class="w-full bg-[#282e39] border border-[#3b4354] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary" />
+                                <label class="block text-xs text-[#9da6b9] mb-1">Año <span class="text-[#3b4354]">(auto)</span></label>
+                                <input id="vAnio" type="text" placeholder="Se detecta del PDF" maxlength="4" class="w-full bg-[#282e39] border border-[#3b4354] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary" />
                             </div>
                             <div>
-                                <label class="block text-xs text-[#9da6b9] mb-1">Versión</label>
-                                <input id="vVersion" type="text" placeholder="Sense" class="w-full bg-[#282e39] border border-[#3b4354] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary" />
+                                <label class="block text-xs text-[#9da6b9] mb-1">Versión <span class="text-[#3b4354]">(auto)</span></label>
+                                <input id="vVersion" type="text" placeholder="Se detecta del PDF" class="w-full bg-[#282e39] border border-[#3b4354] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary" />
                             </div>
                             <div>
-                                <label class="block text-xs text-[#9da6b9] mb-1">Código Postal *</label>
-                                <input id="vCP" type="text" placeholder="20190" maxlength="5" class="w-full bg-[#282e39] border border-[#3b4354] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary" />
+                                <label class="block text-xs text-[#9da6b9] mb-1">Código Postal <span class="text-[#3b4354]">(auto)</span></label>
+                                <input id="vCP" type="text" placeholder="Se detecta del PDF" maxlength="5" class="w-full bg-[#282e39] border border-[#3b4354] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary" />
                             </div>
                             <div>
-                                <label class="block text-xs text-[#9da6b9] mb-1">Periodicidad *</label>
+                                <label class="block text-xs text-[#9da6b9] mb-1">Periodicidad <span class="text-[#3b4354]">(auto)</span></label>
                                 <select id="vFormaPago" class="w-full bg-[#282e39] border border-[#3b4354] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary">
                                     <option value="anual">Anual</option>
                                     <option value="semestral">Semestral</option>
@@ -177,7 +178,7 @@
                             </div>
                             <div>
                                 <label class="block text-xs text-[#9da6b9] mb-1">Creado por *</label>
-                                <select id="vCreadoPor" class="w-full bg-[#282e39] border border-[#3b4354] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary">
+                                <select id="vCreadoPor" class="w-full bg-[#282e39] border border-primary rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary">
                                     <option value="">Seleccionar...</option>
                                     <option value="Albert">Albert</option>
                                     <option value="Soto">Soto</option>
