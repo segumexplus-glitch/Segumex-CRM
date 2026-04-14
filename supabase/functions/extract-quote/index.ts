@@ -121,16 +121,36 @@ INSTRUCCIONES para primas:
                     throw new Error(`Gemini error después de ${MAX_INTENTOS} intentos: ${lastError}`);
                 }
 
-                const rawText = aiData.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+                const candidate = aiData.candidates?.[0];
+                const rawText = candidate?.content?.parts?.[0]?.text ?? '';
+                const finishReason = candidate?.finishReason ?? 'UNKNOWN';
 
-                if (!rawText.trim()) {
-                    lastError = 'Gemini devolvió respuesta vacía';
-                    console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: respuesta vacía`);
+                if (finishReason === 'MAX_TOKENS') {
+                    console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: respuesta TRUNCADA por límite de tokens — el JSON está incompleto`);
+                    lastError = 'Respuesta truncada (PDF demasiado complejo)';
                     if (intento < MAX_INTENTOS) {
                         await new Promise(r => setTimeout(r, 1500 * intento));
                         continue;
                     }
-                    throw new Error(lastError);
+                    // No hacer throw — dejar que caiga al Plan B (prompt simplificado)
+                    break;
+                }
+
+                if (finishReason === 'SAFETY') {
+                    console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: bloqueado por filtros de seguridad`);
+                    lastError = 'Bloqueado por filtros de seguridad de Gemini';
+                    // No reintentar safety blocks
+                    break;
+                }
+
+                if (!rawText.trim()) {
+                    lastError = 'Gemini devolvió respuesta vacía';
+                    console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: respuesta vacía (finishReason: ${finishReason})`);
+                    if (intento < MAX_INTENTOS) {
+                        await new Promise(r => setTimeout(r, 1500 * intento));
+                        continue;
+                    }
+                    break;
                 }
 
                 // Parseo robusto: intenta múltiples estrategias
@@ -188,7 +208,53 @@ INSTRUCCIONES para primas:
             }
         }
 
-        if (!extracted) throw new Error(`No se pudo extraer datos después de ${MAX_INTENTOS} intentos`);
+        // ── PLAN B: Prompt simplificado si el completo falló ──
+        if (!extracted) {
+            console.warn('⚠️ Prompt completo falló. Intentando prompt simplificado...');
+
+            const promptSimple = `Lee esta cotización de seguro de auto y devuelve SOLO este JSON (sin explicaciones, sin markdown):
+{"aseguradora":"nombre exacto de la aseguradora","vehiculo":{"marca":"","modelo":"","anio":"","version":"","serie":null},"coberturas":[{"nombre":"nombre cobertura","suma_asegurada":"monto o descripción","deducible":"deducible o N/A","incluida":true}],"prima_total":0.00,"prima_neta":null,"prima_fraccionada":null,"forma_pago":1,"cp":null,"numero_cotizacion":null,"vigencia_inicio":null,"vigencia_fin":null,"vigencia_cotizacion":null}
+
+Extrae TODAS las coberturas. forma_pago: 1=anual 2=semestral 4=trimestral 12=mensual. No inventes datos.`;
+
+            try {
+                const payloadSimple = {
+                    contents: [{
+                        role: 'user',
+                        parts: [
+                            { inline_data: { mime_type: mimeType, data: pdf_base64 } },
+                            { text: promptSimple }
+                        ]
+                    }],
+                    generationConfig: { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 4096 }
+                };
+
+                const rSimple = await fetch(geminiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payloadSimple)
+                });
+                const dSimple = await rSimple.json();
+                const textSimple = dSimple.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+
+                if (textSimple.trim()) {
+                    let parsedSimple: any = null;
+                    try { parsedSimple = JSON.parse(textSimple.trim()); } catch { /* ignore */ }
+                    if (!parsedSimple) {
+                        const m = textSimple.match(/\{[\s\S]*\}/);
+                        if (m) try { parsedSimple = JSON.parse(m[0]); } catch { /* ignore */ }
+                    }
+                    if (parsedSimple?.aseguradora || parsedSimple?.coberturas?.length > 0) {
+                        extracted = parsedSimple;
+                        console.log(`✅ Extracción exitosa con prompt simplificado. Aseguradora: ${parsedSimple.aseguradora}, coberturas: ${parsedSimple.coberturas?.length || 0}`);
+                    }
+                }
+            } catch (simpleErr) {
+                console.error('Prompt simplificado también falló:', simpleErr);
+            }
+        }
+
+        if (!extracted) throw new Error(`La IA no pudo leer este PDF. Puede ser un documento escaneado, protegido o con formato no estándar.`);
 
         return new Response(JSON.stringify({ success: true, data: extracted }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
