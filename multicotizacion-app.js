@@ -21,12 +21,36 @@
         'ana': 'color-ana'
     };
 
+    const INSURER_DOMAINS = {
+        'hdi': 'hdi-seguros.com.mx',
+        'qualitas': 'qualitas.com.mx',
+        'gnp': 'gnp.com.mx',
+        'axa': 'axa.com.mx',
+        'mapfre': 'mapfre.com.mx',
+        'chubb': 'chubb.com',
+        'afirme': 'afirme.com.mx',
+        'zurich': 'zurich.com.mx',
+        'inbursa': 'inbursa.com',
+        'banorte': 'banorte.com',
+        'atlas': 'atlas.com.mx',
+        'primero': 'primero-seguros.com',
+        'ana': 'ana.com.mx'
+    };
+
     function getInsurerColor(nombre) {
         const n = (nombre || '').toLowerCase();
         for (const [key, cls] of Object.entries(INSURER_COLORS)) {
             if (n.includes(key)) return cls;
         }
         return 'color-default';
+    }
+
+    function getInsurerDomain(nombre) {
+        const n = (nombre || '').toLowerCase();
+        for (const [key, domain] of Object.entries(INSURER_DOMAINS)) {
+            if (n.includes(key)) return domain;
+        }
+        return null;
     }
 
     function getInsurerInitials(nombre) {
@@ -417,16 +441,27 @@
         const cols = cotizaciones.map(cot => {
             const color = getInsurerColor(cot.aseguradora);
             const initials = getInsurerInitials(cot.aseguradora);
+            const domain = getInsurerDomain(cot.aseguradora);
             const esHDI = (cot.aseguradora||'').toLowerCase().includes('hdi');
             const coberturas = (cot.coberturas || []).filter(c => c.incluida !== false).slice(0, 10);
+
+            // Insurer logo: Clearbit with colored-initials fallback
+            const logoHTML = domain
+                ? `<div style="height:52px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;">
+                      <img class="insurer-logo" src="https://logo.clearbit.com/${domain}" alt="${cot.aseguradora}"
+                           style="max-height:52px;max-width:90px;width:auto;height:auto;object-fit:contain;"
+                           onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                      <div style="display:none;width:52px;height:52px;border-radius:10px;align-items:center;justify-content:center;font-weight:800;font-size:11px;letter-spacing:0.5px;color:white;" class="${color}">${initials}</div>
+                   </div>`
+                : `<div style="width:52px;height:52px;border-radius:10px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;letter-spacing:0.5px;color:white;" class="${color}">${initials}</div>`;
 
             let precioHTML = '';
             if (esHDI && hdiDescuento && hdiPrecioDescuento) {
                 const pctDesc = hdiPrecioOriginal ? Math.round((1 - hdiPrecioDescuento / hdiPrecioOriginal) * 100) : null;
                 precioHTML = `
-                    <div style="margin-bottom:8px;">
-                        ${hdiPrecioOriginal ? `<p style="text-decoration:line-through;color:#999;font-size:13px;margin:0;">$${Number(hdiPrecioOriginal).toLocaleString('es-MX',{minimumFractionDigits:2})}</p>` : ''}
-                        <div class="hdi-discount-badge" style="display:inline-block;margin:6px 0;">
+                    <div style="margin-bottom:4px;">
+                        ${hdiPrecioOriginal ? `<p style="text-decoration:line-through;color:#999;font-size:12px;margin:0;">$${Number(hdiPrecioOriginal).toLocaleString('es-MX',{minimumFractionDigits:2})}</p>` : ''}
+                        <div class="hdi-discount-badge" style="display:inline-block;margin:4px 0;">
                             🔥 PRECIO ESPECIAL<br/>
                             $${Number(hdiPrecioDescuento).toLocaleString('es-MX',{minimumFractionDigits:2})}
                             ${pctDesc ? `<span style="font-size:10px;background:rgba(255,255,255,0.3);padding:1px 5px;border-radius:4px;margin-left:4px;">${pctDesc}% OFF</span>` : ''}
@@ -452,16 +487,14 @@
             return `
             <div class="insurer-col" style="min-width:0;">
                 <div class="insurer-col-header" style="background:white;border-bottom:3px solid #e5e7eb;">
-                    <div style="width:52px;height:52px;border-radius:10px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;letter-spacing:0.5px;color:white;" class="${color}">
-                        ${initials}
-                    </div>
-                    <p style="font-weight:800;font-size:14px;color:#0f1b3d;margin:0 0 2px;">${cot.aseguradora || '—'}</p>
+                    ${logoHTML}
+                    <p style="font-weight:800;font-size:13px;color:#0f1b3d;margin:0 0 2px;">${cot.aseguradora || '—'}</p>
                     ${esHDI && hdiDescuento ? '<span style="font-size:10px;background:#ff6b00;color:white;padding:2px 8px;border-radius:4px;font-weight:700;">DESCUENTO ESPECIAL</span>' : ''}
                 </div>
-                <div style="background:#f9fafb;padding:8px 12px;border-bottom:1px solid #e5e7eb;">
-                    <p style="font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#6b7280;margin:0 0 2px;font-weight:600;">Coberturas incluidas</p>
+                <div style="background:#f9fafb;padding:6px 12px;border-bottom:1px solid #e5e7eb;">
+                    <p style="font-size:9.5px;text-transform:uppercase;letter-spacing:0.8px;color:#6b7280;margin:0;font-weight:600;">Coberturas incluidas</p>
                 </div>
-                <div>${coberturasHTML}</div>
+                <div class="insurer-col-coverages">${coberturasHTML}</div>
                 <div class="price-section">
                     <p style="font-size:10px;color:#6b7280;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.8px;">Prima ${formaPagoLabel}</p>
                     ${precioHTML}
@@ -469,58 +502,57 @@
             </div>`;
         }).join('');
 
+        const vehiculoStr = [vMarca, vModelo, vAnio, vVersion].filter(Boolean).join(' ') || '—';
+
         const docHTML = `
         <div class="doc-header">
             <div style="display:flex;justify-content:space-between;align-items:center;">
                 <div style="display:flex;align-items:center;gap:16px;">
-                    <div style="width:48px;height:48px;background:white;border-radius:10px;display:flex;align-items:center;justify-content:center;">
-                        <span style="font-weight:900;font-size:14px;color:#0f1b3d;letter-spacing:-0.5px;">SM</span>
-                    </div>
-                    <div>
-                        <p style="font-weight:900;font-size:18px;margin:0;letter-spacing:-0.3px;">SEGUMEX</p>
+                    <img src="segumex%20sin%20fondo.png" alt="Segumex"
+                         style="height:52px;width:auto;object-fit:contain;filter:brightness(0) invert(1);"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />
+                    <div style="display:none;">
+                        <p style="font-weight:900;font-size:20px;margin:0;letter-spacing:-0.3px;">SEGUMEX</p>
                         <p style="font-size:11px;color:rgba(255,255,255,0.7);margin:0;">Soluciones en Seguros</p>
                     </div>
                 </div>
                 <div style="text-align:right;">
-                    <p style="font-size:11px;color:rgba(255,255,255,0.6);margin:0 0 2px;">MULTICOTIZACIÓN</p>
-                    <p style="font-size:22px;font-weight:900;margin:0;letter-spacing:-0.5px;">#${folioCotizacion || '—'}</p>
+                    <p style="font-size:11px;color:rgba(255,255,255,0.6);margin:0 0 2px;text-transform:uppercase;letter-spacing:1px;">Multicotización</p>
+                    <p style="font-size:24px;font-weight:900;margin:0;letter-spacing:-0.5px;">#${folioCotizacion || '—'}</p>
                     <p style="font-size:10px;color:rgba(255,255,255,0.6);margin:2px 0 0;">Válida hasta ${vencimiento}</p>
                 </div>
             </div>
-            <div style="margin-top:16px;display:flex;gap:24px;flex-wrap:wrap;">
+            <div class="doc-info-row" style="margin-top:14px;display:flex;gap:28px;flex-wrap:wrap;padding-top:12px;border-top:1px solid rgba(255,255,255,0.12);">
                 <div>
-                    <p style="font-size:10px;color:rgba(255,255,255,0.5);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.8px;">Vehículo</p>
-                    <p style="font-weight:700;font-size:14px;margin:0;">${[vMarca, vModelo, vAnio, vVersion].filter(Boolean).join(' ') || '—'}</p>
+                    <p style="font-size:9.5px;color:rgba(255,255,255,0.5);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.8px;">Vehículo</p>
+                    <p style="font-weight:700;font-size:14px;margin:0;">${vehiculoStr}</p>
                 </div>
+                ${cp ? `<div>
+                    <p style="font-size:9.5px;color:rgba(255,255,255,0.5);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.8px;">C.P.</p>
+                    <p style="font-weight:700;font-size:14px;margin:0;">${cp}</p>
+                </div>` : ''}
                 <div>
-                    <p style="font-size:10px;color:rgba(255,255,255,0.5);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.8px;">Código Postal</p>
-                    <p style="font-weight:700;font-size:14px;margin:0;">${cp || '—'}</p>
-                </div>
-                <div>
-                    <p style="font-size:10px;color:rgba(255,255,255,0.5);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.8px;">Periodicidad</p>
+                    <p style="font-size:9.5px;color:rgba(255,255,255,0.5);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.8px;">Periodicidad</p>
                     <p style="font-weight:700;font-size:14px;margin:0;">${formaPagoLabel}</p>
                 </div>
                 <div>
-                    <p style="font-size:10px;color:rgba(255,255,255,0.5);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.8px;">Fecha</p>
+                    <p style="font-size:9.5px;color:rgba(255,255,255,0.5);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.8px;">Fecha</p>
                     <p style="font-weight:700;font-size:14px;margin:0;">${hoy}</p>
                 </div>
                 <div>
-                    <p style="font-size:10px;color:rgba(255,255,255,0.5);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.8px;">Asesor</p>
+                    <p style="font-size:9.5px;color:rgba(255,255,255,0.5);margin:0 0 2px;text-transform:uppercase;letter-spacing:0.8px;">Asesor</p>
                     <p style="font-weight:700;font-size:14px;margin:0;">${creadoPor}</p>
                 </div>
             </div>
         </div>
         <div class="doc-body">
-            <div style="display:flex;gap:12px;align-items:stretch;">${cols}</div>
-            <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
-                <div>
-                    <p style="font-size:10px;color:#9ca3af;margin:0;">Las primas mostradas son referenciales y están sujetas a confirmación por la aseguradora.</p>
-                    <p style="font-size:10px;color:#9ca3af;margin:2px 0 0;">Derechos, recargos e IVA pueden aplicar según forma de pago. Cotización válida 30 días.</p>
-                </div>
-                <div style="text-align:right;">
-                    <p style="font-size:11px;font-weight:700;color:#0f1b3d;margin:0;">SEGUMEX</p>
-                    <p style="font-size:10px;color:#9ca3af;margin:0;">Asesor: ${creadoPor}</p>
-                </div>
+            <div style="display:flex;gap:10px;align-items:stretch;">${cols}</div>
+        </div>
+        <div class="doc-footer">
+            <p style="font-size:10px;color:#9ca3af;margin:0;max-width:70%;">Las primas son referenciales y están sujetas a confirmación por la aseguradora. Derechos, recargos e IVA pueden aplicar. Cotización válida 30 días.</p>
+            <div style="text-align:right;flex-shrink:0;">
+                <p style="font-size:11px;font-weight:700;color:#0f1b3d;margin:0;">SEGUMEX</p>
+                <p style="font-size:10px;color:#9ca3af;margin:0;">Asesor: ${creadoPor}</p>
             </div>
         </div>`;
 
@@ -567,12 +599,25 @@
             const { jsPDF } = window.jspdf;
             const docEl = document.getElementById('printDoc');
 
-            const canvas = await html2canvas(docEl, { scale: 1.5, useCORS: true, backgroundColor: '#ffffff' });
-            const imgData = canvas.toDataURL('image/jpeg', 0.85);
+            // Temporarily fix width to A4 landscape proportions for consistent capture
+            const origWidth = docEl.style.width;
+            docEl.style.width = '1050px';
+            await new Promise(r => setTimeout(r, 100)); // allow reflow
+
+            const canvas = await html2canvas(docEl, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false });
+            docEl.style.width = origWidth;
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.92);
             const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
             const pW = pdf.internal.pageSize.getWidth();
             const pH = pdf.internal.pageSize.getHeight();
-            pdf.addImage(imgData, 'JPEG', 0, 0, pW, pH);
+            // Fit image maintaining aspect ratio, centered
+            const imgAR = canvas.width / canvas.height;
+            const pageAR = pW / pH;
+            let drawW = pW, drawH = pH, drawX = 0, drawY = 0;
+            if (imgAR > pageAR) { drawH = pW / imgAR; drawY = (pH - drawH) / 2; }
+            else { drawW = pH * imgAR; drawX = (pW - drawW) / 2; }
+            pdf.addImage(imgData, 'JPEG', drawX, drawY, drawW, drawH);
             const pdfBytes = pdf.output('arraybuffer');
 
             btn.innerHTML = '<span class="material-symbols-outlined text-sm spin">refresh</span> Subiendo...';
