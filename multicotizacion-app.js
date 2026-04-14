@@ -58,6 +58,36 @@
         'ana': 'ana.com.mx'
     };
 
+    // ─── Logos locales (carpeta logos_aseguradoras/) ───
+    const INSURER_LOGOS = {
+        'hdi':      'logos_aseguradoras/HDI_Seguros.png',
+        'qualitas': 'logos_aseguradoras/Qualitas_Seguros.png',
+        'gnp':      'logos_aseguradoras/GNP_Seguros.png',
+        'chubb':    'logos_aseguradoras/CHUBB_Seguros.png',
+        'afirme':   'logos_aseguradoras/Afirme_Seguros.png',
+        'banorte':  'logos_aseguradoras/Seguros_banorte.png',
+    };
+
+    function getLocalInsurerLogo(aseguradora) {
+        const n = (aseguradora || '').toLowerCase();
+        for (const [key, path] of Object.entries(INSURER_LOGOS)) {
+            if (n.includes(key)) return path;
+        }
+        return null;
+    }
+
+    // Limpia nombres tomados del filename (ej: "Cotizacion CHUBB SEGUROS - NISSAN XTE" → "CHUBB SEGUROS")
+    function limpiarNombreAseguradora(nombre) {
+        if (!nombre) return nombre;
+        let clean = nombre
+            .replace(/\.pdf$/gi, '')
+            .replace(/cotizaci[oó]n[\s_-]*/gi, '')
+            .replace(/\s*-\s*(nissan|toyota|vw|volkswagen|chevrolet|honda|ford|kia|hyundai|audi|bmw|mazda|dodge|ram|jeep|seat|suzuki|mitsubishi|subaru|volvo|renault|peugeot|fiat|mini|infiniti|lexus|acura|cadillac|lincoln|buick|gmc|chrysler|alfa|porsche|land|range|mercedes|benz|tesla).*/gi, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+        return clean || nombre;
+    }
+
     function getInsurerColor(nombre) {
         const n = (nombre || '').toLowerCase();
         for (const [key, cls] of Object.entries(INSURER_COLORS)) {
@@ -209,9 +239,7 @@
             } catch (e) {
                 lastError = e.message;
                 console.warn(`[extract-quote] Intento ${intento}/${maxIntentos} para "${file.name}": ${e.message}`);
-                if (intento < maxIntentos) {
-                    await new Promise(r => setTimeout(r, 1500 * intento)); // espera antes de reintentar
-                }
+                // Sin delays — reintenta de inmediato para no desperdiciar tiempo
             }
         }
         return { success: false, error: lastError };
@@ -576,15 +604,20 @@
         const cols = cotizaciones.map(cot => {
             const color = getInsurerColor(cot.aseguradora);
             const initials = getInsurerInitials(cot.aseguradora);
-            const esHDI = (cot.aseguradora||'').toLowerCase().includes('hdi');
+            const nombreLimpio = limpiarNombreAseguradora(cot.aseguradora);
+            const esHDI = (nombreLimpio||'').toLowerCase().includes('hdi');
             const coberturas = (cot.coberturas || []).filter(c => c.incluida !== false); // sin límite
 
-            // Insurer logo: usa base64 del cache (obtenido server-side), fallback a badge de color
-            const logoData = logoCache.get(cot.aseguradora);
-            const logoHTML = logoData
-                ? `<div style="height:60px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;">
-                      <img class="insurer-logo" src="${logoData}" alt="${cot.aseguradora}"
-                           style="max-height:60px;max-width:110px;width:auto;height:auto;object-fit:contain;" />
+            // Logo: primero archivo local, luego cache (Clearbit base64), luego badge de color
+            const localLogo = getLocalInsurerLogo(nombreLimpio);
+            const logoSrc = localLogo || logoCache.get(cot.aseguradora) || null;
+
+            const logoHTML = logoSrc
+                ? `<div style="height:64px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;">
+                      <img class="insurer-logo" src="${logoSrc}" alt="${nombreLimpio}"
+                           style="max-height:64px;max-width:120px;width:auto;height:auto;object-fit:contain;"
+                           onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                      <div style="display:none;width:56px;height:56px;border-radius:12px;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:white;" class="${color}">${initials}</div>
                    </div>`
                 : `<div style="width:56px;height:56px;border-radius:12px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;letter-spacing:0.5px;color:white;" class="${color}">${initials}</div>`;
 
@@ -621,7 +654,7 @@
             <div class="insurer-col" style="min-width:0;">
                 <div class="insurer-col-header" style="background:white;border-bottom:3px solid #e5e7eb;">
                     ${logoHTML}
-                    <p style="font-weight:800;font-size:13px;color:#0f1b3d;margin:0 0 2px;">${cot.aseguradora || '—'}</p>
+                    <p style="font-weight:800;font-size:13px;color:#0f1b3d;margin:0 0 2px;">${nombreLimpio || '—'}</p>
                     ${esHDI && hdiDescuento ? '<span style="font-size:10px;background:#ff6b00;color:white;padding:2px 8px;border-radius:4px;font-weight:700;">DESCUENTO ESPECIAL</span>' : ''}
                 </div>
                 <div style="background:#f9fafb;padding:6px 12px;border-bottom:1px solid #e5e7eb;">

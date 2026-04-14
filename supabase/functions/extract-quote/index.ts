@@ -31,11 +31,11 @@ Estructura JSON requerida:
 {
   "aseguradora": "nombre exacto de la compañía aseguradora tal como aparece en el documento (ej: HDI Seguros, Quálitas, GNP Seguros, AXA Seguros, Mapfre, Afirme Seguros, Chubb, Zurich, Inbursa, Banorte Seguros, Seguros Atlas, Primero Seguros, ANA Seguros u otra)",
   "vehiculo": {
-    "marca": "marca del vehículo",
-    "modelo": "modelo exacto",
-    "anio": "año como texto de 4 dígitos",
-    "version": "versión, trim o descripción completa del modelo si aparece",
-    "serie": "número de serie VIN completo si aparece"
+    "marca": "SOLO el fabricante/armadora. Ejemplos correctos: Nissan, Toyota, Volkswagen, Chevrolet, Ford, Honda, Kia, Hyundai, Audi, BMW, Mercedes-Benz, Mazda, Dodge, RAM, Jeep, SEAT, Suzuki, Mitsubishi, Subaru, Volvo, Renault, Peugeot, Fiat, Porsche, Acura, Infiniti, Cadillac, Buick, GMC. NUNCA pongas el modelo ni la versión en este campo.",
+    "modelo": "SOLO el nombre del modelo. Ejemplos: X-Trail, Tiguan, Versa, Jetta, Sentra, CR-V, Civic, Tucson, Compass, Ram 1500, F-150, Aveo, Beat. NUNCA pongas la marca ni la versión aquí.",
+    "anio": "año del vehículo como texto de 4 dígitos (ej: '2023')",
+    "version": "SOLO el nivel de acabado o trim. Ejemplos: LE, SE, XTE, Advance, Comfortline, Highline, Active, Sport, Exclusive, Limited, Platinum, 4x4, AWD. Si no hay versión usa null.",
+    "serie": "número de serie VIN completo si aparece, si no usa null"
   },
   "coberturas": [
     {
@@ -115,8 +115,7 @@ INSTRUCCIONES para primas:
                     console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS} error: ${msg}`);
                     lastError = msg;
                     if (intento < MAX_INTENTOS) {
-                        await new Promise(r => setTimeout(r, 1500 * intento));
-                        continue;
+                        continue; // reintenta de inmediato
                     }
                     throw new Error(`Gemini error después de ${MAX_INTENTOS} intentos: ${lastError}`);
                 }
@@ -129,8 +128,7 @@ INSTRUCCIONES para primas:
                     console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: respuesta TRUNCADA por límite de tokens — el JSON está incompleto`);
                     lastError = 'Respuesta truncada (PDF demasiado complejo)';
                     if (intento < MAX_INTENTOS) {
-                        await new Promise(r => setTimeout(r, 1500 * intento));
-                        continue;
+                        continue; // reintenta de inmediato
                     }
                     // No hacer throw — dejar que caiga al Plan B (prompt simplificado)
                     break;
@@ -147,8 +145,7 @@ INSTRUCCIONES para primas:
                     lastError = 'Gemini devolvió respuesta vacía';
                     console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: respuesta vacía (finishReason: ${finishReason})`);
                     if (intento < MAX_INTENTOS) {
-                        await new Promise(r => setTimeout(r, 1500 * intento));
-                        continue;
+                        continue; // reintenta de inmediato
                     }
                     break;
                 }
@@ -182,8 +179,7 @@ INSTRUCCIONES para primas:
                     console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: ${lastError}`);
                     console.warn('rawText preview:', rawText.substring(0, 300));
                     if (intento < MAX_INTENTOS) {
-                        await new Promise(r => setTimeout(r, 1500 * intento));
-                        continue;
+                        continue; // reintenta de inmediato
                     }
                     throw new Error(lastError);
                 }
@@ -193,8 +189,7 @@ INSTRUCCIONES para primas:
                     lastError = 'Gemini no identificó aseguradora ni coberturas';
                     console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: ${lastError}`);
                     if (intento < MAX_INTENTOS) {
-                        await new Promise(r => setTimeout(r, 2000 * intento));
-                        continue;
+                        continue; // reintenta de inmediato
                     }
                     throw new Error(lastError);
                 }
