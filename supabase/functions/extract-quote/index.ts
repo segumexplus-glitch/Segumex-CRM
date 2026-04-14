@@ -257,8 +257,12 @@ Extrae TODAS las coberturas. forma_pago: 1=anual 2=semestral 4=trimestral 12=men
 
     } catch (err: any) {
         console.error('extract-quote error:', err);
+        // IMPORTANTE: siempre devolver 200 aunque haya error.
+        // Si devolvemos 500, el cliente Supabase lanza "non-2xx status code" y
+        // el sistema de reintentos del frontend no puede funcionar (data llega null).
+        // Con 200 + success:false, el frontend recibe el error real y puede reintentar.
         return new Response(JSON.stringify({ success: false, error: err.message }), {
-            status: 500,
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
     }

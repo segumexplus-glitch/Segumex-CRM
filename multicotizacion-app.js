@@ -231,7 +231,14 @@
                     body: { pdf_base64: base64, mime_type: 'application/pdf' }
                 });
 
-                if (error) throw new Error(error.message || 'Error en función Edge');
+                // Si hay error de red/HTTP, intentar extraer el mensaje real
+                if (error) {
+                    let msg = error.message || 'Error en función Edge';
+                    // Supabase devuelve "non-2xx status code" cuando el edge fn retorna 500.
+                    // Con la corrección del edge fn (siempre 200), este caso ya no debería ocurrir.
+                    if (msg.includes('non-2xx')) msg = 'Error de conexión con el servidor — reintentando...';
+                    throw new Error(msg);
+                }
                 if (!data?.success) throw new Error(data?.error || 'La IA no pudo procesar el PDF');
                 if (!data?.data) throw new Error('Respuesta vacía de la IA');
 
@@ -296,6 +303,11 @@
                         _error: true,
                         _error_msg: resultado.error
                     });
+                }
+
+                // Pausa entre PDFs para no saturar la API de Gemini con solicitudes seguidas
+                if (i < archivos.length - 1) {
+                    await new Promise(r => setTimeout(r, 1200));
                 }
             }
 
@@ -743,35 +755,32 @@
     function imprimirDocumento() {
         const doc = document.getElementById('printDoc');
 
-        // Restaurar cualquier escala previa
+        // Limpiar cualquier escala previa
         doc.style.transform = '';
         doc.style.transformOrigin = '';
-        doc.style.height = '';
 
         // Medir dimensiones naturales del documento
         const natW = doc.scrollWidth;
         const natH = doc.scrollHeight;
 
-        // Área útil de A4 horizontal con márgenes 5mm: ~287mm × 200mm ≈ 1085px × 756px
+        // Área útil A4 horizontal con márgenes 5mm: ~1085px × 756px a 96dpi
         const availW = 1085;
         const availH = 756;
-
         const scale = Math.min(availW / natW, availH / natH, 1);
 
         if (scale < 0.99) {
+            // Solo escala — el CSS de impresión cubre toda la página con position:fixed
+            // y overflow:hidden, por lo que no hay que ajustar height manualmente
             doc.style.transformOrigin = 'top left';
             doc.style.transform = `scale(${scale.toFixed(4)})`;
-            // Colapsar el espacio sobrante que deja el shrink
-            doc.style.height = `${Math.ceil(natH * scale)}px`;
         }
 
         window.print();
 
-        // Restaurar diseño original tras cerrar el diálogo de impresión
+        // Restaurar tras imprimir
         setTimeout(() => {
             doc.style.transform = '';
             doc.style.transformOrigin = '';
-            doc.style.height = '';
         }, 1500);
     }
 
