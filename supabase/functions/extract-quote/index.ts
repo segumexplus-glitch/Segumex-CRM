@@ -90,41 +90,105 @@ INSTRUCCIONES para primas:
             }],
             generationConfig: {
                 temperature: 0.1,
-                responseMimeType: 'application/json'
+                responseMimeType: 'application/json',
+                maxOutputTokens: 8192
             }
         };
 
-        const response = await fetch(geminiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        // Reintentos internos ante errores de Gemini (rate limit, timeout, JSON malformado)
+        let extracted: any = null;
+        let lastError = '';
+        const MAX_INTENTOS = 3;
 
-        const aiData = await response.json();
+        for (let intento = 1; intento <= MAX_INTENTOS; intento++) {
+            try {
+                const response = await fetch(geminiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
 
-        if (!response.ok || aiData.error) {
-            console.error('Gemini error:', JSON.stringify(aiData));
-            throw new Error(aiData.error?.message || 'Error al procesar con Gemini');
-        }
+                const aiData = await response.json();
 
-        const rawText = aiData.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+                if (!response.ok || aiData.error) {
+                    const msg = aiData.error?.message || `HTTP ${response.status}`;
+                    console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS} error: ${msg}`);
+                    lastError = msg;
+                    if (intento < MAX_INTENTOS) {
+                        await new Promise(r => setTimeout(r, 1500 * intento));
+                        continue;
+                    }
+                    throw new Error(`Gemini error después de ${MAX_INTENTOS} intentos: ${lastError}`);
+                }
 
-        let cleanText = rawText
-            .replace(/```json/gi, '')
-            .replace(/```/g, '')
-            .trim();
+                const rawText = aiData.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
-        let extracted;
-        try {
-            extracted = JSON.parse(cleanText);
-        } catch {
-            const match = cleanText.match(/\{[\s\S]*\}/);
-            if (match) {
-                extracted = JSON.parse(match[0]);
-            } else {
-                throw new Error('No se pudo parsear la respuesta de Gemini');
+                if (!rawText.trim()) {
+                    lastError = 'Gemini devolvió respuesta vacía';
+                    console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: respuesta vacía`);
+                    if (intento < MAX_INTENTOS) {
+                        await new Promise(r => setTimeout(r, 1500 * intento));
+                        continue;
+                    }
+                    throw new Error(lastError);
+                }
+
+                // Parseo robusto: intenta múltiples estrategias
+                let parseError = '';
+                let parsed: any = null;
+
+                // Estrategia 1: parseo directo
+                try { parsed = JSON.parse(rawText.trim()); } catch (e1) { parseError = String(e1); }
+
+                // Estrategia 2: limpiar bloques de código markdown
+                if (!parsed) {
+                    try {
+                        const cleaned = rawText
+                            .replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+                        parsed = JSON.parse(cleaned);
+                    } catch (e2) { parseError = String(e2); }
+                }
+
+                // Estrategia 3: extraer primer objeto JSON del texto
+                if (!parsed) {
+                    try {
+                        const match = rawText.match(/\{[\s\S]*\}/);
+                        if (match) parsed = JSON.parse(match[0]);
+                    } catch (e3) { parseError = String(e3); }
+                }
+
+                if (!parsed) {
+                    lastError = `No se pudo parsear JSON: ${parseError}`;
+                    console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: ${lastError}`);
+                    console.warn('rawText preview:', rawText.substring(0, 300));
+                    if (intento < MAX_INTENTOS) {
+                        await new Promise(r => setTimeout(r, 1500 * intento));
+                        continue;
+                    }
+                    throw new Error(lastError);
+                }
+
+                // Validar calidad mínima
+                if (!parsed.aseguradora && (!parsed.coberturas || parsed.coberturas.length === 0)) {
+                    lastError = 'Gemini no identificó aseguradora ni coberturas';
+                    console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: ${lastError}`);
+                    if (intento < MAX_INTENTOS) {
+                        await new Promise(r => setTimeout(r, 2000 * intento));
+                        continue;
+                    }
+                    throw new Error(lastError);
+                }
+
+                extracted = parsed;
+                console.log(`✅ Extracción exitosa en intento ${intento}. Aseguradora: ${parsed.aseguradora}, coberturas: ${parsed.coberturas?.length || 0}`);
+                break; // éxito, salir del loop
+
+            } catch (loopErr: any) {
+                if (intento === MAX_INTENTOS) throw loopErr;
             }
         }
+
+        if (!extracted) throw new Error(`No se pudo extraer datos después de ${MAX_INTENTOS} intentos`);
 
         return new Response(JSON.stringify({ success: true, data: extracted }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }

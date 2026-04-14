@@ -183,14 +183,65 @@
     // ═══════════════════════════════════════════════════════════════
     // PASO 1 → 2: Procesar PDFs con IA
     // ═══════════════════════════════════════════════════════════════
+
+    // Extrae datos de un PDF con reintentos automáticos (hasta 3 intentos)
+    async function extraerConReintentos(file, maxIntentos = 3) {
+        let lastError = 'Error desconocido';
+        for (let intento = 1; intento <= maxIntentos; intento++) {
+            try {
+                const base64 = await fileToBase64(file);
+                const { data, error } = await window.supabaseClient.functions.invoke('extract-quote', {
+                    body: { pdf_base64: base64, mime_type: 'application/pdf' }
+                });
+
+                if (error) throw new Error(error.message || 'Error en función Edge');
+                if (!data?.success) throw new Error(data?.error || 'La IA no pudo procesar el PDF');
+                if (!data?.data) throw new Error('Respuesta vacía de la IA');
+
+                // Validar calidad mínima — debe tener al menos aseguradora o coberturas
+                const d = data.data;
+                if (!d.aseguradora && (!d.coberturas || d.coberturas.length === 0)) {
+                    throw new Error('La IA no identificó datos de cotización');
+                }
+
+                return { success: true, data: d };
+
+            } catch (e) {
+                lastError = e.message;
+                console.warn(`[extract-quote] Intento ${intento}/${maxIntentos} para "${file.name}": ${e.message}`);
+                if (intento < maxIntentos) {
+                    await new Promise(r => setTimeout(r, 1500 * intento)); // espera antes de reintentar
+                }
+            }
+        }
+        return { success: false, error: lastError };
+    }
+
+    function aplicarDatosVehiculo(data) {
+        const v = data.vehiculo;
+        if (v) {
+            if (!document.getElementById('vMarca').value && v.marca) document.getElementById('vMarca').value = v.marca;
+            if (!document.getElementById('vModelo').value && v.modelo) document.getElementById('vModelo').value = v.modelo;
+            if (!document.getElementById('vAnio').value && v.anio) document.getElementById('vAnio').value = v.anio;
+            if (!document.getElementById('vVersion').value && v.version) document.getElementById('vVersion').value = v.version;
+        }
+        if (!document.getElementById('vCP').value && data.cp) {
+            document.getElementById('vCP').value = data.cp;
+            document.getElementById('lCP').value = data.cp;
+        }
+        if (data.forma_pago) {
+            const mapaForma = { 1: 'anual', 2: 'semestral', 4: 'trimestral', 12: 'mensual' };
+            const formaDetectada = mapaForma[data.forma_pago];
+            if (formaDetectada) document.getElementById('vFormaPago').value = formaDetectada;
+        }
+    }
+
     async function procesarCotizaciones() {
         if (archivos.length === 0) { alert('Selecciona al menos 1 PDF de cotización.'); return; }
         if (!document.getElementById('vCreadoPor').value) { alert('Selecciona quién crea la cotización: Albert o Soto.'); return; }
 
         const btn = document.getElementById('btnProcesar');
         btn.disabled = true;
-        btn.innerHTML = '<span class="material-symbols-outlined text-base spin">refresh</span> Analizando con IA...';
-
         cotizaciones = [];
 
         try {
@@ -198,42 +249,30 @@
                 const file = archivos[i];
                 btn.innerHTML = `<span class="material-symbols-outlined text-base spin">refresh</span> Analizando ${i+1}/${archivos.length}...`;
 
-                const base64 = await fileToBase64(file);
-                const { data } = await window.supabaseClient.functions.invoke('extract-quote', {
-                    body: { pdf_base64: base64, mime_type: 'application/pdf' }
-                });
+                const resultado = await extraerConReintentos(file);
 
-                if (data?.success && data?.data) {
-                    // Rellenar campos de vehículo si están vacíos
-                    const v = data.data.vehiculo;
-                    if (v) {
-                        if (!document.getElementById('vMarca').value && v.marca) document.getElementById('vMarca').value = v.marca;
-                        if (!document.getElementById('vModelo').value && v.modelo) document.getElementById('vModelo').value = v.modelo;
-                        if (!document.getElementById('vAnio').value && v.anio) document.getElementById('vAnio').value = v.anio;
-                        if (!document.getElementById('vVersion').value && v.version) document.getElementById('vVersion').value = v.version;
-                    }
-                    if (!document.getElementById('vCP').value && data.data.cp) {
-                        document.getElementById('vCP').value = data.data.cp;
-                        document.getElementById('lCP').value = data.data.cp;
-                    }
-                    // Detectar periodicidad automáticamente
-                    if (data.data.forma_pago) {
-                        const mapaForma = { 1: 'anual', 2: 'semestral', 4: 'trimestral', 12: 'mensual' };
-                        const formaDetectada = mapaForma[data.data.forma_pago];
-                        if (formaDetectada) document.getElementById('vFormaPago').value = formaDetectada;
-                    }
-                    cotizaciones.push({ ...data.data, _archivo: file.name });
+                if (resultado.success) {
+                    aplicarDatosVehiculo(resultado.data);
+                    cotizaciones.push({ ...resultado.data, _archivo: file.name });
                 } else {
-                    cotizaciones.push({ aseguradora: file.name.replace('.pdf',''), _archivo: file.name, _error: true });
+                    cotizaciones.push({
+                        aseguradora: file.name.replace(/\.pdf$/i, ''),
+                        _archivo: file.name,
+                        _error: true,
+                        _error_msg: resultado.error
+                    });
                 }
             }
 
             renderCotizacionesGrid();
-
-            // Cargar logos de aseguradoras en segundo plano (no bloquea la UI)
             cargarLogosAseguradoras().catch(() => {});
-
             irPaso(2);
+
+            // Avisar si hubo fallidos
+            const fallidos = cotizaciones.filter(c => c._error).length;
+            if (fallidos > 0) {
+                showToast(`${fallidos} cotización(es) necesitan reintento — usa el botón "Reintentar" en cada una`, 'warning');
+            }
 
         } catch(e) {
             showToast('Error al analizar: ' + e.message, 'error');
@@ -241,6 +280,42 @@
 
         btn.disabled = false;
         btn.innerHTML = '<span class="material-symbols-outlined text-base">auto_awesome</span> Analizar con IA y continuar';
+    }
+
+    // Reintenta la extracción de una cotización fallida sin reprocesar las demás
+    async function reintentarCotizacion(idx) {
+        const file = archivos[idx];
+        if (!file) { showToast('No se encontró el archivo original', 'error'); return; }
+
+        // Actualizar UI a estado "cargando"
+        const cards = document.querySelectorAll('#cotizacionesGrid > div');
+        if (cards[idx]) {
+            cards[idx].innerHTML = `
+                <div class="flex flex-col items-center justify-center gap-3 py-8 text-[#9da6b9]">
+                    <span class="material-symbols-outlined text-2xl spin">refresh</span>
+                    <p class="text-sm">Analizando con IA...</p>
+                </div>`;
+        }
+
+        const resultado = await extraerConReintentos(file, 3);
+
+        if (resultado.success) {
+            aplicarDatosVehiculo(resultado.data);
+            cotizaciones[idx] = { ...resultado.data, _archivo: file.name };
+            showToast(`Cotización ${idx + 1} extraída correctamente`, 'success');
+            // Cargar logo para esta nueva aseguradora
+            cargarLogosAseguradoras().catch(() => {});
+        } else {
+            cotizaciones[idx] = {
+                aseguradora: file.name.replace(/\.pdf$/i, ''),
+                _archivo: file.name,
+                _error: true,
+                _error_msg: resultado.error
+            };
+            showToast(`No se pudo extraer "${file.name}": ${resultado.error}`, 'error');
+        }
+
+        renderCotizacionesGrid();
     }
 
     function fileToBase64(file) {
@@ -260,29 +335,64 @@
         grid.innerHTML = cotizaciones.map((cot, idx) => {
             const color = getInsurerColor(cot.aseguradora);
             const initials = getInsurerInitials(cot.aseguradora);
-            const coberturas = (cot.coberturas || []).slice(0, 8);
-            const precio = cot.prima_total ? `$${Number(cot.prima_total).toLocaleString('es-MX', {minimumFractionDigits:2})}` : '—';
+
+            // ── Estado ERROR: mostrar card de error con botón Reintentar ──
+            if (cot._error) {
+                return `
+                <div class="cot-card p-4 border-yellow-500/40 bg-yellow-500/5">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="insurer-badge color-default text-white text-lg">?</div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-yellow-400 truncate">${cot._archivo || 'Archivo desconocido'}</p>
+                            <p class="text-xs text-[#9da6b9] mt-0.5">No se pudo extraer la información</p>
+                        </div>
+                        <button onclick="removerCotizacion(${idx})" class="text-[#9da6b9] hover:text-red-400 flex-shrink-0">
+                            <span class="material-symbols-outlined text-sm">delete</span>
+                        </button>
+                    </div>
+                    <div class="bg-[#1a1f2a] rounded-lg p-3 mb-3">
+                        <p class="text-xs text-yellow-400 flex items-start gap-2">
+                            <span class="material-symbols-outlined text-sm flex-shrink-0 mt-0.5">warning</span>
+                            <span>${cot._error_msg || 'La IA no pudo leer el documento. Puede ser un PDF escaneado, protegido o corrupto.'}</span>
+                        </p>
+                    </div>
+                    <button onclick="reintentarCotizacion(${idx})"
+                        class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary text-sm rounded-lg font-semibold transition-colors">
+                        <span class="material-symbols-outlined text-base">refresh</span>
+                        Reintentar extracción con IA
+                    </button>
+                </div>`;
+            }
+
+            // ── Estado OK: mostrar datos extraídos ──
+            const coberturas = (cot.coberturas || []);
 
             return `
             <div class="cot-card p-4">
                 <div class="flex items-center gap-3 mb-3">
                     <div class="insurer-badge ${color} text-white">${initials}</div>
                     <div class="flex-1">
-                        <input value="${cot.aseguradora || ''}" onchange="cotizaciones[${idx}].aseguradora=this.value; this.parentElement.previousElementSibling.textContent=getInsurerInitials(this.value);"
+                        <input value="${(cot.aseguradora || '').replace(/"/g, '&quot;')}"
+                            onchange="cotizaciones[${idx}].aseguradora=this.value; this.parentElement.previousElementSibling.textContent=getInsurerInitials(this.value);"
                             class="bg-transparent border-b border-[#3b4354] focus:border-primary outline-none text-sm font-bold w-full text-white" />
-                        ${cot._error ? '<span class="text-xs text-yellow-400">⚠ Datos incompletos</span>' : ''}
+                        <p class="text-[10px] text-green-400 mt-0.5 flex items-center gap-1">
+                            <span class="material-symbols-outlined text-xs">check_circle</span>
+                            ${coberturas.length} cobertura${coberturas.length !== 1 ? 's' : ''} extraída${coberturas.length !== 1 ? 's' : ''}
+                        </p>
                     </div>
                     <button onclick="removerCotizacion(${idx})" class="text-[#9da6b9] hover:text-red-400">
                         <span class="material-symbols-outlined text-sm">delete</span>
                     </button>
                 </div>
-                <div class="space-y-1 mb-3 text-xs">
-                    ${coberturas.map(c => `
-                        <div class="flex justify-between text-[#9da6b9] border-b border-[#282e39] pb-1">
-                            <span class="truncate mr-2">${c.nombre || ''}</span>
-                            <span class="text-white shrink-0">${c.suma_asegurada || '—'}</span>
-                        </div>
-                    `).join('')}
+                <div class="space-y-1 mb-3 text-xs max-h-48 overflow-y-auto scrollbar-hide">
+                    ${coberturas.length > 0
+                        ? coberturas.map(c => `
+                            <div class="flex justify-between text-[#9da6b9] border-b border-[#282e39] pb-1">
+                                <span class="truncate mr-2">${c.nombre || ''}</span>
+                                <span class="text-white shrink-0">${c.suma_asegurada || '—'}</span>
+                            </div>`).join('')
+                        : '<p class="text-[#9da6b9] text-center py-2">Sin coberturas extraídas</p>'
+                    }
                 </div>
                 <div class="flex items-center justify-between pt-2 border-t border-[#282e39]">
                     <span class="text-xs text-[#9da6b9]">Prima total</span>
