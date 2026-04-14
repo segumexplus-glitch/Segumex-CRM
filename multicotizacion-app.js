@@ -349,11 +349,12 @@
                     codigo_postal: cp || document.getElementById('lCP').value.trim() || null,
                     producto: 'Seguro de Auto',
                     etapa: document.getElementById('lEstado').value,
-                    notas: document.getElementById('lNotas').value.trim() || null,
-                    auto_modelo: `${vMarca} ${vModelo} ${vAnio}`.trim(),
+                    fecha: new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }),
+                    prob: 'media',
+                    valor: 0,
+                    auto_modelo: `${vMarca} ${vModelo} ${vAnio}`.trim() || null,
                     auto_anio: vAnio || null,
                     auto_version: vVersion || null,
-                    historial: [{ tipo: 'multicotizacion', fecha: new Date().toISOString(), descripcion: `Multicotización creada por ${creadoPor}` }]
                 }).select().single();
 
                 if (error) throw error;
