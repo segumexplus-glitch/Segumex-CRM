@@ -348,7 +348,7 @@
                     email: document.getElementById('lEmail').value.trim() || null,
                     codigo_postal: cp || document.getElementById('lCP').value.trim() || null,
                     producto: 'Seguro de Auto',
-                    estado: document.getElementById('lEstado').value,
+                    etapa: document.getElementById('lEstado').value,
                     notas: document.getElementById('lNotas').value.trim() || null,
                     auto_modelo: `${vMarca} ${vModelo} ${vAnio}`.trim(),
                     auto_anio: vAnio || null,
