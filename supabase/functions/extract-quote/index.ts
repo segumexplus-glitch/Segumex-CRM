@@ -104,6 +104,11 @@ INSTRUCCIONES para primas:
 
         for (let intento = 1; intento <= MAX_INTENTOS; intento++) {
             try {
+                // Delay progresivo entre reintentos para evitar rate-limit
+                if (intento > 1) {
+                    await new Promise(r => setTimeout(r, intento * 1500));
+                }
+
                 const response = await fetch(geminiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -117,7 +122,7 @@ INSTRUCCIONES para primas:
                     console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS} error: ${msg}`);
                     lastError = msg;
                     if (intento < MAX_INTENTOS) {
-                        continue; // reintenta de inmediato
+                        continue;
                     }
                     throw new Error(`Gemini error después de ${MAX_INTENTOS} intentos: ${lastError}`);
                 }
@@ -127,28 +132,22 @@ INSTRUCCIONES para primas:
                 const finishReason = candidate?.finishReason ?? 'UNKNOWN';
 
                 if (finishReason === 'MAX_TOKENS') {
-                    console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: respuesta TRUNCADA por límite de tokens — el JSON está incompleto`);
+                    // Con mismo prompt y mismo límite, reintentar no sirve — ir directo a Plan B
+                    console.warn(`[Gemini] Intento ${intento}: respuesta TRUNCADA (MAX_TOKENS) — pasando a Plan B`);
                     lastError = 'Respuesta truncada (PDF demasiado complejo)';
-                    if (intento < MAX_INTENTOS) {
-                        continue; // reintenta de inmediato
-                    }
-                    // No hacer throw — dejar que caiga al Plan B (prompt simplificado)
                     break;
                 }
 
                 if (finishReason === 'SAFETY') {
-                    console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: bloqueado por filtros de seguridad`);
+                    console.warn(`[Gemini] Intento ${intento}: bloqueado por filtros de seguridad`);
                     lastError = 'Bloqueado por filtros de seguridad de Gemini';
-                    // No reintentar safety blocks
                     break;
                 }
 
                 if (!rawText.trim()) {
                     lastError = 'Gemini devolvió respuesta vacía';
                     console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: respuesta vacía (finishReason: ${finishReason})`);
-                    if (intento < MAX_INTENTOS) {
-                        continue; // reintenta de inmediato
-                    }
+                    if (intento < MAX_INTENTOS) continue;
                     break;
                 }
 
@@ -161,6 +160,8 @@ INSTRUCCIONES para primas:
                     .replace(/```json\s*/gi, '')
                     .replace(/```\s*/g, '')
                     .trim();
+
+                console.log(`[Gemini] Intento ${intento}: rawText length=${rawText.length}, finishReason=${finishReason}`);
 
                 // Estrategia 1: parseo directo del texto limpio
                 try { parsed = JSON.parse(cleanText); } catch (e1) { parseError = String(e1); }
@@ -182,6 +183,7 @@ INSTRUCCIONES para primas:
                         if (match) {
                             const repaired = jsonrepair(match[0]);
                             parsed = JSON.parse(repaired);
+                            console.log(`[Gemini] JSON extraído con regex+jsonrepair en intento ${intento}`);
                         }
                     } catch (e3) { parseError = `regex+repair: ${e3}`; }
                 }
@@ -194,10 +196,8 @@ INSTRUCCIONES para primas:
                 if (!parsed) {
                     lastError = `No se pudo parsear JSON: ${parseError}`;
                     console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: ${lastError}`);
-                    console.warn('rawText preview:', rawText.substring(0, 400));
-                    if (intento < MAX_INTENTOS) {
-                        continue;
-                    }
+                    console.warn('rawText preview:', rawText.substring(0, 600));
+                    if (intento < MAX_INTENTOS) continue;
                     break; // dejar que Plan B lo intente
                 }
 
@@ -205,9 +205,7 @@ INSTRUCCIONES para primas:
                 if (!parsed.aseguradora && (!parsed.coberturas || parsed.coberturas.length === 0)) {
                     lastError = 'Gemini no identificó aseguradora ni coberturas';
                     console.warn(`[Gemini] Intento ${intento}/${MAX_INTENTOS}: ${lastError}`);
-                    if (intento < MAX_INTENTOS) {
-                        continue; // reintenta de inmediato
-                    }
+                    if (intento < MAX_INTENTOS) continue;
                     throw new Error(lastError);
                 }
 

@@ -752,36 +752,66 @@
         document.getElementById('printDoc').innerHTML = docHTML;
     }
 
-    function imprimirDocumento() {
-        const doc = document.getElementById('printDoc');
-
-        // Limpiar cualquier escala previa
-        doc.style.transform = '';
-        doc.style.transformOrigin = '';
-
-        // Medir dimensiones naturales del documento
-        const natW = doc.scrollWidth;
-        const natH = doc.scrollHeight;
-
-        // Área útil A4 horizontal con márgenes 5mm: ~1085px × 756px a 96dpi
-        const availW = 1085;
-        const availH = 756;
-        const scale = Math.min(availW / natW, availH / natH, 1);
-
-        if (scale < 0.99) {
-            // Solo escala — el CSS de impresión cubre toda la página con position:fixed
-            // y overflow:hidden, por lo que no hay que ajustar height manualmente
-            doc.style.transformOrigin = 'top left';
-            doc.style.transform = `scale(${scale.toFixed(4)})`;
+    async function imprimirDocumento() {
+        const btn = document.querySelector('[onclick="imprimirDocumento()"]');
+        const origHTML = btn?.innerHTML;
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined text-base spin">refresh</span> Generando PDF...';
         }
 
-        window.print();
+        try {
+            const { jsPDF } = window.jspdf;
+            const docEl = document.getElementById('printDoc');
 
-        // Restaurar tras imprimir
-        setTimeout(() => {
-            doc.style.transform = '';
-            doc.style.transformOrigin = '';
-        }, 1500);
+            // Fijar ancho consistente para captura (A4 horizontal a 96dpi ≈ 1122px)
+            const origWidth = docEl.style.width;
+            const origTransform = docEl.style.transform;
+            const origTransformOrigin = docEl.style.transformOrigin;
+            docEl.style.transform = '';
+            docEl.style.transformOrigin = '';
+            docEl.style.width = '1122px';
+            await new Promise(r => setTimeout(r, 150)); // reflow
+
+            const canvas = await html2canvas(docEl, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                logging: false,
+                width: docEl.offsetWidth,
+                height: docEl.offsetHeight
+            });
+
+            // Restaurar estilos
+            docEl.style.transform = origTransform;
+            docEl.style.transformOrigin = origTransformOrigin;
+            docEl.style.width = origWidth;
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const pW = pdf.internal.pageSize.getWidth();   // 297mm
+            const pH = pdf.internal.pageSize.getHeight();  // 210mm
+
+            // Ajustar imagen al tamaño de página manteniendo proporción
+            const imgAR = canvas.width / canvas.height;
+            const pageAR = pW / pH;
+            let drawW = pW, drawH = pH, drawX = 0, drawY = 0;
+            if (imgAR > pageAR) { drawH = pW / imgAR; drawY = (pH - drawH) / 2; }
+            else { drawW = pH * imgAR; drawX = (pW - drawW) / 2; }
+
+            pdf.addImage(imgData, 'JPEG', drawX, drawY, drawW, drawH);
+            pdf.save(`Multicotizacion_${folioCotizacion || 'seguro'}.pdf`);
+
+            showToast('PDF descargado correctamente', 'success');
+        } catch (err) {
+            console.error('Error generando PDF:', err);
+            showToast('Error al generar PDF: ' + err.message, 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origHTML;
+            }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════
