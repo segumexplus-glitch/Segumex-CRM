@@ -251,11 +251,24 @@ Extrae TODAS las coberturas. forma_pago: 1=anual 2=semestral 4=trimestral 12=men
 
                 if (textSimple.trim()) {
                     let parsedSimple: any = null;
-                    try { parsedSimple = JSON.parse(textSimple.trim()); } catch { /* ignore */ }
+                    const cleanSimple = textSimple.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+
+                    // Estrategia 1: parse directo
+                    try { parsedSimple = JSON.parse(cleanSimple); } catch { /* ignore */ }
+
+                    // Estrategia 2: jsonrepair
                     if (!parsedSimple) {
-                        const m = textSimple.match(/\{[\s\S]*\}/);
-                        if (m) try { parsedSimple = JSON.parse(m[0]); } catch { /* ignore */ }
+                        try { parsedSimple = JSON.parse(jsonrepair(cleanSimple)); } catch { /* ignore */ }
                     }
+
+                    // Estrategia 3: extraer bloque {} + jsonrepair
+                    if (!parsedSimple) {
+                        const m = cleanSimple.match(/\{[\s\S]*\}/);
+                        if (m) {
+                            try { parsedSimple = JSON.parse(jsonrepair(m[0])); } catch { /* ignore */ }
+                        }
+                    }
+
                     if (parsedSimple?.aseguradora || parsedSimple?.coberturas?.length > 0) {
                         extracted = parsedSimple;
                         console.log(`✅ Extracción exitosa con prompt simplificado. Aseguradora: ${parsedSimple.aseguradora}, coberturas: ${parsedSimple.coberturas?.length || 0}`);

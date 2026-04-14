@@ -59,12 +59,23 @@
                 print-color-adjust: exact !important;
                 color-adjust: exact !important;
             }
-            /* Eliminar fondo oscuro de la app */
-            html, body {
+            /* Eliminar fondo oscuro y forzar UNA sola página */
+            html {
+                background: white !important;
+                height: 100vh !important;
+                max-height: 100vh !important;
+                overflow: hidden !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            body {
                 background: white !important;
                 background-color: white !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                height: 100vh !important;
+                max-height: 100vh !important;
+                overflow: hidden !important;
             }
             body * { visibility: hidden !important; }
             #printDoc, #printDoc * {
