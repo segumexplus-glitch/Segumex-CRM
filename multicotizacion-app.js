@@ -792,14 +792,8 @@
             const pW = pdf.internal.pageSize.getWidth();   // 297mm
             const pH = pdf.internal.pageSize.getHeight();  // 210mm
 
-            // Ajustar imagen al tamaño de página manteniendo proporción
-            const imgAR = canvas.width / canvas.height;
-            const pageAR = pW / pH;
-            let drawW = pW, drawH = pH, drawX = 0, drawY = 0;
-            if (imgAR > pageAR) { drawH = pW / imgAR; drawY = (pH - drawH) / 2; }
-            else { drawW = pH * imgAR; drawX = (pW - drawW) / 2; }
-
-            pdf.addImage(imgData, 'JPEG', drawX, drawY, drawW, drawH);
+            // Llenar página completa sin bordes (stretch mínimo no perceptible)
+            pdf.addImage(imgData, 'JPEG', 0, 0, pW, pH);
             pdf.save(`Multicotizacion_${folioCotizacion || 'seguro'}.pdf`);
 
             showToast('PDF descargado correctamente', 'success');
