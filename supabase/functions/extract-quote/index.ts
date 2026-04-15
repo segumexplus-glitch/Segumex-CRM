@@ -95,7 +95,9 @@ INSTRUCCIONES para primas:
             }],
             generationConfig: {
                 temperature: 0.1,
-                responseMimeType: 'application/json',
+                // NO usamos responseMimeType:'application/json' porque en v1beta puede causar
+                // respuestas vacías cuando el contenido del PDF activa filtros internos.
+                // Gemini devuelve JSON dentro de texto libre que jsonrepair maneja perfectamente.
                 maxOutputTokens: 8192
             }
         };
@@ -141,9 +143,9 @@ INSTRUCCIONES para primas:
                     break;
                 }
 
-                if (finishReason === 'SAFETY') {
-                    console.warn(`[Gemini] Intento ${intento}: bloqueado por filtros de seguridad`);
-                    lastError = 'Bloqueado por filtros de seguridad de Gemini';
+                if (finishReason === 'SAFETY' || finishReason === 'RECITATION') {
+                    console.warn(`[Gemini] Intento ${intento}: bloqueado (${finishReason}) — pasando a fallbacks`);
+                    lastError = `Bloqueado por filtros de Gemini (${finishReason})`;
                     break;
                 }
 
@@ -252,7 +254,8 @@ REGLAS: Extrae TODAS las coberturas. forma_pago: 1=anual 2=semestral 4=trimestra
                             { text: promptSimple }
                         ]
                     }],
-                    generationConfig: { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 8192 }
+                    generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
+                    // Sin responseMimeType para evitar respuestas vacías por filtros internos
                 };
 
                 const rFallback = await fetch(fallback.url, {
@@ -263,12 +266,19 @@ REGLAS: Extrae TODAS las coberturas. forma_pago: 1=anual 2=semestral 4=trimestra
                 const dFallback = await rFallback.json();
 
                 if (!rFallback.ok || dFallback.error) {
-                    console.warn(`[${fallback.nombre}] Error: ${dFallback.error?.message || rFallback.status}`);
+                    console.warn(`[${fallback.nombre}] HTTP error: ${dFallback.error?.message || rFallback.status}`);
                     continue;
                 }
 
-                const textFallback = dFallback.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-                if (!textFallback.trim()) { console.warn(`[${fallback.nombre}] Respuesta vacía`); continue; }
+                const candidateFallback = dFallback.candidates?.[0];
+                const finishFallback = candidateFallback?.finishReason ?? 'UNKNOWN';
+                const textFallback = candidateFallback?.content?.parts?.[0]?.text ?? '';
+                console.log(`[${fallback.nombre}] finishReason=${finishFallback}, textLength=${textFallback.length}`);
+
+                if (!textFallback.trim()) {
+                    console.warn(`[${fallback.nombre}] Respuesta vacía (finishReason=${finishFallback})`);
+                    continue;
+                }
 
                 const cleanFallback = textFallback.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
                 let parsedFallback: any = null;
