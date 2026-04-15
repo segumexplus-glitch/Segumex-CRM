@@ -75,7 +75,10 @@ INSTRUCCIONES para primas:
 - prima_fraccionada: monto por período en pagos fraccionados (mensual, trimestral, semestral), null si solo hay pago anual
 - forma_pago: 1=anual, 2=semestral, 4=trimestral, 12=mensual — detecta según el tipo de pago de la cotización`;
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+        // Modelo principal: rápido. Fallbacks: más estables ante JSON malformado.
+        const geminiUrl         = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const geminiUrlFallback = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const geminiUrlPro      = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`;
 
         const payload = {
             contents: [{
@@ -218,17 +221,30 @@ INSTRUCCIONES para primas:
             }
         }
 
-        // ── PLAN B: Prompt simplificado si el completo falló ──
-        if (!extracted) {
-            console.warn('⚠️ Prompt completo falló. Intentando prompt simplificado...');
+        // ── FALLBACKS: Modelos alternativos cuando gemini-2.0-flash falla ──
+        // Razón: si 2.0-flash produce JSON malformado, reintentar con el mismo modelo
+        // dará el mismo resultado. Usar modelos distintos cambia el comportamiento.
+        const fallbackModels = [
+            { url: geminiUrlFallback, nombre: 'gemini-1.5-flash' },
+            { url: geminiUrlPro,      nombre: 'gemini-1.5-pro'   },
+        ];
 
-            const promptSimple = `Lee esta cotización de seguro de auto y devuelve SOLO este JSON (sin explicaciones, sin markdown):
-{"aseguradora":"nombre exacto de la aseguradora","vehiculo":{"marca":"","modelo":"","anio":"","version":"","serie":null},"coberturas":[{"nombre":"nombre cobertura","suma_asegurada":"monto o descripción","deducible":"deducible o N/A","incluida":true}],"prima_total":0.00,"prima_neta":null,"prima_fraccionada":null,"forma_pago":1,"cp":null,"numero_cotizacion":null,"vigencia_inicio":null,"vigencia_fin":null,"vigencia_cotizacion":null}
+        const promptSimple = `Lee esta cotización de seguro de auto y extrae los datos en JSON estricto.
+Responde ÚNICAMENTE con el JSON, sin texto adicional ni bloques de código markdown.
 
-Extrae TODAS las coberturas. forma_pago: 1=anual 2=semestral 4=trimestral 12=mensual. No inventes datos.`;
+Estructura:
+{"aseguradora":"nombre exacto de la aseguradora","vehiculo":{"marca":"solo marca/fabricante","modelo":"solo nombre del modelo","anio":"4 dígitos","version":"trim/nivel o null","serie":null},"coberturas":[{"nombre":"nombre cobertura","suma_asegurada":"monto o descripción","deducible":"deducible exacto","incluida":true}],"prima_total":0.00,"prima_neta":null,"prima_fraccionada":null,"forma_pago":1,"cp":null,"numero_cotizacion":null,"vigencia_inicio":null,"vigencia_fin":null,"vigencia_cotizacion":null}
+
+REGLAS: Extrae TODAS las coberturas. forma_pago: 1=anual 2=semestral 4=trimestral 12=mensual. No inventes datos.`;
+
+        for (const fallback of fallbackModels) {
+            if (extracted) break;
+            console.warn(`⚠️ Intentando con modelo alternativo: ${fallback.nombre}...`);
 
             try {
-                const payloadSimple = {
+                await new Promise(r => setTimeout(r, 1000)); // pequeña pausa entre modelos
+
+                const payloadFallback = {
                     contents: [{
                         role: 'user',
                         parts: [
@@ -236,44 +252,44 @@ Extrae TODAS las coberturas. forma_pago: 1=anual 2=semestral 4=trimestral 12=men
                             { text: promptSimple }
                         ]
                     }],
-                    generationConfig: { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 4096 }
+                    generationConfig: { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 8192 }
                 };
 
-                const rSimple = await fetch(geminiUrl, {
+                const rFallback = await fetch(fallback.url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payloadSimple)
+                    body: JSON.stringify(payloadFallback)
                 });
-                const dSimple = await rSimple.json();
-                const textSimple = dSimple.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+                const dFallback = await rFallback.json();
 
-                if (textSimple.trim()) {
-                    let parsedSimple: any = null;
-                    const cleanSimple = textSimple.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-
-                    // Estrategia 1: parse directo
-                    try { parsedSimple = JSON.parse(cleanSimple); } catch { /* ignore */ }
-
-                    // Estrategia 2: jsonrepair
-                    if (!parsedSimple) {
-                        try { parsedSimple = JSON.parse(jsonrepair(cleanSimple)); } catch { /* ignore */ }
-                    }
-
-                    // Estrategia 3: extraer bloque {} + jsonrepair
-                    if (!parsedSimple) {
-                        const m = cleanSimple.match(/\{[\s\S]*\}/);
-                        if (m) {
-                            try { parsedSimple = JSON.parse(jsonrepair(m[0])); } catch { /* ignore */ }
-                        }
-                    }
-
-                    if (parsedSimple?.aseguradora || parsedSimple?.coberturas?.length > 0) {
-                        extracted = parsedSimple;
-                        console.log(`✅ Extracción exitosa con prompt simplificado. Aseguradora: ${parsedSimple.aseguradora}, coberturas: ${parsedSimple.coberturas?.length || 0}`);
-                    }
+                if (!rFallback.ok || dFallback.error) {
+                    console.warn(`[${fallback.nombre}] Error: ${dFallback.error?.message || rFallback.status}`);
+                    continue;
                 }
-            } catch (simpleErr) {
-                console.error('Prompt simplificado también falló:', simpleErr);
+
+                const textFallback = dFallback.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+                if (!textFallback.trim()) { console.warn(`[${fallback.nombre}] Respuesta vacía`); continue; }
+
+                const cleanFallback = textFallback.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+                let parsedFallback: any = null;
+
+                try { parsedFallback = JSON.parse(cleanFallback); } catch { /* ignore */ }
+                if (!parsedFallback) {
+                    try { parsedFallback = JSON.parse(jsonrepair(cleanFallback)); } catch { /* ignore */ }
+                }
+                if (!parsedFallback) {
+                    const m = cleanFallback.match(/\{[\s\S]*\}/);
+                    if (m) try { parsedFallback = JSON.parse(jsonrepair(m[0])); } catch { /* ignore */ }
+                }
+
+                if (parsedFallback?.aseguradora || parsedFallback?.coberturas?.length > 0) {
+                    extracted = parsedFallback;
+                    console.log(`✅ Extracción exitosa con ${fallback.nombre}. Aseguradora: ${parsedFallback.aseguradora}, coberturas: ${parsedFallback.coberturas?.length || 0}`);
+                } else {
+                    console.warn(`[${fallback.nombre}] JSON parseado pero sin aseguradora ni coberturas`);
+                }
+            } catch (fallbackErr) {
+                console.error(`[${fallback.nombre}] Error inesperado:`, fallbackErr);
             }
         }
 
