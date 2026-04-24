@@ -1,5 +1,7 @@
 // Deploy: supabase functions deploy scan-policy-pdf --no-verify-jwt
 
+import { jsonrepair } from 'npm:jsonrepair@3';
+
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? '';
 
 const corsHeaders = {
@@ -8,13 +10,25 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+function parseJson(text: string): any | null {
+    const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    try { return JSON.parse(clean); } catch { /* ignore */ }
+    try { return JSON.parse(jsonrepair(clean)); } catch { /* ignore */ }
+    const m = clean.match(/\{[\s\S]*\}/);
+    if (m) {
+        try { return JSON.parse(m[0]); } catch { /* ignore */ }
+        try { return JSON.parse(jsonrepair(m[0])); } catch { /* ignore */ }
+    }
+    return null;
+}
+
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
 
     try {
-        const { pdf_base64, filename, mime_type } = await req.json();
+        const { pdf_base64, mime_type } = await req.json();
 
         if (!pdf_base64) {
             throw new Error('Se requiere pdf_base64');
@@ -24,8 +38,7 @@ Deno.serve(async (req) => {
 
         const prompt = `Analiza esta póliza de seguro mexicana y extrae toda la información relevante.
 
-Responde ÚNICAMENTE con un JSON válido, sin bloques de código ni explicaciones adicionales.
-Si no encuentras un campo, usa null.
+Responde ÚNICAMENTE con un JSON válido. Si no encuentras un campo usa null.
 
 Estructura JSON requerida:
 {
@@ -66,71 +79,86 @@ Notas:
 - Si no es seguro de auto, el objeto vehiculo puede tener todos sus campos en null
 - Fechas siempre en formato YYYY-MM-DD`;
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const models = [
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        ];
 
-        const payload = {
-            contents: [
-                {
-                    role: 'user',
-                    parts: [
-                        {
-                            inline_data: {
-                                mime_type: mimeType,
-                                data: pdf_base64
-                            }
-                        },
-                        { text: prompt }
-                    ]
+        let extracted: any = null;
+        let lastError = '';
+
+        for (const modelUrl of models) {
+            if (extracted) break;
+
+            for (let intento = 1; intento <= 2; intento++) {
+                try {
+                    if (intento > 1) await new Promise(r => setTimeout(r, 1500));
+
+                    const response = await fetch(modelUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                role: 'user',
+                                parts: [
+                                    { inline_data: { mime_type: mimeType, data: pdf_base64 } },
+                                    { text: prompt }
+                                ]
+                            }],
+                            // Sin responseMimeType para evitar respuestas vacías por filtros internos de Gemini
+                            generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
+                        })
+                    });
+
+                    const aiData = await response.json();
+
+                    if (!response.ok || aiData.error) {
+                        lastError = aiData.error?.message || `HTTP ${response.status}`;
+                        console.warn(`[scan-policy] Error: ${lastError}`);
+                        continue;
+                    }
+
+                    const candidate = aiData.candidates?.[0];
+                    const finishReason = candidate?.finishReason ?? 'UNKNOWN';
+                    const rawText = candidate?.content?.parts?.[0]?.text ?? '';
+
+                    console.log(`[scan-policy] model=${modelUrl.split('models/')[1].split(':')[0]}, finish=${finishReason}, len=${rawText.length}`);
+
+                    if (!rawText.trim()) {
+                        lastError = `Respuesta vacía (${finishReason})`;
+                        continue;
+                    }
+
+                    const parsed = parseJson(rawText);
+                    if (parsed) {
+                        extracted = parsed;
+                        console.log(`✅ scan-policy exitoso. Aseguradora: ${parsed.poliza?.aseguradora}`);
+                        break;
+                    } else {
+                        lastError = 'No se pudo parsear JSON';
+                        console.warn('[scan-policy] Parse falló. Preview:', rawText.substring(0, 300));
+                    }
+                } catch (e: any) {
+                    lastError = e.message;
+                    console.error('[scan-policy] Error inesperado:', e);
                 }
-            ],
-            generationConfig: {
-                temperature: 0.1,
-                responseMimeType: 'application/json'
             }
-        };
-
-        const response = await fetch(geminiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        const aiData = await response.json();
-
-        if (!response.ok || aiData.error) {
-            console.error('Gemini error:', JSON.stringify(aiData));
-            throw new Error(aiData.error?.message || 'Error al procesar con Gemini');
         }
 
-        const rawText = aiData.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-
-        // Limpiar y parsear JSON
-        let cleanText = rawText
-            .replace(/```json/gi, '')
-            .replace(/```/g, '')
-            .trim();
-
-        let extracted;
-        try {
-            extracted = JSON.parse(cleanText);
-        } catch {
-            // Intentar extraer el JSON del texto
-            const match = cleanText.match(/\{[\s\S]*\}/);
-            if (match) {
-                extracted = JSON.parse(match[0]);
-            } else {
-                throw new Error('No se pudo parsear la respuesta de Gemini');
-            }
+        if (!extracted) {
+            throw new Error(lastError || 'No se pudo extraer información del PDF');
         }
 
         return new Response(JSON.stringify({ success: true, data: extracted }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
 
-    } catch (err) {
+    } catch (err: any) {
         console.error('scan-policy-pdf error:', err);
+        // Siempre HTTP 200 — si devolvemos 500, el cliente Supabase lanza
+        // "non-2xx status code" y el frontend no puede leer el mensaje de error real.
         return new Response(JSON.stringify({ success: false, error: err.message }), {
-            status: 500,
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
     }
