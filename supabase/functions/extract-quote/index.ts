@@ -75,10 +75,10 @@ INSTRUCCIONES para primas:
 - prima_fraccionada: monto por período en pagos fraccionados (mensual, trimestral, semestral), null si solo hay pago anual
 - forma_pago: 1=anual, 2=semestral, 4=trimestral, 12=mensual — detecta según el tipo de pago de la cotización`;
 
-        // Modelo principal: rápido. Fallbacks: más estables ante JSON malformado.
+        // Único modelo disponible en v1beta con esta API key
         const geminiUrl         = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-        const geminiUrlFallback = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        const geminiUrlPro      = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`;
+        const geminiUrlFallback = geminiUrl; // mismo modelo, prompt simplificado como fallback
+        const geminiUrlPro      = geminiUrl;
 
         const payload = {
             contents: [{
