@@ -531,9 +531,14 @@
                 document.getElementById('textoDropZone').classList.remove('hidden');
             } catch (err) {
                 console.error('Error escanear:', err);
+                const msg = err.message || '';
+                const esRateLimit = msg.includes('Resource exhausted') || msg.includes('429') || msg.includes('quota');
                 textoBtn.textContent = 'Escanear póliza / doc.';
-                document.getElementById('textoDropZone').classList.add('hidden');
-                alert('No se pudo escanear el documento:\n' + err.message);
+                const dropTxt = document.getElementById('textoDropZone');
+                dropTxt.classList.remove('hidden');
+                dropTxt.textContent = esRateLimit
+                    ? '⏳ IA ocupada, espera unos segundos e intenta de nuevo'
+                    : '⚠️ No se pudo leer — intenta de nuevo o ingresa manualmente';
             }
         }
 

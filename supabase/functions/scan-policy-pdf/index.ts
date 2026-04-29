@@ -113,12 +113,7 @@ Notas:
 
                     if (!response.ok || aiData.error) {
                         lastError = aiData.error?.message || `HTTP ${response.status}`;
-                        const is429 = response.status === 429 || lastError.toLowerCase().includes('resource exhausted') || lastError.includes('429');
-                        console.warn(`[scan-policy] Error${is429 ? ' (rate limit)' : ''}: ${lastError}`);
-                        if (is429) {
-                            console.log('[scan-policy] Rate limit detectado, esperando 30s...');
-                            await new Promise(r => setTimeout(r, 30000));
-                        }
+                        console.warn(`[scan-policy] Error HTTP ${response.status}: ${lastError}`);
                         continue;
                     }
 

@@ -1211,11 +1211,16 @@
 
             } catch (err) {
                 console.error('Error escaneando PDF:', err);
+                const msg = err.message || '';
+                const esRateLimit = msg.includes('Resource exhausted') || msg.includes('429') || msg.includes('quota');
+                const msgUsuario = esRateLimit
+                    ? '⏳ La IA está ocupada en este momento (límite de solicitudes). Espera unos segundos e intenta de nuevo.'
+                    : 'No se pudo leer el PDF. Intenta de nuevo o ingresa los datos manualmente.';
+
                 document.getElementById('scanStep2').classList.add('hidden');
                 document.getElementById('scanStep1').classList.remove('hidden');
                 document.getElementById('scanModalTitle').textContent = 'Escanear Póliza con IA';
-                document.getElementById('scanModalSubtitle').textContent = 'Sube el PDF y Gemini extraerá los datos automáticamente';
-                alert('Error al analizar el PDF: ' + err.message + '\n\nVerifica que la función edge esté desplegada.');
+                document.getElementById('scanModalSubtitle').textContent = msgUsuario;
             }
         }
 
