@@ -1148,6 +1148,7 @@
             document.getElementById('scanModalTitle').textContent = 'Escanear Póliza con IA';
             document.getElementById('scanModalSubtitle').textContent = 'Sube el PDF y Gemini extraerá los datos automáticamente';
             document.getElementById('scanPdfInput').value = '';
+            document.getElementById('scanErrorBanner').classList.add('hidden');
             document.getElementById('modalScanner').classList.remove('hidden');
         }
 
@@ -1179,7 +1180,8 @@
             }
             _scanFile = file; // Guardar para auto-subir después del registro
 
-            // Mostrar loading
+            // Ocultar error previo y mostrar loading
+            document.getElementById('scanErrorBanner').classList.add('hidden');
             document.getElementById('scanStep1').classList.add('hidden');
             document.getElementById('scanStep2').classList.remove('hidden');
             document.getElementById('scanModalTitle').textContent = 'Analizando documento...';
@@ -1214,13 +1216,20 @@
                 const msg = err.message || '';
                 const esRateLimit = msg.includes('Resource exhausted') || msg.includes('429') || msg.includes('quota');
                 const msgUsuario = esRateLimit
-                    ? '⏳ La IA está ocupada en este momento (límite de solicitudes). Espera unos segundos e intenta de nuevo.'
+                    ? 'La IA está ocupada (límite de solicitudes alcanzado). Espera unos segundos e intenta de nuevo.'
                     : 'No se pudo leer el PDF. Intenta de nuevo o ingresa los datos manualmente.';
 
                 document.getElementById('scanStep2').classList.add('hidden');
                 document.getElementById('scanStep1').classList.remove('hidden');
                 document.getElementById('scanModalTitle').textContent = 'Escanear Póliza con IA';
-                document.getElementById('scanModalSubtitle').textContent = msgUsuario;
+                document.getElementById('scanModalSubtitle').textContent = 'Sube el PDF y Gemini extraerá los datos automáticamente';
+
+                // Mostrar banner de error prominente
+                document.getElementById('scanErrorMsg').textContent = msgUsuario;
+                document.getElementById('scanErrorBanner').classList.remove('hidden');
+
+                // Limpiar input para que el usuario pueda seleccionar el mismo archivo de nuevo
+                document.getElementById('scanPdfInput').value = '';
             }
         }
 
@@ -1639,6 +1648,14 @@
 
                 <!-- PASO 1: Upload -->
                 <div id="scanStep1">
+                    <!-- Error banner (oculto por defecto) -->
+                    <div id="scanErrorBanner" class="hidden mb-4 flex items-start gap-3 bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+                        <span class="material-symbols-outlined text-red-400 text-xl mt-0.5 flex-shrink-0">error</span>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-red-300 font-semibold text-sm mb-0.5">No se pudo procesar el PDF</p>
+                            <p id="scanErrorMsg" class="text-red-400/80 text-xs leading-relaxed"></p>
+                        </div>
+                    </div>
                     <div id="scanDropZone"
                         class="border-2 border-dashed border-[#3b4354] hover:border-primary rounded-xl p-10 text-center cursor-pointer transition-all"
                         onclick="document.getElementById('scanPdfInput').click()"
