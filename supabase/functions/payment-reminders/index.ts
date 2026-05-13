@@ -403,7 +403,7 @@ Deno.serve(async (req) => {
     } catch (err: any) {
         console.error('Error crítico en payment-reminders:', err);
         return new Response(JSON.stringify({ success: false, error: err.message }), {
-            status: 500,
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
     }

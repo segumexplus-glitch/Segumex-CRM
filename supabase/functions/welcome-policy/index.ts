@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
         const finanzas = record.finanzas || {};
         const pagosDetalle: any[] = finanzas.pagos_detalle || [];
         const formaPagoNum = String(finanzas.formaPago || '1');
-        const formaMap: Record<string, string> = { '1': 'Anual', '2': 'Semestral', '3': 'Trimestral', '4': 'Mensual' };
+        const formaMap: Record<string, string> = { '1': 'Anual', '2': 'Semestral', '4': 'Trimestral', '12': 'Mensual' };
         const formaLabel = formaMap[formaPagoNum] || '';
 
         // Construir lista de pagos desde pagos_detalle (fuente real con montos por pago)
