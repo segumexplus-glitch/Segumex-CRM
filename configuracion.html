@@ -1563,7 +1563,7 @@ Equipo Segumex 🛡️</p>
         function verErrorLog(idx) {
             const l = _logData[idx];
             if (!l) return;
-            const fecha = new Date(l.enviado_at || l.created_at).toLocaleString('es-MX');
+            const fecha = new Date(l.enviado_at).toLocaleString('es-MX');
             document.getElementById('modalErrorSubtitle').textContent = fecha;
             document.getElementById('modalErrorCliente').textContent = l.cliente_nombre || l.telefono || '—';
             document.getElementById('modalErrorPoliza').textContent = l.numero_poliza || '—';
@@ -1588,7 +1588,7 @@ Equipo Segumex 🛡️</p>
             const { data: logs, error } = await window.supabaseClient
                 .from('mensajes_cobranza_log')
                 .select('*')
-                .order('created_at', { ascending: false })
+                .order('enviado_at', { ascending: false })
                 .limit(200);
 
             if (error) {
@@ -1603,7 +1603,7 @@ Equipo Segumex 🛡️</p>
             let countHoy = 0, countSemana = 0, countError = 0;
 
             (logs || []).forEach(l => {
-                const fecha = new Date(l.created_at || l.enviado_at);
+                const fecha = new Date(l.enviado_at);
                 if (fecha.toDateString() === hoy) countHoy++;
                 if (fecha >= semanaAtras) countSemana++;
                 if (l.status === 'error') countError++;
@@ -1636,7 +1636,7 @@ Equipo Segumex 🛡️</p>
             }
 
             document.getElementById('logTableBody').innerHTML = logs.map((l, idx) => {
-                const fecha = new Date(l.created_at || l.enviado_at);
+                const fecha = new Date(l.enviado_at);
                 const fechaStr = fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 const isBienvenida = l.tipo_mensaje?.startsWith('bienvenida');
                 const isCumpleanos = l.tipo_mensaje === 'cumpleanos' || l.tipo_mensaje === 'cumpleanos_mensaje';
