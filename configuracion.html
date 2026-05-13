@@ -1004,6 +1004,46 @@ Equipo Segumex 🛡️</p>
         </div>
 
         <!-- ========== TAB: HISTORIAL ========== -->
+        <!-- Modal detalle de error -->
+        <div id="modalErrorLog" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.7)">
+            <div class="bg-[#1c1f27] border border-red-500/30 rounded-2xl w-full max-w-lg shadow-2xl">
+                <div class="flex items-center justify-between px-5 py-4 border-b border-[#3b4354]">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-red-400 text-lg">error</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white text-sm">Detalle del error</h3>
+                            <p id="modalErrorSubtitle" class="text-[#9da6b9] text-xs"></p>
+                        </div>
+                    </div>
+                    <button onclick="document.getElementById('modalErrorLog').classList.add('hidden')" class="text-[#9da6b9] hover:text-white p-1.5 rounded-lg hover:bg-[#3b4354] transition-colors">
+                        <span class="material-symbols-outlined text-sm">close</span>
+                    </button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-[#111318] rounded-lg p-3">
+                            <p class="text-[#9da6b9] text-xs mb-1">Cliente</p>
+                            <p id="modalErrorCliente" class="text-white text-sm font-medium"></p>
+                        </div>
+                        <div class="bg-[#111318] rounded-lg p-3">
+                            <p class="text-[#9da6b9] text-xs mb-1">Póliza</p>
+                            <p id="modalErrorPoliza" class="text-white text-sm font-medium"></p>
+                        </div>
+                    </div>
+                    <div class="bg-[#111318] rounded-lg p-3">
+                        <p class="text-[#9da6b9] text-xs mb-1">Mensaje de error</p>
+                        <p id="modalErrorMsg" class="text-red-300 text-sm font-medium leading-relaxed"></p>
+                    </div>
+                    <div class="bg-[#111318] rounded-lg p-3">
+                        <p class="text-[#9da6b9] text-xs mb-2">Respuesta completa de la API</p>
+                        <pre id="modalErrorRaw" class="text-[#9da6b9] text-xs overflow-x-auto whitespace-pre-wrap break-all leading-relaxed max-h-40 overflow-y-auto"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="view-log" class="hidden">
             <!-- Resumen stats -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -1518,11 +1558,37 @@ Equipo Segumex 🛡️</p>
         // ============================================================
         // HISTORIAL DE ENVÍOS
         // ============================================================
+        let _logData = [];
+
+        function verErrorLog(idx) {
+            const l = _logData[idx];
+            if (!l) return;
+            const fecha = new Date(l.enviado_at || l.created_at).toLocaleString('es-MX');
+            document.getElementById('modalErrorSubtitle').textContent = fecha;
+            document.getElementById('modalErrorCliente').textContent = l.cliente_nombre || l.telefono || '—';
+            document.getElementById('modalErrorPoliza').textContent = l.numero_poliza || '—';
+
+            // Extraer mensaje de error legible
+            let errMsg = '—';
+            let rawStr = '—';
+            try {
+                const r = typeof l.respuesta_api === 'string' ? JSON.parse(l.respuesta_api) : l.respuesta_api;
+                errMsg = r?.error || r?.errorMessage || r?.message || JSON.stringify(r);
+                rawStr = JSON.stringify(r, null, 2);
+            } catch {
+                errMsg = String(l.respuesta_api || 'Sin información');
+                rawStr = String(l.respuesta_api || '');
+            }
+            document.getElementById('modalErrorMsg').textContent = errMsg;
+            document.getElementById('modalErrorRaw').textContent = rawStr;
+            document.getElementById('modalErrorLog').classList.remove('hidden');
+        }
+
         async function cargarLog() {
             const { data: logs, error } = await window.supabaseClient
                 .from('mensajes_cobranza_log')
                 .select('*')
-                .order('enviado_at', { ascending: false })
+                .order('created_at', { ascending: false })
                 .limit(200);
 
             if (error) {
@@ -1537,12 +1603,13 @@ Equipo Segumex 🛡️</p>
             let countHoy = 0, countSemana = 0, countError = 0;
 
             (logs || []).forEach(l => {
-                const fecha = new Date(l.enviado_at);
+                const fecha = new Date(l.created_at || l.enviado_at);
                 if (fecha.toDateString() === hoy) countHoy++;
                 if (fecha >= semanaAtras) countSemana++;
                 if (l.status === 'error') countError++;
             });
 
+            _logData = logs || [];
             document.getElementById('statTotal').textContent = total;
             document.getElementById('statHoy').textContent = countHoy;
             document.getElementById('statSemana').textContent = countSemana;
@@ -1568,14 +1635,16 @@ Equipo Segumex 🛡️</p>
                 return;
             }
 
-            document.getElementById('logTableBody').innerHTML = logs.map(l => {
-                const fecha = new Date(l.enviado_at);
+            document.getElementById('logTableBody').innerHTML = logs.map((l, idx) => {
+                const fecha = new Date(l.created_at || l.enviado_at);
                 const fechaStr = fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 const isBienvenida = l.tipo_mensaje?.startsWith('bienvenida');
-                const isCumpleanos = l.tipo_mensaje === 'cumpleanos';
+                const isCumpleanos = l.tipo_mensaje === 'cumpleanos' || l.tipo_mensaje === 'cumpleanos_mensaje';
                 const tipoLabel = TIPO_LABELS[l.tipo_mensaje] || l.tipo_mensaje;
                 const statusBadge = l.status === 'error'
-                    ? `<span class="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 text-xs">Error</span>`
+                    ? `<button onclick="verErrorLog(${idx})" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 text-xs hover:bg-red-500/40 transition-colors cursor-pointer">
+                           <span class="material-symbols-outlined text-[11px]">error</span> Error
+                       </button>`
                     : `<span class="px-2 py-0.5 rounded-full bg-green-500/20 text-green-300 text-xs">Enviado</span>`;
 
                 const tipoBadge = isCumpleanos
