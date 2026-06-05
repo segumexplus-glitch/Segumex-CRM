@@ -8,7 +8,7 @@ echo "🚀 Iniciando configuración de Segumex AI..."
 echo "🔑 Configurando secretos en Supabase (usando npx)..."
 npx -y supabase secrets set GREEN_INSTANCE_ID="7107490894"
 npx -y supabase secrets set GREEN_API_TOKEN="1f5b3517ebf0423080eca6ce74892e5998ab500a7a2d41bcaa"
-npx -y supabase secrets set GEMINI_API_KEY="AIzaSyBC6m1epX4wfj2vFq7B_b-B5INUuql92a0"
+npx -y supabase secrets set GEMINI_API_KEY="TU_NUEVA_CLAVE_GEMINI"
 
 # 2. Desplegar Funciones
 echo "☁️  Desplegando funciones (Edge Functions)..."

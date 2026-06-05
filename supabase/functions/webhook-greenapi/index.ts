@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
             }
 
             console.log(`🎤 Audio recibido de ${chatId}. Transcribiendo...`);
-            const transcripcion = await transcribirAudio(downloadUrl);
+            const transcripcion = await transcribirAudio(supabase, downloadUrl);
 
             if (!transcripcion) {
                 // No se pudo transcribir → notificar al agente manualmente
@@ -129,8 +129,23 @@ Deno.serve(async (req) => {
 // ============================================================
 // Transcribe un audio usando Gemini 2.0 Flash
 // ============================================================
-async function transcribirAudio(downloadUrl: string): Promise<string | null> {
+async function transcribirAudio(supabase: any, downloadUrl: string): Promise<string | null> {
     try {
+        let apiKey = Deno.env.get('GEMINI_API_KEY')?.trim() ?? '';
+        // Cargar desde la base de datos
+        try {
+            const { data: dbGeminiKey } = await supabase
+                .from('configuracion_mensajes')
+                .select('contenido')
+                .eq('clave', 'gemini_api_key')
+                .maybeSingle();
+            if (dbGeminiKey?.contenido) {
+                apiKey = dbGeminiKey.contenido.trim();
+            }
+        } catch (dbErr) {
+            console.error('Error cargando GEMINI_API_KEY de la DB:', dbErr);
+        }
+
         // 1. Descargar el archivo de audio
         const audioRes = await fetch(downloadUrl);
         if (!audioRes.ok) {
@@ -151,7 +166,7 @@ async function transcribirAudio(downloadUrl: string): Promise<string | null> {
         const audioBase64 = btoa(binary);
 
         // 3. Enviar a Gemini para transcripción
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
         const geminiRes = await fetch(geminiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

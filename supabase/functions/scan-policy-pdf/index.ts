@@ -80,7 +80,7 @@ Notas:
 - Fechas siempre en formato YYYY-MM-DD`;
 
         const models = [
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         ];
 
         let extracted: any = null;

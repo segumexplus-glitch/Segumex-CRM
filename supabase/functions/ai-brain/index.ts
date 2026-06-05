@@ -281,9 +281,23 @@ Deno.serve(async (req) => {
 
     const GREEN_INSTANCE_ID        = Deno.env.get('GREEN_INSTANCE_ID') ?? '';
     const GREEN_API_TOKEN          = Deno.env.get('GREEN_API_TOKEN') ?? '';
-    const GEMINI_API_KEY           = Deno.env.get('GEMINI_API_KEY')?.trim() ?? '';
+    let GEMINI_API_KEY             = Deno.env.get('GEMINI_API_KEY')?.trim() ?? '';
     const META_PAGE_ACCESS_TOKEN   = Deno.env.get('META_PAGE_ACCESS_TOKEN') ?? '';
     const META_INSTAGRAM_TOKEN     = Deno.env.get('META_INSTAGRAM_TOKEN') ?? '';
+
+    // Cargar la clave de Gemini desde la base de datos
+    try {
+        const { data: dbGeminiKey } = await supabase
+            .from('configuracion_mensajes')
+            .select('contenido')
+            .eq('clave', 'gemini_api_key')
+            .maybeSingle();
+        if (dbGeminiKey?.contenido) {
+            GEMINI_API_KEY = dbGeminiKey.contenido.trim();
+        }
+    } catch (dbErr) {
+        console.error('Error cargando GEMINI_API_KEY de la DB:', dbErr);
+    }
 
     const greenBaseUrl = buildGreenBaseUrl(GREEN_INSTANCE_ID);
 
@@ -853,8 +867,8 @@ Incluye en lead_data SOLO los campos que ya te proporcionó el cliente. Omite lo
                 }
             }
 
-            // 8. Llamar Gemini 2.0 Flash
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+            // 8. Llamar Gemini 2.5 Flash
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
             const legacyHistory = [
                 { role: 'user', parts: [{ text: systemInstruction }] },

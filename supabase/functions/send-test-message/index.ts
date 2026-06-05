@@ -19,7 +19,7 @@ const corsHeaders = {
 const TEST_DATA_COBRANZA: Record<string, string> = {
     nombre: 'María García',
     numero_poliza: 'TEST-001',
-    fecha_vencimiento: new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }),
+    fecha_vencimiento: '15 de junio de 2026',
     prima: '1,500.00',
     aseguradora: 'GNP'
 };

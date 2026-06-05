@@ -76,7 +76,7 @@ INSTRUCCIONES para primas:
 - forma_pago: 1=anual, 2=semestral, 4=trimestral, 12=mensual — detecta según el tipo de pago de la cotización`;
 
         // Único modelo disponible en v1beta con esta API key
-        const geminiUrl         = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const geminiUrl         = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
         const geminiUrlFallback = geminiUrl; // mismo modelo, prompt simplificado como fallback
         const geminiUrlPro      = geminiUrl;
 
