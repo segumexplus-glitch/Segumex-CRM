@@ -143,9 +143,14 @@
                     <div class="bg-surface-card border border-[#3b4354] rounded-xl p-6">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="text-white font-bold flex items-center gap-2"><span class="material-symbols-outlined text-blue-400">folder</span> Documentos</h3>
-                            <button type="button" onclick="abrirModalDocDetalle()" class="flex items-center gap-1 text-xs font-medium text-primary hover:text-white bg-primary/10 hover:bg-primary/20 border border-primary/30 px-3 py-1.5 rounded-lg transition-all">
-                                <span class="material-symbols-outlined text-[16px]">add</span> Agregar
-                            </button>
+                            <div class="flex gap-2">
+                                <button type="button" onclick="abrirModalCargaMasivaAvisos()" class="flex items-center gap-1 text-xs font-medium text-amber-400 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3 py-1.5 rounded-lg transition-all">
+                                    <span class="material-symbols-outlined text-[16px] animate-pulse">psychology</span> Cargar Lote (IA)
+                                </button>
+                                <button type="button" onclick="abrirModalDocDetalle()" class="flex items-center gap-1 text-xs font-medium text-primary hover:text-white bg-primary/10 hover:bg-primary/20 border border-primary/30 px-3 py-1.5 rounded-lg transition-all">
+                                    <span class="material-symbols-outlined text-[16px]">add</span> Agregar
+                                </button>
+                            </div>
                         </div>
                         <input type="file" id="inputDocDetalle" accept=".pdf" class="hidden" onchange="handleDocFileSelectedDetalle(event)">
                         <div id="listaDocumentos" class="space-y-2">
@@ -721,6 +726,242 @@
     async function guardarDocumentosDB() {
         await window.supabaseClient.from('polizas').update({ documentos: polizaData.documentos }).eq('id', polizaId);
     }
+
+    // ============================================================
+    // CARGA MASIVA DE AVISOS DE COBRO CON IA PARA LA PÓLIZA ACTUAL
+    // ============================================================
+    function abrirModalCargaMasivaAvisos() {
+        const noP = polizaData?.no_poliza || 'S/N';
+        document.getElementById('tituloCargaLoteIA').innerText = `Cargador de Avisos (IA) - Póliza ${noP}`;
+        document.getElementById('listaProcesamientoAvisosDetalle').innerHTML = '<p class="text-[#9da6b9] text-xs italic text-center py-4">No se han seleccionado archivos.</p>';
+        document.getElementById('modalCargaAvisosDetalle').classList.remove('hidden');
+    }
+
+    async function cerrarModalCargaMasivaAvisos() {
+        document.getElementById('modalCargaAvisosDetalle').classList.add('hidden');
+        // Refrescar los detalles de la póliza para pintar los documentos nuevos
+        await renderDetalle();
+    }
+
+    function handleDropAvisosDetalle(event) {
+        event.preventDefault();
+        const dropzone = document.getElementById('dropzoneAvisosDetalle');
+        dropzone.classList.remove('border-amber-500/50', 'bg-[#111318]');
+        
+        const files = Array.from(event.dataTransfer.files).filter(f => f.type === 'application/pdf');
+        if (files.length > 0) {
+            procesarArchivosAvisosDetalle(files);
+        }
+    }
+
+    function handleSelectFilesAvisosDetalle(event) {
+        const files = Array.from(event.target.files).filter(f => f.name.toLowerCase().endsWith('.pdf'));
+        if (files.length > 0) {
+            procesarArchivosAvisosDetalle(files);
+        }
+        event.target.value = '';
+    }
+
+    function procesarArchivosAvisosDetalle(files) {
+        const lista = document.getElementById('listaProcesamientoAvisosDetalle');
+        if (lista.innerHTML.includes('No se han seleccionado archivos')) {
+            lista.innerHTML = '';
+        }
+
+        // Generar opciones de mensualidades para usar en el panel manual
+        const numPagos = parseInt(polizaData?.finanzas?.formaPago) || 12;
+        let selectPagoOptions = '<option value="">Selecciona pago...</option>';
+        for (let i = 1; i <= numPagos; i++) {
+            selectPagoOptions += `<option value="${i}">Pago #${i}</option>`;
+        }
+
+        files.forEach(file => {
+            const fileId = 'file_det_' + Math.random().toString(36).substr(2, 9);
+            const itemHtml = `
+                <div id="${fileId}" class="p-3 bg-[#111318] border border-[#3b4354] rounded-xl flex flex-col gap-3 transition-all mb-2">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <span class="material-symbols-outlined text-red-400">picture_as_pdf</span>
+                            <div class="overflow-hidden">
+                                <p class="text-white text-xs font-semibold truncate max-w-[250px]">${file.name}</p>
+                                <p class="text-[#9da6b9] text-[10px]">${(file.size / 1024).toFixed(1)} KB</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2" id="${fileId}_status">
+                            <span class="text-xs text-amber-400 animate-pulse flex items-center gap-1 font-medium">
+                                <span class="material-symbols-outlined text-[16px] animate-spin">autorenew</span>
+                                Analizando mensualidad...
+                            </span>
+                        </div>
+                    </div>
+                    <div id="${fileId}_manual_panel" class="hidden border-t border-[#3b4354]/60 pt-3 flex flex-col gap-3">
+                        <p class="text-[10px] text-yellow-400 font-semibold flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[14px]">warning</span>
+                            Asociación manual: ¿A qué pago corresponde?
+                        </p>
+                        <div class="grid grid-cols-2 gap-3 items-end">
+                            <div>
+                                <label class="text-[9px] text-[#9da6b9] uppercase font-bold block mb-1">Mensualidad / Pago</label>
+                                <select id="${fileId}_sel_pago" class="w-full bg-[#1c1f27] border border-[#3b4354] rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-primary">
+                                    ${selectPagoOptions}
+                                </select>
+                            </div>
+                            <div class="flex justify-end">
+                                <button id="${fileId}_btn_guardar_manual" onclick="guardarAsociacionManualDetalle('${fileId}', '${fileId}_base64')" class="px-4 py-1.5 rounded bg-primary hover:bg-blue-600 text-white text-[11px] font-bold transition-all flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[14px]">save</span> Guardar Pago
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            lista.insertAdjacentHTML('beforeend', itemHtml);
+
+            // Iniciar FileReader
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64Data = e.target.result.split(',')[1];
+                // Guardar base64
+                const hiddenInput = `<input type="hidden" id="${fileId}_base64" value="${base64Data}">`;
+                document.getElementById(fileId).insertAdjacentHTML('beforeend', hiddenInput);
+
+                await escanearArchivoIADetalle(fileId, base64Data, file.name);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function escanearArchivoIADetalle(fileId, pdfBase64, filename) {
+        try {
+            // Pasamos poliza_id de forma explícita para forzar la póliza actual
+            const { data, error } = await window.supabaseClient.functions.invoke('scan-aviso-cobro', {
+                body: { 
+                    pdf_base64: pdfBase64, 
+                    mime_type: 'application/pdf',
+                    poliza_id: polizaId 
+                }
+            });
+
+            if (error || !data || !data.success) {
+                const errMsg = error?.message || data?.error || 'Error de procesamiento';
+                mostrarErrorAvisoDetalle(fileId, errMsg);
+                return;
+            }
+
+            const res = data;
+            if (res.poliza_encontrada) {
+                const d = res.poliza_detalle;
+                document.getElementById(`${fileId}_status`).innerHTML = `
+                    <span class="text-xs text-green-400 font-semibold flex items-center gap-1 bg-green-500/10 px-2.5 py-1 rounded-full border border-green-500/20">
+                        <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                        Asociado: Pago #${d.numero_pago}
+                    </span>
+                `;
+                const infoHtml = `
+                    <div class="mt-2 text-[10px] text-[#9da6b9] grid grid-cols-2 gap-x-4 gap-y-1 bg-[#1c1f27]/40 p-2 rounded-lg border border-[#3b4354]/30">
+                        <div><span class="font-bold">Monto Extraído:</span> $${res.extracted_data.monto_cobro?.toFixed(2) || '0.00'}</div>
+                        <div><span class="font-bold">Vencimiento:</span> ${res.extracted_data.fecha_vencimiento || '---'}</div>
+                    </div>
+                `;
+                document.getElementById(fileId).insertAdjacentHTML('beforeend', infoHtml);
+            } else {
+                // Fallback manual en caso de que no determine el pago
+                document.getElementById(`${fileId}_status`).innerHTML = `
+                    <span class="text-xs text-yellow-400 font-semibold flex items-center gap-1 bg-yellow-500/10 px-2.5 py-1 rounded-full border border-yellow-500/20">
+                        <span class="material-symbols-outlined text-[16px]">help</span>
+                        Indicar Pago
+                    </span>
+                `;
+                document.getElementById(`${fileId}_manual_panel`).classList.remove('hidden');
+            }
+        } catch (err) {
+            mostrarErrorAvisoDetalle(fileId, err.message);
+        }
+    }
+
+    function mostrarErrorAvisoDetalle(fileId, msg) {
+        document.getElementById(`${fileId}_status`).innerHTML = `
+            <span class="text-xs text-red-500 font-semibold flex items-center gap-1 bg-red-500/10 px-2.5 py-1 rounded-full border border-red-500/20" title="${msg}">
+                <span class="material-symbols-outlined text-[16px]">cancel</span>
+                Error
+            </span>
+        `;
+        const errPanel = `<p class="text-[10px] text-red-400 mt-2 italic bg-red-500/5 p-2 rounded border border-red-500/10">${msg}</p>`;
+        document.getElementById(fileId).insertAdjacentHTML('beforeend', errPanel);
+    }
+
+    async function guardarAsociacionManualDetalle(fileId, inputBase64Id) {
+        const numeroPago = document.getElementById(`${fileId}_sel_pago`).value;
+        const base64Data = document.getElementById(inputBase64Id).value;
+        
+        if (!numeroPago) {
+            alert('Por favor selecciona el número de pago.');
+            return;
+        }
+        
+        const btn = document.getElementById(`${fileId}_btn_guardar_manual`);
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[14px] animate-spin">autorenew</span> Guardando...';
+        
+        try {
+            const numPagoInt = parseInt(numeroPago);
+            const pdfBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+            const fileName = `${Date.now()}_aviso_pago_manual_${numeroPago}.pdf`;
+            const filePath = `avisos_cobro/${polizaId}/${fileName}`;
+            
+            // 1. Subir PDF a Storage
+            const { data: storageData, error: storageErr } = await window.supabaseClient.storage
+                .from(STORAGE_BUCKET)
+                .upload(filePath, pdfBytes, { upsert: true, contentType: 'application/pdf' });
+                
+            if (storageErr) throw new Error(storageErr.message);
+            
+            // 2. Obtener documentos actuales de la base de datos
+            const { data: pData, error: loadErr } = await window.supabaseClient
+                .from('polizas')
+                .select('documentos')
+                .eq('id', polizaId)
+                .single();
+                
+            if (loadErr) throw new Error(loadErr.message);
+            
+            const documentosActuales = pData.documentos || [];
+            const nuevoDoc = {
+                nombre: `Aviso de Cobro - Pago ${numeroPago} (Asociación Manual)`,
+                tamano: `${(pdfBytes.length / 1024).toFixed(1)} KB`,
+                path: storageData.path,
+                tipo: 'aviso_cobro',
+                numero_pago: numPagoInt
+            };
+            
+            // Filtrar duplicados
+            const documentosFiltrados = documentosActuales.filter(d => 
+                !(d.tipo === 'aviso_cobro' && d.numero_pago === numPagoInt)
+            );
+            documentosFiltrados.push(nuevoDoc);
+            
+            // 3. Guardar documentos
+            const { error: updateErr } = await window.supabaseClient
+                .from('polizas')
+                .update({ documentos: documentosFiltrados })
+                .eq('id', polizaId);
+                
+            if (updateErr) throw new Error(updateErr.message);
+            
+            // Actualizar UI del item
+            document.getElementById(`${fileId}_manual_panel`).classList.add('hidden');
+            document.getElementById(`${fileId}_status`).innerHTML = `
+                <span class="text-xs text-green-400 font-semibold flex items-center gap-1 bg-green-500/10 px-2.5 py-1 rounded-full border border-green-500/20">
+                    <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                    Asociado Manualmente: Pago #${numeroPago}
+                </span>
+            `;
+        } catch (err) {
+            alert('Error al guardar: ' + err.message);
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">save</span> Guardar Pago';
+        }
+    }
 </script>
 <!-- MODAL: Tipo de Documento -->
 <div id="modalTipoDocD" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
@@ -769,6 +1010,47 @@
             <button type="button" onclick="confirmarDocDetalle()" class="flex-1 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold transition-colors text-sm flex items-center justify-center gap-2">
                 <span class="material-symbols-outlined text-[18px]">upload</span> Seleccionar PDF
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Carga Masiva de Avisos de Cobro Específica de esta Póliza -->
+<div id="modalCargaAvisosDetalle" class="hidden fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
+    <div class="bg-surface-card border border-[#3b4354] rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden text-white">
+        <div class="p-5 border-b border-[#3b4354] flex items-center justify-between bg-[#111318]">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-amber-400 animate-pulse">psychology</span>
+                <h3 class="text-white font-bold text-lg" id="tituloCargaLoteIA">Cargador de Avisos (IA)</h3>
+            </div>
+            <button onclick="cerrarModalCargaMasivaAvisos()" class="text-[#9da6b9] hover:text-white"><span class="material-symbols-outlined">close</span></button>
+        </div>
+        
+        <div class="p-6 flex-1 overflow-y-auto space-y-6">
+            <!-- Zona drag and drop -->
+            <div id="dropzoneAvisosDetalle" class="border-2 border-dashed border-[#3b4354] hover:border-amber-500/50 bg-[#111318]/50 hover:bg-[#111318] rounded-xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all select-none"
+                 onclick="document.getElementById('inputAvisosFilesDetalle').click()"
+                 ondragover="event.preventDefault(); this.classList.add('border-amber-500/50', 'bg-[#111318]')"
+                 ondragleave="this.classList.remove('border-amber-500/50', 'bg-[#111318]')"
+                 ondrop="handleDropAvisosDetalle(event)">
+                <input type="file" id="inputAvisosFilesDetalle" multiple accept=".pdf" class="hidden" onchange="handleSelectFilesAvisosDetalle(event)">
+                <span class="material-symbols-outlined text-4xl text-[#9da6b9]">cloud_upload</span>
+                <div class="text-center">
+                    <p class="text-white font-medium text-sm">Arrastra tus avisos de cobro en PDF aquí</p>
+                    <p class="text-[#9da6b9] text-xs mt-1">O haz clic para seleccionarlos desde tu computadora (puedes elegir múltiples archivos)</p>
+                </div>
+            </div>
+
+            <!-- Listado de archivos procesándose o listos -->
+            <div class="space-y-3">
+                <h4 class="text-xs uppercase font-bold text-[#9da6b9] tracking-wider">Archivos Seleccionados</h4>
+                <div id="listaProcesamientoAvisosDetalle" class="space-y-2 max-h-[40vh] overflow-y-auto custom-scroll pr-1">
+                    <p class="text-[#9da6b9] text-xs italic text-center py-4">No se han seleccionado archivos.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-5 border-t border-[#3b4354] bg-[#111318] flex justify-end gap-3 shrink-0">
+            <button onclick="cerrarModalCargaMasivaAvisos()" class="px-5 py-2 rounded-lg border border-[#3b4354] text-[#9da6b9] hover:text-white text-sm font-medium transition-colors">Cerrar</button>
         </div>
     </div>
 </div>

@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
     }
 
     try {
-        const { pdf_base64, mime_type } = await req.json();
+        const { pdf_base64, mime_type, poliza_id } = await req.json();
 
         if (!pdf_base64) {
             throw new Error('Se requiere pdf_base64');
@@ -133,7 +133,22 @@ Notas:
         // --------------------------------------------------------
         let polizaEncontrada: any = null;
 
-        if (extracted.numero_poliza) {
+        if (poliza_id) {
+            console.log(`[scan-aviso-cobro] Cargando póliza directamente por id: ${poliza_id}`);
+            const { data: poliza, error: polizaErr } = await supabase
+                .from('polizas')
+                .select('id, no_poliza, cliente_id, finanzas, pagos_status, pagos_fechas, documentos')
+                .eq('id', poliza_id)
+                .single();
+            
+            if (!polizaErr && poliza) {
+                polizaEncontrada = poliza;
+            } else {
+                console.error(`[scan-aviso-cobro] Error cargando póliza por id ${poliza_id}:`, polizaErr);
+            }
+        }
+
+        if (!polizaEncontrada && extracted.numero_poliza) {
             const cleanNoPoliza = normalizarNoPoliza(extracted.numero_poliza);
             console.log(`[scan-aviso-cobro] Buscando póliza que contenga: "${cleanNoPoliza}"`);
 
