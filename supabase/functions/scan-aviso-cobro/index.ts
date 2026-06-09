@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
             throw new Error('No se configuró la API Key de Gemini');
         }
 
-        const prompt = `Analiza este aviso de cobro (o recibo de pago pendiente) de seguro de una aseguradora mexicana y extrae la información requerida.
+        const prompt = `Analiza este aviso de cobro (o recibo de pago pendiente) de seguro de una aseguradora mexicana y extrae la información requerida de forma sumamente precisa.
         
 Responde ÚNICAMENTE con un JSON válido. Si no encuentras un campo, usa null.
 
@@ -87,10 +87,12 @@ Estructura JSON requerida:
   "aseguradora": "Nombre normalizado de la aseguradora (GNP, AXA, HDI, Qualitas, Mapfre, Afirme, Banorte, CHUBB, etc.)",
   "monto_cobro": 0.00,
   "fecha_vencimiento": "YYYY-MM-DD",
-  "nombre_contratante": "Nombre(s) y apellido(s) del contratante o asegurado"
+  "nombre_contratante": "Nombre(s) y apellido(s) del contratante o asegurado",
+  "numero_pago_extraido": null
 }
 
 Notas:
+- Para numero_pago_extraido: Busca activamente en el texto del PDF cualquier indicación del número de parcialidad, recibo o pago fraccionado (por ejemplo, si dice "Parcialidad 03 de 12", "Recibo 3 de 12", "Pago 4/12", "01/12", "Recibo: 02", etc., extrae solo el número entero correspondiente al pago actual, ej. 3 o 4).
 - Para monto_cobro, extrae el valor numérico total a pagar sin símbolos de moneda ni letras.
 - Fechas siempre en formato YYYY-MM-DD. Si solo dice el mes y día, asume el año corriente actual o el más lógico.`;
 
@@ -253,51 +255,62 @@ Notas:
             console.log(`[scan-aviso-cobro] Calendario de pagos de la póliza:`, calendario);
 
             if (calendario.length > 0) {
-                let mejorPago = calendario[0];
-                let menorCosto = Infinity;
-
-                const targetDate = extracted.fecha_vencimiento ? new Date(extracted.fecha_vencimiento + 'T00:00:00Z') : null;
-                const montoAviso = Number(extracted.monto_cobro) || 0;
+                const numPagoIA = Number(extracted.numero_pago_extraido);
                 
-                // Obtener los documentos actuales para ver qué pagos ya tienen un aviso asociado
-                const documentosActuales = polizaEncontrada.documentos || [];
+                // Si la IA extrajo con éxito el número de pago (parcialidad) y está dentro de los límites del calendario, lo usamos directamente
+                if (!isNaN(numPagoIA) && numPagoIA >= 1 && numPagoIA <= calendario.length) {
+                    numeroPagoAsignado = numPagoIA;
+                    const pagoMatch = calendario.find(p => p.numero === numPagoIA) || calendario[numPagoIA - 1];
+                    fechaPagoEnCalendario = pagoMatch.fecha;
+                    console.log(`[scan-aviso-cobro] Asignación directa por parcialidad extraída del PDF (IA): Pago #${numeroPagoAsignado} (Fecha calendario: ${fechaPagoEnCalendario})`);
+                } else {
+                    // Fallback al algoritmo de emparejamiento por costo (Monto + Fecha)
+                    let mejorPago = calendario[0];
+                    let menorCosto = Infinity;
 
-                calendario.forEach(pago => {
-                    // 1. Penalización por monto
-                    let diffMontoPct = 0;
-                    if (pago.total > 0 && montoAviso > 0) {
-                        diffMontoPct = Math.abs(pago.total - montoAviso) / pago.total;
-                    }
-                    const penalizacionMonto = diffMontoPct * 120; // Peso del monto
+                    const targetDate = extracted.fecha_vencimiento ? new Date(extracted.fecha_vencimiento + 'T00:00:00Z') : null;
+                    const montoAviso = Number(extracted.monto_cobro) || 0;
+                    
+                    // Obtener los documentos actuales para ver qué pagos ya tienen un aviso asociado
+                    const documentosActuales = polizaEncontrada.documentos || [];
 
-                    // 2. Penalización por fecha
-                    let penalizacionFecha = 0;
-                    if (targetDate) {
-                        const pagoDate = new Date(pago.fecha + 'T00:00:00Z');
-                        const diffMs = Math.abs(pagoDate.getTime() - targetDate.getTime());
-                        const diffDias = diffMs / (1000 * 60 * 60 * 24);
-                        penalizacionFecha = diffDias / 25; // Peso de la fecha (1 por cada 25 días de diferencia)
-                    }
+                    calendario.forEach(pago => {
+                        // 1. Penalización por monto
+                        let diffMontoPct = 0;
+                        if (pago.total > 0 && montoAviso > 0) {
+                            diffMontoPct = Math.abs(pago.total - montoAviso) / pago.total;
+                        }
+                        const penalizacionMonto = diffMontoPct * 120; // Peso del monto
 
-                    // 3. Penalización si ese pago ya tiene un aviso de cobro asociado en esta póliza
-                    const yaTieneDocumento = documentosActuales.some((d: any) => 
-                        d.tipo === 'aviso_cobro' && Number(d.numero_pago) === Number(pago.numero)
-                    );
-                    const penalizacionDuplicado = yaTieneDocumento ? 80 : 0; // Penalización alta para evitar repetir pagos si hay otros disponibles
+                        // 2. Penalización por fecha
+                        let penalizacionFecha = 0;
+                        if (targetDate) {
+                            const pagoDate = new Date(pago.fecha + 'T00:00:00Z');
+                            const diffMs = Math.abs(pagoDate.getTime() - targetDate.getTime());
+                            const diffDias = diffMs / (1000 * 60 * 60 * 24);
+                            penalizacionFecha = diffDias / 25; // Peso de la fecha (1 por cada 25 días de diferencia)
+                        }
 
-                    const costoTotal = penalizacionMonto + penalizacionFecha + penalizacionDuplicado;
+                        // 3. Penalización si ese pago ya tiene un aviso de cobro asociado en esta póliza
+                        const yaTieneDocumento = documentosActuales.some((d: any) => 
+                            d.tipo === 'aviso_cobro' && Number(d.numero_pago) === Number(pago.numero)
+                        );
+                        const penalizacionDuplicado = yaTieneDocumento ? 80 : 0; // Penalización alta para evitar repetir pagos si hay otros disponibles
 
-                    console.log(`[scan-aviso-cobro] Evaluando Pago #${pago.numero}: Base=$${pago.total}, Fecha=${pago.fecha} | Costo=${costoTotal.toFixed(2)} (Monto: ${penalizacionMonto.toFixed(2)}, Fecha: ${penalizacionFecha.toFixed(2)}, Dup: ${penalizacionDuplicado})`);
+                        const costoTotal = penalizacionMonto + penalizacionFecha + penalizacionDuplicado;
 
-                    if (costoTotal < menorCosto) {
-                        menorCosto = costoTotal;
-                        mejorPago = pago;
-                    }
-                });
+                        console.log(`[scan-aviso-cobro] Evaluando Pago #${pago.numero}: Base=$${pago.total}, Fecha=${pago.fecha} | Costo=${costoTotal.toFixed(2)} (Monto: ${penalizacionMonto.toFixed(2)}, Fecha: ${penalizacionFecha.toFixed(2)}, Dup: ${penalizacionDuplicado})`);
 
-                numeroPagoAsignado = mejorPago.numero;
-                fechaPagoEnCalendario = mejorPago.fecha;
-                console.log(`[scan-aviso-cobro] Pago asignado FINAL: Pago #${numeroPagoAsignado} (Fecha calendario: ${fechaPagoEnCalendario}, Costo: ${menorCosto.toFixed(2)})`);
+                        if (costoTotal < menorCosto) {
+                            menorCosto = costoTotal;
+                            mejorPago = pago;
+                        }
+                    });
+
+                    numeroPagoAsignado = mejorPago.numero;
+                    fechaPagoEnCalendario = mejorPago.fecha;
+                    console.log(`[scan-aviso-cobro] Pago asignado FINAL por costo (Monto+Fecha): Pago #${numeroPagoAsignado} (Fecha calendario: ${fechaPagoEnCalendario}, Costo: ${menorCosto.toFixed(2)})`);
+                }
             }
 
             // Cargar datos complementarios del cliente para mostrarlos en el frontend
