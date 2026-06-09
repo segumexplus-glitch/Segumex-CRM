@@ -853,6 +853,11 @@ Incluye en lead_data SOLO los campos que ya te proporcionó el cliente. Omite lo
             const chatHistory = (history || [])
                 .reverse()
                 .filter((msg: any) => msg.content && msg.content.trim() !== '')
+                .filter((msg: any) => {
+                    const txt = msg.content.trim();
+                    return !txt.includes("Disculpa, no entendí eso") && 
+                           !txt.includes("sistema de IA está saturado");
+                })
                 .map((msg: any) => ({
                     role: msg.sender_type === 'user' ? 'user' : 'model',
                     parts: [{ text: msg.content }]

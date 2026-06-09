@@ -527,6 +527,8 @@
                 ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">PÓLIZA</span>'
                 : tipo === 'endoso'
                 ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30">ENDOSO</span>'
+                : tipo === 'aviso_cobro'
+                ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">AVISO COBRO #${doc.numero_pago || ''}</span>`
                 : '';
             const accionBtn = doc.path
                 ? `<button onclick="abrirDocumento('${safePath}', '${safeNombre}')" class="text-[#9da6b9] hover:text-white transition-colors" title="Ver / Descargar"><span class="material-symbols-outlined text-[20px]">download</span></button>`
@@ -554,7 +556,7 @@
         return ({ '1': 'Anual', '2': 'Semestral', '3': 'Trimestral', '4': 'Mensual' })[String(fp)] || '';
     }
 
-    function generarNombreDocDetalle(tipo, tipoEndoso) {
+    function generarNombreDocDetalle(tipo, tipoEndoso, numeroPago) {
         const fp = polizaData?.finanzas?.formaPago || '';
         const aseg = (polizaData?.aseguradora || '').trim();
         const noP = (polizaData?.no_poliza || '').trim();
@@ -563,6 +565,8 @@
         if (tipo === 'endoso') {
             const te = (tipoEndoso || '').trim();
             return `Endoso ${te} ${aseg} ${noP} ${nombre} ${forma}`.replace(/\s+/g, ' ').trim();
+        } else if (tipo === 'aviso_cobro') {
+            return `Aviso Cobro Pago ${numeroPago || 1} ${aseg} ${noP} ${nombre} ${forma}`.replace(/\s+/g, ' ').trim();
         }
         return `Poliza ${aseg} ${noP} ${nombre} ${forma}`.replace(/\s+/g, ' ').trim();
     }
@@ -571,9 +575,21 @@
         _docTipoSel = 'poliza';
         document.getElementById('btnTipoPolizaD').className = 'p-4 rounded-xl border-2 border-primary bg-primary/10 text-white font-bold flex flex-col items-center gap-2 transition-all';
         document.getElementById('btnTipoEndosoD').className = 'p-4 rounded-xl border-2 border-[#3b4354] text-[#9da6b9] font-bold flex flex-col items-center gap-2 transition-all hover:border-sky-500 hover:text-sky-400';
+        document.getElementById('btnTipoAvisoD').className = 'p-4 rounded-xl border-2 border-[#3b4354] text-[#9da6b9] font-bold flex flex-col items-center gap-2 transition-all hover:border-amber-500 hover:text-amber-400';
+        
         document.getElementById('inputTipoEndosoContD').classList.add('hidden');
+        document.getElementById('inputNumeroPagoContD').classList.add('hidden');
         document.getElementById('inputTipoEndosoD').value = '';
-        document.getElementById('inputNombreDocD').value = generarNombreDocDetalle('poliza', '');
+        
+        // Cargar opciones de pagos disponibles en el selector
+        const selectPagos = document.getElementById('selectNumeroPagoD');
+        selectPagos.innerHTML = '';
+        const numPagos = parseInt(polizaData?.finanzas?.formaPago) || 12;
+        for (let i = 1; i <= numPagos; i++) {
+            selectPagos.innerHTML += `<option value="${i}">Pago #${i}</option>`;
+        }
+
+        document.getElementById('inputNombreDocD').value = generarNombreDocDetalle('poliza', '', '');
         document.getElementById('modalTipoDocD').classList.remove('hidden');
     }
 
@@ -585,22 +601,35 @@
         _docTipoSel = tipo;
         const btnP = document.getElementById('btnTipoPolizaD');
         const btnE = document.getElementById('btnTipoEndosoD');
-        const cont = document.getElementById('inputTipoEndosoContD');
+        const btnA = document.getElementById('btnTipoAvisoD');
+        const contEndoso = document.getElementById('inputTipoEndosoContD');
+        const contPago = document.getElementById('inputNumeroPagoContD');
+
+        // Reset classnames
+        btnP.className = 'p-4 rounded-xl border-2 border-[#3b4354] text-[#9da6b9] font-bold flex flex-col items-center gap-2 transition-all hover:border-primary hover:text-white';
+        btnE.className = 'p-4 rounded-xl border-2 border-[#3b4354] text-[#9da6b9] font-bold flex flex-col items-center gap-2 transition-all hover:border-sky-500 hover:text-sky-400';
+        btnA.className = 'p-4 rounded-xl border-2 border-[#3b4354] text-[#9da6b9] font-bold flex flex-col items-center gap-2 transition-all hover:border-amber-500 hover:text-amber-400';
+
         if (tipo === 'poliza') {
             btnP.className = 'p-4 rounded-xl border-2 border-primary bg-primary/10 text-white font-bold flex flex-col items-center gap-2 transition-all';
-            btnE.className = 'p-4 rounded-xl border-2 border-[#3b4354] text-[#9da6b9] font-bold flex flex-col items-center gap-2 transition-all hover:border-sky-500 hover:text-sky-400';
-            cont.classList.add('hidden');
-        } else {
+            contEndoso.classList.add('hidden');
+            contPago.classList.add('hidden');
+        } else if (tipo === 'endoso') {
             btnE.className = 'p-4 rounded-xl border-2 border-sky-500 bg-sky-500/10 text-sky-400 font-bold flex flex-col items-center gap-2 transition-all';
-            btnP.className = 'p-4 rounded-xl border-2 border-[#3b4354] text-[#9da6b9] font-bold flex flex-col items-center gap-2 transition-all hover:border-primary hover:text-white';
-            cont.classList.remove('hidden');
+            contEndoso.classList.remove('hidden');
+            contPago.classList.add('hidden');
+        } else if (tipo === 'aviso_cobro') {
+            btnA.className = 'p-4 rounded-xl border-2 border-amber-500 bg-amber-500/10 text-amber-400 font-bold flex flex-col items-center gap-2 transition-all';
+            contEndoso.classList.add('hidden');
+            contPago.classList.remove('hidden');
         }
         actualizarNombreDocDetalle();
     }
 
     function actualizarNombreDocDetalle() {
         const tipoEndoso = document.getElementById('inputTipoEndosoD').value;
-        document.getElementById('inputNombreDocD').value = generarNombreDocDetalle(_docTipoSel, tipoEndoso);
+        const numeroPago = document.getElementById('selectNumeroPagoD').value;
+        document.getElementById('inputNombreDocD').value = generarNombreDocDetalle(_docTipoSel, tipoEndoso, numeroPago);
     }
 
     function confirmarDocDetalle() {
@@ -612,6 +641,11 @@
         const input = document.getElementById('inputDocDetalle');
         input.dataset.nombrePendiente = nombre;
         input.dataset.tipoPendiente = _docTipoSel;
+        if (_docTipoSel === 'aviso_cobro') {
+            input.dataset.pagoPendiente = document.getElementById('selectNumeroPagoD').value;
+        } else {
+            delete input.dataset.pagoPendiente;
+        }
         input.click();
     }
 
@@ -621,14 +655,24 @@
         event.target.value = '';
         const nombre = event.target.dataset.nombrePendiente || file.name;
         const tipo = event.target.dataset.tipoPendiente || 'poliza';
+        const pago = event.target.dataset.pagoPendiente ? parseInt(event.target.dataset.pagoPendiente) : null;
         cerrarModalDocDetalle();
-        await subirDocumentoDetalle(file, nombre, tipo);
+        await subirDocumentoDetalle(file, nombre, tipo, pago);
     }
 
-    async function subirDocumentoDetalle(file, nombre, tipo) {
+    async function subirDocumentoDetalle(file, nombre, tipo, pago) {
         if (!polizaData.documentos) polizaData.documentos = [];
         const idx = polizaData.documentos.length;
-        polizaData.documentos.push({ nombre, tamano: (file.size / 1024).toFixed(1) + ' KB', tipo, subiendo: true });
+        const tempDoc = { 
+            nombre, 
+            tamano: (file.size / 1024).toFixed(1) + ' KB', 
+            tipo, 
+            subiendo: true 
+        };
+        if (tipo === 'aviso_cobro' && pago) {
+            tempDoc.numero_pago = pago;
+        }
+        polizaData.documentos.push(tempDoc);
         renderizarDocumentosDetalle();
 
         const filePath = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
@@ -639,7 +683,17 @@
             alert('Error al subir el archivo: ' + error.message);
             return;
         }
-        polizaData.documentos[idx] = { nombre, tamano: (file.size / 1024).toFixed(1) + ' KB', path: data.path, tipo };
+        
+        const finalDoc = { 
+            nombre, 
+            tamano: (file.size / 1024).toFixed(1) + ' KB', 
+            path: data.path, 
+            tipo 
+        };
+        if (tipo === 'aviso_cobro' && pago) {
+            finalDoc.numero_pago = pago;
+        }
+        polizaData.documentos[idx] = finalDoc;
         await guardarDocumentosDB();
         renderizarDocumentosDetalle();
     }
@@ -677,14 +731,18 @@
         </div>
         <div class="p-6 space-y-4">
             <p class="text-[#9da6b9] text-sm">¿Qué tipo de documento es?</p>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-3 gap-3">
                 <button type="button" id="btnTipoPolizaD" onclick="seleccionarTipoDocDetalle('poliza')" class="p-4 rounded-xl border-2 border-primary bg-primary/10 text-white font-bold flex flex-col items-center gap-2 transition-all">
                     <span class="material-symbols-outlined text-primary">description</span>
-                    <span class="text-sm">Póliza</span>
+                    <span class="text-xs">Póliza</span>
                 </button>
                 <button type="button" id="btnTipoEndosoD" onclick="seleccionarTipoDocDetalle('endoso')" class="p-4 rounded-xl border-2 border-[#3b4354] text-[#9da6b9] font-bold flex flex-col items-center gap-2 transition-all hover:border-sky-500 hover:text-sky-400">
                     <span class="material-symbols-outlined">edit_document</span>
-                    <span class="text-sm">Endoso</span>
+                    <span class="text-xs">Endoso</span>
+                </button>
+                <button type="button" id="btnTipoAvisoD" onclick="seleccionarTipoDocDetalle('aviso_cobro')" class="p-4 rounded-xl border-2 border-[#3b4354] text-[#9da6b9] font-bold flex flex-col items-center gap-2 transition-all hover:border-amber-500 hover:text-amber-400">
+                    <span class="material-symbols-outlined">payments</span>
+                    <span class="text-xs">Aviso Cobro</span>
                 </button>
             </div>
             <div id="inputTipoEndosoContD" class="hidden">
@@ -692,6 +750,12 @@
                 <input type="text" id="inputTipoEndosoD" placeholder="Ej. Cambio de vehículo, Inclusión conductor..."
                     class="w-full bg-[#111318] border border-[#3b4354] rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-primary outline-none"
                     oninput="actualizarNombreDocDetalle()">
+            </div>
+            <div id="inputNumeroPagoContD" class="hidden">
+                <label class="text-xs text-[#9da6b9] uppercase font-bold block mb-1">Número de Pago / Mensualidad</label>
+                <select id="selectNumeroPagoD" class="w-full bg-[#111318] border border-[#3b4354] rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-primary outline-none"
+                    onchange="actualizarNombreDocDetalle()">
+                </select>
             </div>
             <div>
                 <label class="text-xs text-[#9da6b9] uppercase font-bold block mb-1">Nombre del archivo</label>

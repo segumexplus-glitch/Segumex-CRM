@@ -49,14 +49,14 @@ async function enviarTexto(chatId: string, message: string): Promise<any> {
 }
 
 // ============================================================
-// Enviar imagen con caption por WhatsApp
+// Enviar archivo o imagen con caption por WhatsApp
 // ============================================================
-async function enviarImagenConCaption(chatId: string, imageUrl: string, caption: string): Promise<any> {
+async function enviarArchivoConCaption(chatId: string, urlFile: string, fileName: string, caption: string): Promise<any> {
     const url = `${greenBaseUrl()}/sendFileByUrl/${GREEN_API_TOKEN}`;
     const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatId, urlFile: imageUrl, fileName: 'cobranza.jpg', caption })
+        body: JSON.stringify({ chatId, urlFile, fileName, caption })
     });
     return await res.json();
 }
@@ -213,6 +213,7 @@ Deno.serve(async (req) => {
                 finanzas,
                 pagos_status,
                 pagos_fechas,
+                documentos,
                 clientes (
                     nombre,
                     apellido,
@@ -325,18 +326,46 @@ Deno.serve(async (req) => {
             let status = 'enviado';
 
             try {
-                // Seleccionar imagen según tipo: vencida (2,5,8 días después) o recordatorio (7,1 días antes)
-                const urlImagen = CLAVES_VENCIDAS.has(claveRegla) ? imagenVencidaUrl : imagenUrl;
-                if (urlImagen) {
-                    const imgCheck = await fetch(urlImagen, { method: 'HEAD' }).catch(() => null);
-                    if (imgCheck?.ok) {
-                        respuestaApi = await enviarImagenConCaption(chatId, urlImagen, mensaje);
+                // Verificar si existe aviso de cobro en documentos para esta mensualidad/pago
+                const documentos = (poliza as any).documentos || [];
+                const avisoCobroDoc = documentos.find((d: any) => 
+                    d.tipo === 'aviso_cobro' && Number(d.numero_pago) === Number(numeroPago) && d.path
+                );
+
+                if (avisoCobroDoc) {
+                    console.log(`📎 Encontrado aviso de cobro para póliza ${(poliza as any).no_poliza} pago #${numeroPago}: ${avisoCobroDoc.path}`);
+                    const { data: signedDoc, error: signedDocErr } = await supabase.storage
+                        .from('documentos-polizas')
+                        .createSignedUrl(avisoCobroDoc.path, 86400); // 24 horas
+
+                    if (signedDoc?.signedUrl && !signedDocErr) {
+                        const fileExt = avisoCobroDoc.path.split('.').pop() || 'pdf';
+                        const fileName = `Aviso_de_Cobro_Pago_${numeroPago}.${fileExt}`;
+                        respuestaApi = await enviarArchivoConCaption(chatId, signedDoc.signedUrl, fileName, mensaje);
                     } else {
-                        console.warn(`⚠️ Imagen inaccesible, enviando solo texto.`);
-                        respuestaApi = await enviarTexto(chatId, mensaje);
+                        console.error(`❌ Error al crear url firmada para el aviso de cobro:`, signedDocErr);
+                        // Fallback a imagen genérica si falla
+                        const urlImagen = CLAVES_VENCIDAS.has(claveRegla) ? imagenVencidaUrl : imagenUrl;
+                        if (urlImagen) {
+                            respuestaApi = await enviarArchivoConCaption(chatId, urlImagen, 'cobranza.jpg', mensaje);
+                        } else {
+                            respuestaApi = await enviarTexto(chatId, mensaje);
+                        }
                     }
                 } else {
-                    respuestaApi = await enviarTexto(chatId, mensaje);
+                    // Seleccionar imagen según tipo: vencida (2,5,8 días después) o recordatorio (7,1 días antes)
+                    const urlImagen = CLAVES_VENCIDAS.has(claveRegla) ? imagenVencidaUrl : imagenUrl;
+                    if (urlImagen) {
+                        const imgCheck = await fetch(urlImagen, { method: 'HEAD' }).catch(() => null);
+                        if (imgCheck?.ok) {
+                            respuestaApi = await enviarArchivoConCaption(chatId, urlImagen, 'cobranza.jpg', mensaje);
+                        } else {
+                            console.warn(`⚠️ Imagen inaccesible, enviando solo texto.`);
+                            respuestaApi = await enviarTexto(chatId, mensaje);
+                        }
+                    } else {
+                        respuestaApi = await enviarTexto(chatId, mensaje);
+                    }
                 }
 
                 console.log(`✅ Enviado: ${nombreCliente} (${(poliza as any).no_poliza}) pago #${numeroPago} — ${claveRegla}`);

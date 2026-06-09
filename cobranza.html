@@ -83,6 +83,10 @@
                     <span class="material-symbols-outlined text-primary">payments</span> Pay Tracker
                 </h1>
                 <div class="flex items-center gap-4">
+                    <button onclick="abrirModalCargaMasiva()" class="flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium text-xs shadow-lg shadow-blue-500/20 transition-all">
+                        <span class="material-symbols-outlined text-[16px] animate-pulse">psychology</span>
+                        Cargar Avisos (IA)
+                    </button>
                     <div class="relative">
                         <span
                             class="absolute left-3 top-2.5 material-symbols-outlined text-[#94a3b8] text-[18px]">search</span>
@@ -504,7 +508,373 @@
         }
 
         function formatoMoneda(valor) { return window.SegumexFinanzas.formatoMoneda(valor); }
+
+        // ============================================================
+        // CARGA MASIVA DE AVISOS DE COBRO CON IA
+        // ============================================================
+        let polizasCatalogo = []; // Cache de pólizas para asignación manual
+
+        function abrirModalCargaMasiva() {
+            document.getElementById('modalCargaAvisos').classList.remove('hidden');
+            document.getElementById('listaProcesamientoAvisos').innerHTML = '<p class="text-[#94a3b8] text-xs italic text-center py-4">No se han seleccionado archivos.</p>';
+            cargarPolizasCatalogo();
+        }
+
+        function cerrarModalCargaMasiva() {
+            document.getElementById('modalCargaAvisos').classList.add('hidden');
+            cargarPayTracker(); // Refrescar Pay Tracker al cerrar
+        }
+
+        async function cargarPolizasCatalogo() {
+            if (polizasCatalogo.length > 0) return;
+            const { data } = await window.supabaseClient
+                .from('polizas')
+                .select('id, no_poliza, aseguradora, cliente_id, finanzas')
+                .in('estado', ['activa', 'vigente', 'activada', 'Activada', 'Vigente']);
+            
+            // Obtener nombres de clientes para el buscador
+            const { data: clientes } = await window.supabaseClient.from('clientes').select('id, nombre, apellido');
+            
+            polizasCatalogo = (data || []).map(p => {
+                const c = (clientes || []).find(cli => cli.id === p.cliente_id);
+                return {
+                    ...p,
+                    cliente_nombre: c ? `${c.nombre} ${c.apellido || ''}`.trim() : 'Desconocido'
+                };
+            });
+        }
+
+        function handleDropAvisos(event) {
+            event.preventDefault();
+            const dropzone = document.getElementById('dropzoneAvisos');
+            dropzone.classList.remove('border-primary/50', 'bg-[#0f111a]');
+            
+            const files = Array.from(event.dataTransfer.files).filter(f => f.type === 'application/pdf');
+            if (files.length > 0) {
+                procesarArchivosAvisos(files);
+            }
+        }
+
+        function handleSelectFilesAvisos(event) {
+            const files = Array.from(event.target.files).filter(f => f.name.toLowerCase().endsWith('.pdf'));
+            if (files.length > 0) {
+                procesarArchivosAvisos(files);
+            }
+            event.target.value = '';
+        }
+
+        function procesarArchivosAvisos(files) {
+            const lista = document.getElementById('listaProcesamientoAvisos');
+            if (lista.innerHTML.includes('No se han seleccionado archivos')) {
+                lista.innerHTML = '';
+            }
+
+            files.forEach(file => {
+                const fileId = 'file_' + Math.random().toString(36).substr(2, 9);
+                const itemHtml = `
+                    <div id="${fileId}" class="p-3 bg-[#0f111a] border border-[#2d3442] rounded-xl flex flex-col gap-3 transition-all mb-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3 overflow-hidden">
+                                <span class="material-symbols-outlined text-red-400">picture_as_pdf</span>
+                                <div class="overflow-hidden">
+                                    <p class="text-white text-xs font-semibold truncate max-w-[250px]">${file.name}</p>
+                                    <p class="text-[#94a3b8] text-[10px]">${(file.size / 1024).toFixed(1)} KB</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2" id="${fileId}_status">
+                                <span class="text-xs text-blue-400 animate-pulse flex items-center gap-1 font-medium">
+                                    <span class="material-symbols-outlined text-[16px] animate-spin">autorenew</span>
+                                    Analizando con IA...
+                                </span>
+                            </div>
+                        </div>
+                        <div id="${fileId}_manual_panel" class="hidden border-t border-[#2d3442]/60 pt-3 flex flex-col gap-3">
+                            <p class="text-[10px] text-yellow-400 font-semibold flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[14px]">warning</span>
+                                Por favor asocia la póliza o mensualidad manualmente:
+                            </p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-[9px] text-[#94a3b8] uppercase font-bold block mb-1">Buscar Póliza</label>
+                                    <select id="${fileId}_sel_poliza" class="w-full bg-[#161b22] border border-[#2d3442] rounded-lg px-2 py-1 text-xs text-white outline-none focus:ring-1 focus:ring-primary" onchange="actualizarMensualidadesManual('${fileId}')">
+                                        <option value="">Selecciona póliza...</option>
+                                        ${polizasCatalogo.map(p => `<option value="${p.id}">${p.no_poliza} - ${p.aseguradora} (${p.cliente_nombre})</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[9px] text-[#94a3b8] uppercase font-bold block mb-1">Mensualidad / Pago</label>
+                                    <select id="${fileId}_sel_pago" class="w-full bg-[#161b22] border border-[#2d3442] rounded-lg px-2 py-1 text-xs text-white outline-none focus:ring-1 focus:ring-primary">
+                                        <option value="">Selecciona pago...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-2 mt-1">
+                                <button id="${fileId}_btn_guardar_manual" onclick="guardarAsociacionManual('${fileId}', '${fileId}_base64')" class="px-3 py-1 rounded bg-primary hover:bg-blue-600 text-white text-[11px] font-bold transition-all flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[14px]">save</span> Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                lista.insertAdjacentHTML('beforeend', itemHtml);
+
+                // Iniciar FileReader
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    const base64Data = e.target.result.split(',')[1];
+                    // Guardar base64 en un input oculto para uso de guardado manual si hace falta
+                    const hiddenInput = `<input type="hidden" id="${fileId}_base64" value="${base64Data}">`;
+                    document.getElementById(fileId).insertAdjacentHTML('beforeend', hiddenInput);
+
+                    await escanearArchivoIA(fileId, base64Data, file.name);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function escanearArchivoIA(fileId, pdfBase64, filename) {
+            try {
+                const { data, error } = await window.supabaseClient.functions.invoke('scan-aviso-cobro', {
+                    body: { pdf_base64: pdfBase64, mime_type: 'application/pdf' }
+                });
+
+                if (error || !data || !data.success) {
+                    const errMsg = error?.message || data?.error || 'Error desconocido';
+                    mostrarErrorAviso(fileId, errMsg);
+                    return;
+                }
+
+                const res = data;
+                if (res.poliza_encontrada) {
+                    // Asociación exitosa
+                    const d = res.poliza_detalle;
+                    document.getElementById(`${fileId}_status`).innerHTML = `
+                        <span class="text-xs text-green-400 font-semibold flex items-center gap-1 bg-green-500/10 px-2.5 py-1 rounded-full border border-green-500/20">
+                            <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                            Asociado: Pago #${d.numero_pago}
+                        </span>
+                    `;
+                    // Agregar metadatos informativos
+                    const infoHtml = `
+                        <div class="mt-2 text-[10px] text-[#94a3b8] grid grid-cols-2 gap-x-4 gap-y-1 bg-[#161b22]/40 p-2 rounded-lg border border-[#2d3442]/30">
+                            <div><span class="font-bold">Póliza:</span> ${d.no_poliza} (${d.aseguradora})</div>
+                            <div><span class="font-bold">Cliente:</span> ${d.cliente_nombre}</div>
+                            <div><span class="font-bold">Monto Extraído:</span> $${res.extracted_data.monto_cobro?.toFixed(2) || '0.00'}</div>
+                            <div><span class="font-bold">Vencimiento:</span> ${res.extracted_data.fecha_vencimiento || '---'}</div>
+                        </div>
+                    `;
+                    document.getElementById(fileId).insertAdjacentHTML('beforeend', infoHtml);
+                } else {
+                    // IA extrajo datos pero no encontró la póliza en la base de datos
+                    document.getElementById(`${fileId}_status`).innerHTML = `
+                        <span class="text-xs text-yellow-400 font-semibold flex items-center gap-1 bg-yellow-500/10 px-2.5 py-1 rounded-full border border-yellow-500/20">
+                            <span class="material-symbols-outlined text-[16px]">help</span>
+                            Sin coincidencia
+                        </span>
+                    `;
+                    
+                    // Mostrar los datos extraídos de todas formas para facilitar al usuario
+                    const ext = res.extracted_data;
+                    const extHtml = `
+                        <div class="mt-2 text-[10px] text-yellow-300 grid grid-cols-2 gap-x-4 gap-y-1 bg-yellow-500/5 p-2 rounded-lg border border-yellow-500/10">
+                            <div><span class="font-bold text-[#94a3b8]">Póliza Extraída:</span> ${ext.numero_poliza || '---'}</div>
+                            <div><span class="font-bold text-[#94a3b8]">Contratante:</span> ${ext.nombre_contratante || '---'}</div>
+                            <div><span class="font-bold text-[#94a3b8]">Monto:</span> $${ext.monto_cobro?.toFixed(2) || '0.00'}</div>
+                            <div><span class="font-bold text-[#94a3b8]">Aseguradora:</span> ${ext.aseguradora || '---'}</div>
+                        </div>
+                    `;
+                    document.getElementById(fileId).insertAdjacentHTML('beforeend', extHtml);
+                    
+                    // Mostrar panel de asociación manual
+                    const panel = document.getElementById(`${fileId}_manual_panel`);
+                    panel.classList.remove('hidden');
+
+                    // Pre-seleccionar la mejor opción si es posible
+                    preSeleccionarPoliza(fileId, ext.numero_poliza, ext.nombre_contratante);
+                }
+            } catch (err) {
+                mostrarErrorAviso(fileId, err.message);
+            }
+        }
+
+        function mostrarErrorAviso(fileId, msg) {
+            document.getElementById(`${fileId}_status`).innerHTML = `
+                <span class="text-xs text-red-500 font-semibold flex items-center gap-1 bg-red-500/10 px-2.5 py-1 rounded-full border border-red-500/20" title="${msg}">
+                    <span class="material-symbols-outlined text-[16px]">cancel</span>
+                    Error
+                </span>
+            `;
+            const errPanel = `<p class="text-[10px] text-red-400 mt-2 italic bg-red-500/5 p-2 rounded border border-red-500/10">${msg}</p>`;
+            document.getElementById(fileId).insertAdjacentHTML('beforeend', errPanel);
+        }
+
+        function preSeleccionarPoliza(fileId, noPoliza, nombreContratante) {
+            const select = document.getElementById(`${fileId}_sel_poliza`);
+            if (!select) return;
+            
+            let bestPolizaId = "";
+            
+            if (noPoliza) {
+                const cleanPol = noPoliza.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                const found = polizasCatalogo.find(p => {
+                    const dbPol = (p.no_poliza || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                    return dbPol.includes(cleanPol) || cleanPol.includes(dbPol);
+                });
+                if (found) bestPolizaId = found.id;
+            }
+            
+            if (!bestPolizaId && nombreContratante) {
+                const words = nombreContratante.toLowerCase().split(' ').filter(w => w.length > 3);
+                if (words.length > 0) {
+                    const found = polizasCatalogo.find(p => {
+                        const name = p.cliente_nombre.toLowerCase();
+                        return words.every(w => name.includes(w));
+                    });
+                    if (found) bestPolizaId = found.id;
+                }
+            }
+            
+            if (bestPolizaId) {
+                select.value = bestPolizaId;
+                actualizarMensualidadesManual(fileId);
+            }
+        }
+
+        function actualizarMensualidadesManual(fileId) {
+            const selectPoliza = document.getElementById(`${fileId}_sel_poliza`);
+            const selectPago = document.getElementById(`${fileId}_sel_pago`);
+            if (!selectPoliza || !selectPago) return;
+            
+            const polizaId = selectPoliza.value;
+            selectPago.innerHTML = '<option value="">Selecciona pago...</option>';
+            if (!polizaId) return;
+            
+            const p = polizasCatalogo.find(item => String(item.id) === String(polizaId));
+            if (p) {
+                const numPagos = parseInt(p.finanzas?.formaPago) || 12;
+                for (let i = 1; i <= numPagos; i++) {
+                    selectPago.innerHTML += `<option value="${i}">Pago #${i}</option>`;
+                }
+            }
+        }
+
+        async function guardarAsociacionManual(fileId, inputBase64Id) {
+            const polizaId = document.getElementById(`${fileId}_sel_poliza`).value;
+            const numeroPago = document.getElementById(`${fileId}_sel_pago`).value;
+            const base64Data = document.getElementById(inputBase64Id).value;
+            
+            if (!polizaId || !numeroPago) {
+                alert('Por favor selecciona la póliza y el número de pago.');
+                return;
+            }
+            
+            const btn = document.getElementById(`${fileId}_btn_guardar_manual`);
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[14px] animate-spin">autorenew</span> Guardando...';
+            
+            try {
+                const numPagoInt = parseInt(numeroPago);
+                
+                // Convertir base64 a bytes
+                const pdfBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+                const fileName = `${Date.now()}_aviso_pago_manual_${numeroPago}.pdf`;
+                const filePath = `avisos_cobro/${polizaId}/${fileName}`;
+                
+                // 1. Subir PDF a Storage
+                const { data: storageData, error: storageErr } = await window.supabaseClient.storage
+                    .from('documentos-polizas')
+                    .upload(filePath, pdfBytes, { upsert: true, contentType: 'application/pdf' });
+                    
+                if (storageErr) throw new Error(storageErr.message);
+                
+                // 2. Obtener documentos de la póliza actual
+                const { data: polizaData, error: loadErr } = await window.supabaseClient
+                    .from('polizas')
+                    .select('documentos')
+                    .eq('id', polizaId)
+                    .single();
+                    
+                if (loadErr) throw new Error(loadErr.message);
+                
+                const documentosActuales = polizaData.documentos || [];
+                const nuevoDoc = {
+                    nombre: `Aviso de Cobro - Pago ${numeroPago} (Asociación Manual)`,
+                    tamano: `${(pdfBytes.length / 1024).toFixed(1)} KB`,
+                    path: storageData.path,
+                    tipo: 'aviso_cobro',
+                    numero_pago: numPagoInt
+                };
+                
+                // Filtrar duplicados
+                const documentosFiltrados = documentosActuales.filter(d => 
+                    !(d.tipo === 'aviso_cobro' && d.numero_pago === numPagoInt)
+                );
+                documentosFiltrados.push(nuevoDoc);
+                
+                // 3. Guardar documentos
+                const { error: updateErr } = await window.supabaseClient
+                    .from('polizas')
+                    .update({ documentos: documentosFiltrados })
+                    .eq('id', polizaId);
+                    
+                if (updateErr) throw new Error(updateErr.message);
+                
+                // Actualizar UI
+                document.getElementById(`${fileId}_manual_panel`).classList.add('hidden');
+                document.getElementById(`${fileId}_status`).innerHTML = `
+                    <span class="text-xs text-green-400 font-semibold flex items-center gap-1 bg-green-500/10 px-2.5 py-1 rounded-full border border-green-500/20">
+                        <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                        Asociado Manualmente: Pago #${numeroPago}
+                    </span>
+                `;
+            } catch (err) {
+                alert('Error al guardar la asociación manual: ' + err.message);
+                btn.disabled = false;
+                btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">save</span> Guardar';
+            }
+        }
     </script>
+
+    <!-- MODAL: Carga Masiva de Avisos de Cobro -->
+    <div id="modalCargaAvisos" class="hidden fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
+        <div class="bg-surface-card border border-[#2d3442] rounded-2xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
+            <div class="p-5 border-b border-[#2d3442] flex items-center justify-between bg-[#161b22]">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">psychology</span>
+                    <h3 class="text-white font-bold text-lg">Cargador Inteligente de Avisos de Cobro</h3>
+                </div>
+                <button onclick="cerrarModalCargaMasiva()" class="text-[#94a3b8] hover:text-white"><span class="material-symbols-outlined">close</span></button>
+            </div>
+            
+            <div class="p-6 flex-1 overflow-y-auto space-y-6">
+                <!-- Zona drag and drop -->
+                <div id="dropzoneAvisos" class="border-2 border-dashed border-[#2d3442] hover:border-primary/50 bg-[#0f111a]/50 hover:bg-[#0f111a] rounded-xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all select-none"
+                     onclick="document.getElementById('inputAvisosFiles').click()"
+                     ondragover="event.preventDefault(); this.classList.add('border-primary/50', 'bg-[#0f111a]')"
+                     ondragleave="this.classList.remove('border-primary/50', 'bg-[#0f111a]')"
+                     ondrop="handleDropAvisos(event)">
+                    <input type="file" id="inputAvisosFiles" multiple accept=".pdf" class="hidden" onchange="handleSelectFilesAvisos(event)">
+                    <span class="material-symbols-outlined text-4xl text-[#94a3b8]">cloud_upload</span>
+                    <div class="text-center">
+                        <p class="text-white font-medium text-sm">Arrastra tus avisos de cobro en PDF aquí</p>
+                        <p class="text-[#94a3b8] text-xs mt-1">O haz clic para seleccionarlos desde tu computadora (puedes elegir múltiples archivos)</p>
+                    </div>
+                </div>
+
+                <!-- Listado de archivos procesándose o listos -->
+                <div class="space-y-3">
+                    <h4 class="text-xs uppercase font-bold text-[#94a3b8] tracking-wider" id="lblProgresoArchivos">Archivos Seleccionados</h4>
+                    <div id="listaProcesamientoAvisos" class="space-y-2 max-h-[40vh] overflow-y-auto custom-scroll pr-1">
+                        <p class="text-[#94a3b8] text-xs italic text-center py-4">No se han seleccionado archivos.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-5 border-t border-[#2d3442] bg-[#161b22] flex justify-end gap-3 shrink-0">
+                <button onclick="cerrarModalCargaMasiva()" class="px-5 py-2 rounded-lg border border-[#2d3442] text-[#94a3b8] hover:text-white text-sm font-medium transition-colors">Cerrar</button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
