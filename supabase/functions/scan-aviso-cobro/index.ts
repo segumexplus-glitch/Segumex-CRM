@@ -252,25 +252,52 @@ Notas:
 
             console.log(`[scan-aviso-cobro] Calendario de pagos de la póliza:`, calendario);
 
-            if (calendario.length > 0 && extracted.fecha_vencimiento) {
-                const targetDate = new Date(extracted.fecha_vencimiento + 'T00:00:00Z');
-                let menorDiffDias = Infinity;
+            if (calendario.length > 0) {
                 let mejorPago = calendario[0];
+                let menorCosto = Infinity;
+
+                const targetDate = extracted.fecha_vencimiento ? new Date(extracted.fecha_vencimiento + 'T00:00:00Z') : null;
+                const montoAviso = Number(extracted.monto_cobro) || 0;
+                
+                // Obtener los documentos actuales para ver qué pagos ya tienen un aviso asociado
+                const documentosActuales = polizaEncontrada.documentos || [];
 
                 calendario.forEach(pago => {
-                    const pagoDate = new Date(pago.fecha + 'T00:00:00Z');
-                    const diffMs = Math.abs(pagoDate.getTime() - targetDate.getTime());
-                    const diffDias = diffMs / (1000 * 60 * 60 * 24);
+                    // 1. Penalización por monto
+                    let diffMontoPct = 0;
+                    if (pago.total > 0 && montoAviso > 0) {
+                        diffMontoPct = Math.abs(pago.total - montoAviso) / pago.total;
+                    }
+                    const penalizacionMonto = diffMontoPct * 120; // Peso del monto
 
-                    if (diffDias < menorDiffDias) {
-                        menorDiffDias = diffDias;
+                    // 2. Penalización por fecha
+                    let penalizacionFecha = 0;
+                    if (targetDate) {
+                        const pagoDate = new Date(pago.fecha + 'T00:00:00Z');
+                        const diffMs = Math.abs(pagoDate.getTime() - targetDate.getTime());
+                        const diffDias = diffMs / (1000 * 60 * 60 * 24);
+                        penalizacionFecha = diffDias / 25; // Peso de la fecha (1 por cada 25 días de diferencia)
+                    }
+
+                    // 3. Penalización si ese pago ya tiene un aviso de cobro asociado en esta póliza
+                    const yaTieneDocumento = documentosActuales.some((d: any) => 
+                        d.tipo === 'aviso_cobro' && Number(d.numero_pago) === Number(pago.numero)
+                    );
+                    const penalizacionDuplicado = yaTieneDocumento ? 80 : 0; // Penalización alta para evitar repetir pagos si hay otros disponibles
+
+                    const costoTotal = penalizacionMonto + penalizacionFecha + penalizacionDuplicado;
+
+                    console.log(`[scan-aviso-cobro] Evaluando Pago #${pago.numero}: Base=$${pago.total}, Fecha=${pago.fecha} | Costo=${costoTotal.toFixed(2)} (Monto: ${penalizacionMonto.toFixed(2)}, Fecha: ${penalizacionFecha.toFixed(2)}, Dup: ${penalizacionDuplicado})`);
+
+                    if (costoTotal < menorCosto) {
+                        menorCosto = costoTotal;
                         mejorPago = pago;
                     }
                 });
 
                 numeroPagoAsignado = mejorPago.numero;
                 fechaPagoEnCalendario = mejorPago.fecha;
-                console.log(`[scan-aviso-cobro] Pago asignado por cercanía de fecha: Pago #${numeroPagoAsignado} (Fecha calendario: ${fechaPagoEnCalendario}, Diff: ${menorDiffDias.toFixed(1)} días)`);
+                console.log(`[scan-aviso-cobro] Pago asignado FINAL: Pago #${numeroPagoAsignado} (Fecha calendario: ${fechaPagoEnCalendario}, Costo: ${menorCosto.toFixed(2)})`);
             }
 
             // Cargar datos complementarios del cliente para mostrarlos en el frontend

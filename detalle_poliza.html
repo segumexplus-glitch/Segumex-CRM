@@ -762,7 +762,7 @@
         event.target.value = '';
     }
 
-    function procesarArchivosAvisosDetalle(files) {
+    async function procesarArchivosAvisosDetalle(files) {
         const lista = document.getElementById('listaProcesamientoAvisosDetalle');
         if (lista.innerHTML.includes('No se han seleccionado archivos')) {
             lista.innerHTML = '';
@@ -775,7 +775,10 @@
             selectPagoOptions += `<option value="${i}">Pago #${i}</option>`;
         }
 
-        files.forEach(file => {
+        // Procesar archivos secuencialmente para que el servidor de IA
+        // pueda registrar el documento en la base de datos antes de evaluar el siguiente
+        // y evitar asignaciones duplicadas de mensualidades
+        for (const file of files) {
             const fileId = 'file_det_' + Math.random().toString(36).substr(2, 9);
             const itemHtml = `
                 <div id="${fileId}" class="p-3 bg-[#111318] border border-[#3b4354] rounded-xl flex flex-col gap-3 transition-all mb-2">
@@ -790,7 +793,7 @@
                         <div class="flex items-center gap-2" id="${fileId}_status">
                             <span class="text-xs text-amber-400 animate-pulse flex items-center gap-1 font-medium">
                                 <span class="material-symbols-outlined text-[16px] animate-spin">autorenew</span>
-                                Analizando mensualidad...
+                                En cola...
                             </span>
                         </div>
                     </div>
@@ -817,18 +820,29 @@
             `;
             lista.insertAdjacentHTML('beforeend', itemHtml);
 
-            // Iniciar FileReader
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                const base64Data = e.target.result.split(',')[1];
-                // Guardar base64
-                const hiddenInput = `<input type="hidden" id="${fileId}_base64" value="${base64Data}">`;
-                document.getElementById(fileId).insertAdjacentHTML('beforeend', hiddenInput);
+            // Leer y procesar secuencialmente
+            await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    const base64Data = e.target.result.split(',')[1];
+                    // Guardar base64
+                    const hiddenInput = `<input type="hidden" id="${fileId}_base64" value="${base64Data}">`;
+                    document.getElementById(fileId).insertAdjacentHTML('beforeend', hiddenInput);
 
-                await escanearArchivoIADetalle(fileId, base64Data, file.name);
-            };
-            reader.readAsDataURL(file);
-        });
+                    // Cambiar a "Analizando..."
+                    document.getElementById(`${fileId}_status`).innerHTML = `
+                        <span class="text-xs text-amber-400 animate-pulse flex items-center gap-1 font-medium">
+                            <span class="material-symbols-outlined text-[16px] animate-spin">autorenew</span>
+                            Analizando mensualidad...
+                        </span>
+                    `;
+
+                    await escanearArchivoIADetalle(fileId, base64Data, file.name);
+                    resolve();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
     }
 
     async function escanearArchivoIADetalle(fileId, pdfBase64, filename) {
