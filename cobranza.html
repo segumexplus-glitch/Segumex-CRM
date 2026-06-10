@@ -14,6 +14,7 @@
         rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
     <script src="pdf-generator.js"></script>
@@ -143,6 +144,33 @@
                         </div>
                     </div>
 
+                    <!-- SECCIÓN VISUAL DE GRÁFICOS (COBRANZA) -->
+                    <div id="seccionVisualCobranza" class="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
+                        <div class="md:col-span-2 bg-surface-card border border-[#2d3442] rounded-xl p-5 flex flex-col justify-between h-[260px]">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="text-white font-bold text-sm flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary text-lg">trending_up</span>
+                                    Evolución de Recaudación vs Meta
+                                </h4>
+                                <span class="text-[10px] text-[#94a3b8] uppercase font-bold tracking-wider">Meta Mensual: $50,000 MXN</span>
+                            </div>
+                            <div class="flex-1 relative min-h-0">
+                                <canvas id="chartEvolucionRecaudacion"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5 flex flex-col justify-between h-[260px]">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="text-white font-bold text-sm flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-purple-400 text-lg">pie_chart</span>
+                                    Cartera Pendiente por Aseguradora
+                                </h4>
+                            </div>
+                            <div class="flex-1 relative min-h-0 flex items-center justify-center">
+                                <canvas id="chartCarteraAseguradoras" class="max-h-[160px]"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="flex-1 flex gap-6 overflow-hidden min-h-0">
 
                         <div
@@ -176,6 +204,47 @@
                             </div>
 
                             <div class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1" id="listaProximos">
+                                <div class="animate-pulse space-y-3 p-4">
+                                    <div class="grid grid-cols-12 gap-4 items-center">
+                                        <div class="col-span-4 flex gap-3 items-center">
+                                            <div class="h-9 w-9 bg-gray-700/50 rounded-full"></div>
+                                            <div class="space-y-2 flex-1">
+                                                <div class="h-4 bg-gray-700/50 rounded w-3/4"></div>
+                                                <div class="h-3 bg-gray-700/50 rounded w-1/2"></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-span-2 h-4 bg-gray-700/50 rounded w-2/3"></div>
+                                        <div class="col-span-2 h-4 bg-gray-700/50 rounded w-1/2 ml-auto"></div>
+                                        <div class="col-span-2 h-4 bg-gray-700/50 rounded w-2/3"></div>
+                                        <div class="col-span-2 h-8 bg-gray-700/50 rounded w-16 mx-auto"></div>
+                                    </div>
+                                    <div class="grid grid-cols-12 gap-4 items-center">
+                                        <div class="col-span-4 flex gap-3 items-center">
+                                            <div class="h-9 w-9 bg-gray-700/50 rounded-full"></div>
+                                            <div class="space-y-2 flex-1">
+                                                <div class="h-4 bg-gray-700/50 rounded w-2/3"></div>
+                                                <div class="h-3 bg-gray-700/50 rounded w-1/3"></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-span-2 h-4 bg-gray-700/50 rounded w-1/2"></div>
+                                        <div class="col-span-2 h-4 bg-gray-700/50 rounded w-3/4 ml-auto"></div>
+                                        <div class="col-span-2 h-4 bg-gray-700/50 rounded w-1/2"></div>
+                                        <div class="col-span-2 h-8 bg-gray-700/50 rounded w-16 mx-auto"></div>
+                                    </div>
+                                    <div class="grid grid-cols-12 gap-4 items-center">
+                                        <div class="col-span-4 flex gap-3 items-center">
+                                            <div class="h-9 w-9 bg-gray-700/50 rounded-full"></div>
+                                            <div class="space-y-2 flex-1">
+                                                <div class="h-4 bg-gray-700/50 rounded w-3/4"></div>
+                                                <div class="h-3 bg-gray-700/50 rounded w-2/3"></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-span-2 h-4 bg-gray-700/50 rounded w-2/3"></div>
+                                        <div class="col-span-2 h-4 bg-gray-700/50 rounded w-1/2 ml-auto"></div>
+                                        <div class="col-span-2 h-4 bg-gray-700/50 rounded w-1/3"></div>
+                                        <div class="col-span-2 h-8 bg-gray-700/50 rounded w-16 mx-auto"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -198,6 +267,30 @@
                                 </div>
 
                                 <div class="flex-1 overflow-y-auto custom-scroll p-3 space-y-3" id="listaVencidos">
+                                    <div class="animate-pulse space-y-4 p-2">
+                                        <div class="bg-gray-800/30 border border-gray-700/20 rounded-lg p-3 space-y-2">
+                                            <div class="flex justify-between items-center">
+                                                <div class="h-4 bg-gray-700/50 rounded w-1/2"></div>
+                                                <div class="h-4 bg-gray-700/50 rounded w-1/4"></div>
+                                            </div>
+                                            <div class="h-3 bg-gray-700/50 rounded w-1/3"></div>
+                                            <div class="flex justify-between items-center pt-2">
+                                                <div class="h-4 bg-gray-700/50 rounded w-1/4"></div>
+                                                <div class="h-6 bg-gray-700/50 rounded w-1/3"></div>
+                                            </div>
+                                        </div>
+                                        <div class="bg-gray-800/30 border border-gray-700/20 rounded-lg p-3 space-y-2">
+                                            <div class="flex justify-between items-center">
+                                                <div class="h-4 bg-gray-700/50 rounded w-1/3"></div>
+                                                <div class="h-4 bg-gray-700/50 rounded w-1/4"></div>
+                                            </div>
+                                            <div class="h-3 bg-gray-700/50 rounded w-1/2"></div>
+                                            <div class="flex justify-between items-center pt-2">
+                                                <div class="h-4 bg-gray-700/50 rounded w-1/3"></div>
+                                                <div class="h-6 bg-gray-700/50 rounded w-1/4"></div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -230,6 +323,8 @@
         let recibosGlobales = [];
         let diasFiltro = 7;
         let logMap = new Map();
+        let chartRecaudacionInstance = null;
+        let chartAseguradorasInstance = null;
 
         const TIPO_CORTO_MSG = {
             cobranza_7_dias_antes: '7d antes',
@@ -368,6 +463,235 @@
 
             filtrarDias(diasFiltro);
             renderVencidos();
+            actualizarGraficosPayTracker(polizas, mesActual, anioActual);
+        }
+
+        function actualizarGraficosPayTracker(polizas, mesActual, anioActual) {
+            const diasEnMes = new Date(anioActual, mesActual + 1, 0).getDate();
+            const recaudadoPorDia = new Array(diasEnMes).fill(0);
+            const metaFinal = 50000;
+
+            (polizas || []).forEach((p) => {
+                if (p.estado === 'cancelada' || p.restringida === true) return;
+
+                const f = p.finanzas || {};
+                const numPagos = parseInt(f.formaPago) || 1;
+                const primaTotal = parseFloat(p.prima) || parseFloat(f.primaTotal) || 0;
+                const montoRecibo = primaTotal / numPagos;
+
+                const estadosPagos = p.pagos_status || [];
+                const pagosDetalle = f.pagos_detalle || [];
+
+                for (let i = 0; i < numPagos; i++) {
+                    const pagado = estadosPagos[i] === true;
+
+                    if (pagado) {
+                        let montoRealRecibo = montoRecibo;
+                        if (pagosDetalle[i] && pagosDetalle[i].total) {
+                            montoRealRecibo = parseFloat(pagosDetalle[i].total);
+                        }
+
+                        let fechaRealPago = null;
+                        if (p.pagos_fechas && p.pagos_fechas[i]) {
+                            fechaRealPago = new Date(p.pagos_fechas[i] + "T12:00:00");
+                        } else {
+                            let fechaPagoEst = new Date(f.inicio + "T12:00:00");
+                            fechaPagoEst.setMonth(fechaPagoEst.getMonth() + (i * (12 / numPagos)));
+                            fechaRealPago = fechaPagoEst;
+                        }
+
+                        if (fechaRealPago.getMonth() === mesActual && fechaRealPago.getFullYear() === anioActual) {
+                            const dia = fechaRealPago.getDate();
+                            if (dia >= 1 && dia <= diasEnMes) {
+                                recaudadoPorDia[dia - 1] += montoRealRecibo;
+                            }
+                        }
+                    }
+                }
+            });
+
+            const acumuladoPorDia = [];
+            let sumaAcumulada = 0;
+            for (let d = 0; d < diasEnMes; d++) {
+                sumaAcumulada += recaudadoPorDia[d];
+                acumuladoPorDia.push(sumaAcumulada);
+            }
+
+            const metaProgresiva = [];
+            for (let d = 0; d < diasEnMes; d++) {
+                metaProgresiva.push((metaFinal / diasEnMes) * (d + 1));
+            }
+
+            // 1. Gráfico de Línea
+            const canvasL = document.getElementById('chartEvolucionRecaudacion');
+            if (canvasL) {
+                const ctxRecaudacion = canvasL.getContext('2d');
+                if (chartRecaudacionInstance) {
+                    chartRecaudacionInstance.destroy();
+                }
+
+                const gradientBlue = ctxRecaudacion.createLinearGradient(0, 0, 0, 200);
+                gradientBlue.addColorStop(0, 'rgba(59, 130, 246, 0.4)');
+                gradientBlue.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+
+                chartRecaudacionInstance = new Chart(ctxRecaudacion, {
+                    type: 'line',
+                    data: {
+                        labels: Array.from({length: diasEnMes}, (_, i) => `${i + 1}`),
+                        datasets: [
+                            {
+                                label: 'Recaudado (MXN)',
+                                data: acumuladoPorDia,
+                                borderColor: '#3b82f6',
+                                borderWidth: 3,
+                                backgroundColor: gradientBlue,
+                                fill: true,
+                                tension: 0.35,
+                                pointBackgroundColor: '#3b82f6',
+                                pointHoverRadius: 6
+                            },
+                            {
+                                label: 'Meta Prog.',
+                                data: metaProgresiva,
+                                borderColor: 'rgba(148, 163, 184, 0.3)',
+                                borderWidth: 1.5,
+                                borderDash: [4, 4],
+                                fill: false,
+                                pointRadius: 0
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    color: '#94a3b8',
+                                    boxWidth: 10,
+                                    font: { size: 10, family: 'Inter' }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: '#1f242e',
+                                titleColor: '#fff',
+                                bodyColor: '#e2e8f0',
+                                borderColor: '#2d3442',
+                                borderWidth: 1,
+                                callbacks: {
+                                    label: function(context) {
+                                        return ' ' + context.dataset.label + ': ' + formatoMoneda(context.parsed.y);
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#64748b', font: { size: 9 } }
+                            },
+                            y: {
+                                grid: { color: 'rgba(45, 52, 66, 0.4)' },
+                                ticks: {
+                                    color: '#64748b',
+                                    font: { size: 9 },
+                                    callback: function(value) {
+                                        return '$' + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 2. Gráfico de Dona
+            const canvasD = document.getElementById('chartCarteraAseguradoras');
+            if (canvasD) {
+                const ctxAseguradoras = canvasD.getContext('2d');
+                if (chartAseguradorasInstance) {
+                    chartAseguradorasInstance.destroy();
+                }
+
+                const importesPorAseguradora = {};
+                recibosGlobales.forEach(r => {
+                    const ase = (r.aseguradora || 'Otros').trim().toUpperCase();
+                    importesPorAseguradora[ase] = (importesPorAseguradora[ase] || 0) + r.monto;
+                });
+
+                const labelsAse = Object.keys(importesPorAseguradora);
+                const dataAse = Object.values(importesPorAseguradora);
+
+                const coloresAse = [
+                    '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#f97316', '#a855f7', '#ef4444'
+                ];
+
+                if (labelsAse.length === 0) {
+                    chartAseguradorasInstance = new Chart(ctxAseguradoras, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Sin pendientes'],
+                            datasets: [{
+                                data: [1],
+                                backgroundColor: ['#2d3442'],
+                                borderWidth: 1,
+                                borderColor: '#1f242e'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: { enabled: false }
+                            },
+                            cutout: '70%'
+                        }
+                    });
+                } else {
+                    chartAseguradorasInstance = new Chart(ctxAseguradoras, {
+                        type: 'doughnut',
+                        data: {
+                            labels: labelsAse,
+                            datasets: [{
+                                data: dataAse,
+                                backgroundColor: coloresAse.slice(0, labelsAse.length),
+                                borderWidth: 2,
+                                borderColor: '#1f242e'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'right',
+                                    labels: {
+                                        color: '#94a3b8',
+                                        font: { size: 9, family: 'Inter' },
+                                        boxWidth: 8
+                                    }
+                                },
+                                tooltip: {
+                                    backgroundColor: '#1f242e',
+                                    titleColor: '#fff',
+                                    bodyColor: '#e2e8f0',
+                                    borderColor: '#2d3442',
+                                    borderWidth: 1,
+                                    callbacks: {
+                                        label: function(context) {
+                                            return ' ' + context.label + ': ' + formatoMoneda(context.parsed);
+                                        }
+                                    }
+                                }
+                            },
+                            cutout: '65%'
+                        }
+                    });
+                }
+            }
         }
 
         function filtrarDias(dias) {
@@ -385,7 +709,7 @@
             const datosStr = JSON.stringify(r).replace(/"/g, '&quot;');
             const badgeDom = r.domiciliada ? `<span class="text-[9px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded ml-1">🏦 Dom.</span>` : '';
             return `
-            <div class="grid grid-cols-12 gap-4 px-4 py-3 hover:bg-[#1a202a] border-b border-[#2d3442]/50 transition-colors items-center group rounded-lg mx-2">
+            <div class="grid grid-cols-12 gap-4 px-4 py-3 hover:bg-[#1a202a] border-b border-[#2d3442]/50 transition-all duration-200 ease-in-out hover:shadow-lg hover:shadow-black/25 hover:scale-[1.006] items-center group rounded-lg mx-2">
                 <div class="col-span-4 flex items-center gap-3">
                     <div class="overflow-hidden">
                         <p class="text-white text-sm font-medium truncate">${r.cliente}${badgeDom}</p>
@@ -435,7 +759,7 @@
             const datosStr = JSON.stringify(r).replace(/"/g, '&quot;');
             const badgeDom = r.domiciliada ? `<span class="text-[9px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded ml-1">🏦 Dom.</span>` : '';
             return `
-            <div class="${r.domiciliada ? 'bg-[#120f1f] border border-purple-500/10' : 'bg-[#1f0f0f] border border-red-500/10'} rounded-lg p-3 hover:border-${r.domiciliada ? 'purple' : 'red'}-500/30 transition-all group">
+            <div class="${r.domiciliada ? 'bg-[#120f1f] border border-purple-500/10' : 'bg-[#1f0f0f] border border-red-500/10'} rounded-lg p-3 hover:border-${r.domiciliada ? 'purple' : 'red'}-500/40 hover:shadow-lg hover:shadow-black/25 hover:scale-[1.01] transition-all duration-200 ease-in-out group">
                 <div class="flex justify-between items-start mb-2">
                     <div>
                         <h4 class="text-white text-sm font-bold truncate w-40">${r.cliente}${badgeDom}</h4>

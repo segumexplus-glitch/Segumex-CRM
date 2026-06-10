@@ -9,6 +9,7 @@
     <script src="supabase-client.js"></script>
     <script src="finanzas.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
@@ -94,6 +95,32 @@
                         </div>
                     </div>
 
+                    <!-- SECCIÓN VISUAL DE GRÁFICOS (COMISIONES) -->
+                    <div id="seccionVisualComisiones" class="grid grid-cols-1 md:grid-cols-3 gap-5 shrink-0">
+                        <div class="bg-surface-card border border-[#2d3442] rounded-xl p-5 flex flex-col justify-between h-[280px]">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="text-white font-bold text-sm flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-green-400 text-lg">pie_chart</span>
+                                    Estatus de Comisiones
+                                </h4>
+                            </div>
+                            <div class="flex-1 relative min-h-0 flex items-center justify-center">
+                                <canvas id="chartEstatusComisiones" class="max-h-[180px]"></canvas>
+                            </div>
+                        </div>
+                        <div class="md:col-span-2 bg-surface-card border border-[#2d3442] rounded-xl p-5 flex flex-col justify-between h-[280px]">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="text-white font-bold text-sm flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-primary text-lg">bar_chart</span>
+                                    Comisiones Ganadas por Aseguradora
+                                </h4>
+                            </div>
+                            <div class="flex-1 relative min-h-0">
+                                <canvas id="chartComisionesAseguradoras"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Tabs -->
                     <div class="flex border-b border-[#2d3442] shrink-0">
                         <button id="tabPendientes" onclick="cambiarTab('pendientes')"
@@ -175,6 +202,8 @@
         let _columnasConfig = [];
         let _modalPolizaId  = null;
         let _modalIdx       = null;
+        let chartEstatusInstance = null;
+        let chartComisionesAseInstance = null;
 
         const MESES_LARGO = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
         const MESES_CORTO = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -184,7 +213,26 @@
         // ============================================================
         async function init() {
             await cargarColumnasConfig();
+            mostrarSkeletonsComisiones();
             await cargarComisiones();
+        }
+
+        function mostrarSkeletonsComisiones() {
+            let skeletonHtml = '';
+            for (let r = 0; r < 4; r++) {
+                skeletonHtml += `
+                <div class="flex items-center px-4 py-3 border-b border-[#2d3442]/50 min-w-max animate-pulse">
+                    <div class="w-36 shrink-0"><div class="h-4 bg-gray-700/50 rounded w-4/5"></div></div>
+                    <div class="w-32 shrink-0"><div class="h-4 bg-gray-700/50 rounded w-2/3"></div></div>
+                    <div class="w-24 shrink-0"><div class="h-4 bg-gray-700/50 rounded w-1/2"></div></div>
+                    <div class="w-32 shrink-0"><div class="h-4 bg-gray-700/50 rounded w-3/4"></div></div>
+                    <div class="w-28 shrink-0 text-right"><div class="h-4 bg-gray-700/50 rounded w-1/2 ml-auto"></div></div>
+                    ${_columnasConfig.map(() => `<div class="w-28 shrink-0"><div class="h-4 bg-gray-700/50 rounded w-1/2 ml-auto"></div></div>`).join('')}
+                    <div class="w-52 shrink-0 flex items-center justify-center"><div class="h-8 bg-gray-700/50 rounded w-20"></div></div>
+                </div>`;
+            }
+            document.getElementById('listaComisiones').innerHTML = skeletonHtml;
+            document.getElementById('listaAclaracion').innerHTML = skeletonHtml;
         }
 
         // ============================================================
@@ -310,6 +358,158 @@
             } else {
                 seccion.classList.add('hidden');
             }
+
+            actualizarGraficosComisiones(tC, tP, tA, polizasDB);
+        }
+
+        function actualizarGraficosComisiones(tC, tP, tA, polizasDB) {
+            // 1. Gráfico de Dona: Estatus de Comisiones
+            const canvasE = document.getElementById('chartEstatusComisiones');
+            if (canvasE) {
+                const ctxEst = canvasE.getContext('2d');
+                if (chartEstatusInstance) {
+                    chartEstatusInstance.destroy();
+                }
+
+                chartEstatusInstance = new Chart(ctxEst, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Cobradas', 'Por Conciliar', 'En Aclaración'],
+                        datasets: [{
+                            data: [tC, tP, tA],
+                            backgroundColor: ['#10b981', '#3b82f6', '#f59e0b'],
+                            borderWidth: 2,
+                            borderColor: '#1f242e'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    color: '#94a3b8',
+                                    font: { size: 10, family: 'Inter' },
+                                    boxWidth: 10
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: '#1f242e',
+                                titleColor: '#fff',
+                                bodyColor: '#e2e8f0',
+                                borderColor: '#2d3442',
+                                borderWidth: 1,
+                                callbacks: {
+                                    label: function(context) {
+                                        return ' ' + context.label + ': ' + formatoMoneda(context.parsed);
+                                    }
+                                }
+                            }
+                        },
+                        cutout: '65%'
+                    }
+                });
+            }
+
+            // 2. Gráfico de Barras Horizontal: Comisiones por Aseguradora
+            const canvasA = document.getElementById('chartComisionesAseguradoras');
+            if (canvasA) {
+                const ctxAse = canvasA.getContext('2d');
+                if (chartComisionesAseInstance) {
+                    chartComisionesAseInstance.destroy();
+                }
+
+                const comisionesPorAseguradora = {};
+                (polizasDB || []).forEach(p => {
+                    if (p.restringida === true || !p.pagos_status) return;
+                    const num = parseInt(p.finanzas?.formaPago) || 1;
+                    const monto = window.SegumexFinanzas.calcularComision(p.finanzas?.primaNeta, num, p.finanzas?.comisionPct);
+                    const pagosDetalle = p.finanzas?.pagos_detalle || [];
+
+                    p.pagos_status.forEach((pagado, idx) => {
+                        if (pagado !== true) return;
+                        let montoReal = monto;
+                        if (pagosDetalle[idx]?.comision !== undefined) {
+                            montoReal = parseFloat(pagosDetalle[idx].comision);
+                        }
+                        const ase = (p.aseguradora || 'Otros').trim().toUpperCase();
+                        comisionesPorAseguradora[ase] = (comisionesPorAseguradora[ase] || 0) + montoReal;
+                    });
+                });
+
+                const labelsAse = Object.keys(comisionesPorAseguradora);
+                const dataAse = Object.values(comisionesPorAseguradora);
+
+                if (labelsAse.length === 0) {
+                    chartComisionesAseInstance = new Chart(ctxAse, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Sin comisiones'],
+                            datasets: [{
+                                data: [0],
+                                backgroundColor: '#2d3442'
+                            }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+                } else {
+                    chartComisionesAseInstance = new Chart(ctxAse, {
+                        type: 'bar',
+                        data: {
+                            labels: labelsAse,
+                            datasets: [{
+                                label: 'Ganado (MXN)',
+                                data: dataAse,
+                                backgroundColor: '#3b82f6',
+                                borderRadius: 6,
+                                borderWidth: 0,
+                                barThickness: 14
+                            }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: '#1f242e',
+                                    titleColor: '#fff',
+                                    bodyColor: '#e2e8f0',
+                                    borderColor: '#2d3442',
+                                    borderWidth: 1,
+                                    callbacks: {
+                                        label: function(context) {
+                                            return ' ' + context.dataset.label + ': ' + formatoMoneda(context.parsed.x);
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    grid: { color: 'rgba(45, 52, 66, 0.4)' },
+                                    ticks: {
+                                        color: '#64748b',
+                                        font: { size: 9 },
+                                        callback: function(value) { return '$' + value.toLocaleString(); }
+                                    }
+                                },
+                                y: {
+                                    grid: { display: false },
+                                    ticks: { color: '#e2e8f0', font: { size: 10, weight: 'bold' } }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        }
         }
 
         // ============================================================
@@ -428,7 +628,7 @@
             const rowBg      = esAclaracion ? 'hover:bg-yellow-500/5' : 'hover:bg-[#1a202a]';
 
             return `
-            <div class="flex items-center px-4 py-3 ${rowBg} border-b border-[#2d3442]/50 min-w-max">
+            <div class="flex items-center px-4 py-3 ${rowBg} border-b border-[#2d3442]/50 min-w-max transition-all duration-150 ease-in-out hover:scale-[1.002] hover:shadow-sm">
                 <div class="w-36 shrink-0 text-sm text-white font-medium truncate" title="${nombreCli}">
                     ${nombreCli}${notaBadge}
                 </div>

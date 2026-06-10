@@ -80,51 +80,49 @@
                     </button>
                 </div>
             </div>
-            <div id="renovacionInfoBanner" class="hidden mb-6"></div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div id="renovacionInfoBanner" class="hidden mb-6"             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
                 <div class="lg:col-span-2 space-y-6">
                     
-                    <div class="bg-surface-card border border-[#3b4354] rounded-xl p-6 relative overflow-hidden">
+                    <div id="cardAseguradora" class="bg-surface-card border border-[#3b4354] rounded-xl p-6 relative overflow-hidden animate-pulse">
                         <div class="flex items-start justify-between">
                             <div class="flex gap-4">
                                 <div id="iconContainer" class="size-14 rounded-xl flex items-center justify-center bg-[#282e39] text-white">
                                     <span class="material-symbols-outlined text-3xl">verified</span>
                                 </div>
-                                <div>
+                                <div class="space-y-2">
                                     <p class="text-[#9da6b9] text-xs font-bold uppercase tracking-wider">Aseguradora</p>
-                                    <h2 class="text-xl font-bold text-white mt-1" id="txtAseguradora">---</h2>
-                                    <p class="text-primary text-sm font-medium mt-1" id="txtRamo">---</p>
+                                    <h2 class="text-xl font-bold text-white mt-1" id="txtAseguradora"><span class="inline-block bg-gray-700/50 rounded h-5 w-28"></span></h2>
+                                    <p class="text-primary text-sm font-medium mt-1" id="txtRamo"><span class="inline-block bg-gray-700/50 rounded h-4 w-16"></span></p>
                                 </div>
                             </div>
-                            <div class="text-right">
+                            <div class="text-right space-y-2">
                                 <p class="text-[#9da6b9] text-xs font-bold uppercase tracking-wider">Prima Total</p>
-                                <h2 class="text-2xl font-bold text-white mt-1" id="txtPrimaTotal">$0.00</h2>
-                                <p class="text-[#9da6b9] text-xs mt-1" id="txtFormaPago">Anual</p>
+                                <h2 class="text-2xl font-bold text-white mt-1" id="txtPrimaTotal"><span class="inline-block bg-gray-700/50 rounded h-6 w-24"></span></h2>
+                                <p class="text-[#9da6b9] text-xs mt-1" id="txtFormaPago"><span class="inline-block bg-gray-700/50 rounded h-3.5 w-16 mt-0.5"></span></p>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mt-8 pt-6 border-t border-[#3b4354]">
                             <div>
                                 <p class="text-[#9da6b9] text-xs mb-1">Inicio Vigencia</p>
-                                <p class="text-white font-mono" id="txtInicio">---</p>
+                                <p class="text-white font-mono" id="txtInicio"><span class="inline-block bg-gray-700/50 rounded h-4 w-20"></span></p>
                             </div>
                             <div>
                                 <p class="text-[#9da6b9] text-xs mb-1">Fin Vigencia</p>
-                                <p class="text-white font-mono" id="txtFin">---</p>
+                                <p class="text-white font-mono" id="txtFin"><span class="inline-block bg-gray-700/50 rounded h-4 w-20"></span></p>
                             </div>
                             <div>
                                 <p class="text-[#9da6b9] text-xs mb-1">No. Póliza</p>
-                                <p class="text-white font-mono" id="txtNumero">---</p>
+                                <p class="text-white font-mono" id="txtNumero"><span class="inline-block bg-gray-700/50 rounded h-4 w-24"></span></p>
                             </div>
                             <div>
                                 <p class="text-[#9da6b9] text-xs mb-1">Inciso</p>
-                                <p class="text-white font-mono" id="txtInciso">1</p>
+                                <p class="text-white font-mono" id="txtInciso"><span class="inline-block bg-gray-700/50 rounded h-4 w-6"></span></p>
                             </div>
                             <div>
                                 <p class="text-[#9da6b9] text-xs mb-1">Agente Responsable</p>
-                                <p class="text-primary font-bold" id="txtAgente">---</p>
+                                <p class="text-primary font-bold" id="txtAgente"><span class="inline-block bg-gray-700/50 rounded h-4 w-20"></span></p>
                             </div>
                         </div>
                     </div>
@@ -153,8 +151,14 @@
                             </div>
                         </div>
                         <input type="file" id="inputDocDetalle" accept=".pdf" class="hidden" onchange="handleDocFileSelectedDetalle(event)">
-                        <div id="listaDocumentos" class="space-y-2">
-                            <p class="text-[#9da6b9] text-sm italic">No hay documentos adjuntos.</p>
+                        <div id="listaDocumentos" class="space-y-2 animate-pulse">
+                            <div class="flex items-center gap-3 p-3 bg-[#111318] border border-[#3b4354] rounded-lg">
+                                <div class="h-5 w-5 bg-gray-700/50 rounded"></div>
+                                <div class="flex-1 space-y-2">
+                                    <div class="h-4 bg-gray-700/50 rounded w-1/3"></div>
+                                    <div class="h-3 bg-gray-700/50 rounded w-1/4"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -162,11 +166,11 @@
 
                 <div class="space-y-6">
                     
-                    <div class="bg-[#111318] border border-[#3b4354] rounded-xl p-4 flex items-center gap-3">
-                        <div class="size-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold" id="avatarCliente">U</div>
-                        <div class="overflow-hidden">
+                    <div id="cardClienteMini" class="bg-[#111318] border border-[#3b4354] rounded-xl p-4 flex items-center gap-3 animate-pulse">
+                        <div class="size-10 rounded-full bg-gray-700/50 flex items-center justify-center text-white font-bold" id="avatarCliente">U</div>
+                        <div class="overflow-hidden flex-1 space-y-1">
                             <p class="text-[#9da6b9] text-xs uppercase font-bold">Titular</p>
-                            <p class="text-white font-bold truncate" id="nombreCliente">---</p>
+                            <p class="text-white font-bold truncate" id="nombreCliente"><span class="inline-block bg-gray-700/50 rounded h-4 w-24"></span></p>
                         </div>
                         <button onclick="contactarCliente()" class="ml-auto p-2 rounded-lg bg-[#282e39] hover:bg-green-500/20 hover:text-green-500 text-[#9da6b9] transition-colors">
                             <span class="material-symbols-outlined">chat</span>
@@ -190,8 +194,24 @@
                                         <th class="p-2 text-center">OK</th>
                                     </tr>
                                 </thead>
-                                <tbody id="tablaPagosMini" class="divide-y divide-[#2d3442]">
-                                    </tbody>
+                                <tbody id="tablaPagosMini" class="divide-y divide-[#2d3442] animate-pulse">
+                                    <tr>
+                                        <td class="p-2 text-center"><div class="h-4 bg-gray-700/50 rounded w-4 mx-auto"></div></td>
+                                        <td class="p-2"><div class="h-4 bg-gray-700/50 rounded w-14"></div></td>
+                                        <td class="p-2 text-right"><div class="h-4 bg-gray-700/50 rounded w-12 ml-auto"></div></td>
+                                        <td class="p-2 text-right"><div class="h-4 bg-gray-700/50 rounded w-12 ml-auto"></div></td>
+                                        <td class="p-2"><div class="h-4 bg-gray-700/50 rounded w-10 mx-auto"></div></td>
+                                        <td class="p-2 text-center"><div class="h-4 bg-gray-700/50 rounded w-4 mx-auto"></div></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="p-2 text-center"><div class="h-4 bg-gray-700/50 rounded w-4 mx-auto"></div></td>
+                                        <td class="p-2"><div class="h-4 bg-gray-700/50 rounded w-14"></div></td>
+                                        <td class="p-2 text-right"><div class="h-4 bg-gray-700/50 rounded w-12 ml-auto"></div></td>
+                                        <td class="p-2 text-right"><div class="h-4 bg-gray-700/50 rounded w-12 ml-auto"></div></td>
+                                        <td class="p-2"><div class="h-4 bg-gray-700/50 rounded w-10 mx-auto"></div></td>
+                                        <td class="p-2 text-center"><div class="h-4 bg-gray-700/50 rounded w-4 mx-auto"></div></td>
+                                    </tr>
+                                </tbody>
                             </table>
                         </div>
                     </div>
@@ -359,6 +379,7 @@
             document.getElementById('vPlacas').innerText = v.placas || '---';
             document.getElementById('vSerie').innerText = v.serie || '---';
         }
+        document.getElementById('cardAseguradora')?.classList.remove('animate-pulse');
 
         // --- CONSULTA CLIENTE RELACIONADO EN SUPABASE ---
         const { data: cliente } = await window.supabaseClient.from('clientes').select('nombre, apellido').eq('id', polizaData.cliente_id).single();
@@ -366,6 +387,7 @@
         clienteNombre = cliente ? `${cliente.nombre} ${cliente.apellido || ''}`.trim() : "Sin Titular Asignado";
         document.getElementById('nombreCliente').innerText = clienteNombre;
         document.getElementById('avatarCliente').innerText = clienteNombre.charAt(0).toUpperCase();
+        document.getElementById('cardClienteMini')?.classList.remove('animate-pulse');
 
         renderizarDocumentosDetalle();
 
@@ -373,6 +395,7 @@
         tablaPagos.innerHTML = '';
         
         if (polizaData.finanzas) {
+            document.getElementById('tablaPagosMini')?.classList.remove('animate-pulse');
             const numPagos = parseInt(polizaData.finanzas.formaPago) || 1;
             let pagadosCount = 0;
             let fechaProgramada = new Date(polizaData.finanzas.inicio + "T12:00:00");
@@ -408,7 +431,7 @@
                 const comisionFila = usarDetalle ? (pagosDetalle[i].comision || 0) : comisionBase;
 
                 tablaPagos.innerHTML += `
-                    <tr class="hover:bg-[#282e39] transition-colors">
+                    <tr class="hover:bg-[#282e39] transition-all duration-150 ease-in-out hover:scale-[1.01]">
                         <td class="p-2 text-[#9da6b9] text-center">${i+1}</td>
                         <td class="p-2 text-white">${fechaStr}</td>
                         <td class="p-2 text-white font-medium text-right">$${montoFila.toFixed(2)}</td>
@@ -518,6 +541,7 @@
     // ============================================================
     function renderizarDocumentosDetalle() {
         const docsDiv = document.getElementById('listaDocumentos');
+        docsDiv.classList.remove('animate-pulse');
         const docs = polizaData?.documentos || [];
         if (docs.length === 0) {
             docsDiv.innerHTML = '<p class="text-[#9da6b9] text-sm italic">No hay documentos adjuntos.</p>';
@@ -539,7 +563,7 @@
                 ? `<button onclick="abrirDocumento('${safePath}', '${safeNombre}')" class="text-[#9da6b9] hover:text-white transition-colors" title="Ver / Descargar"><span class="material-symbols-outlined text-[20px]">download</span></button>`
                 : '<span class="text-[#9da6b9] text-xs italic">Sin archivo</span>';
             docsDiv.innerHTML += `
-                <div class="flex items-center gap-3 p-3 bg-[#111318] border border-[#3b4354] rounded-lg group">
+                <div class="flex items-center gap-3 p-3 bg-[#111318] border border-[#3b4354] rounded-lg transition-all duration-150 ease-in-out hover:scale-[1.01] hover:border-primary/40 hover:shadow-md group">
                     <span class="material-symbols-outlined text-red-400">picture_as_pdf</span>
                     <div class="flex-1 overflow-hidden">
                         <div class="flex items-center gap-2 flex-wrap">
