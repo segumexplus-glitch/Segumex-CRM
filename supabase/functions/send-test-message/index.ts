@@ -68,10 +68,10 @@ Deno.serve(async (req) => {
         }
 
         const body = await req.json();
-        const { tipo_mensaje, telefono, data_real, mensaje, pdf_url, pdf_nombre } = body;
+        const { tipo_mensaje, telefono, data_real, mensaje: bodyMensaje, pdf_url, pdf_nombre } = body;
 
         // ── MODO DIRECTO: mensaje + opcional pdf_url (multicotización, etc.) ──
-        if (mensaje && telefono && !tipo_mensaje) {
+        if (bodyMensaje && telefono && !tipo_mensaje) {
             const digits = telefono.replace(/\D/g, '');
             if (digits.length !== 10) throw new Error('El teléfono debe tener 10 dígitos');
             const chatId = `521${digits}@c.us`;
@@ -82,14 +82,14 @@ Deno.serve(async (req) => {
                 waRes = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ chatId, urlFile: pdf_url, fileName: pdf_nombre || 'multicotizacion.pdf', caption: mensaje })
+                    body: JSON.stringify({ chatId, urlFile: pdf_url, fileName: pdf_nombre || 'multicotizacion.pdf', caption: bodyMensaje })
                 });
             } else {
                 const url = `${greenBaseUrl()}/sendMessage/${GREEN_API_TOKEN}`;
                 waRes = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ chatId, message: mensaje })
+                    body: JSON.stringify({ chatId, message: bodyMensaje })
                 });
             }
 
